@@ -18,32 +18,38 @@ export default function Home() {
       <section id="how-it-works" className="w-full max-w-4xl mb-24">
         <h2 className="text-2xl font-semibold text-center mb-10 text-gray-900">How it works</h2>
         <div className="flex flex-col md:flex-row justify-center items-stretch gap-8">
+          {/* Step 1: Upload candidate info */}
           <div className="flex-1 bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center transition-transform hover:-translate-y-1 hover:shadow-md">
             <div className="mb-4">
               <span className="inline-block bg-gradient-to-br from-emerald-400 to-blue-400 p-3 rounded-full">
-                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path fill="#fff" d="M19 7v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1Zm-1 6a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3a1 1 0 0 1 1-1h12Z"/></svg>
+                {/* Upload icon */}
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path fill="#fff" d="M12 16V4m0 0l-4 4m4-4l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="4" y="16" width="16" height="4" rx="2" fill="#fff" fillOpacity=".2"/></svg>
               </span>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Upload a Task</h3>
-            <p className="text-base text-gray-600">Choose a real coding challenge for your candidate to solve.</p>
+            <h3 className="text-xl font-semibold mb-2">Upload candidate info</h3>
+            <p className="text-base text-gray-600">Start by entering or uploading your candidate&apos;s details.</p>
           </div>
+          {/* Step 2: Validate reference check */}
           <div className="flex-1 bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center transition-transform hover:-translate-y-1 hover:shadow-md">
             <div className="mb-4">
               <span className="inline-block bg-gradient-to-br from-emerald-400 to-blue-400 p-3 rounded-full">
-                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path fill="#fff" d="M12 20a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm-1-7V7h2v6h-2Zm0 4v-2h2v2h-2Z"/></svg>
+                {/* Shield/Check icon */}
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 5.25-3.5 9.74-7 11-3.5-1.26-7-5.75-7-11V7l7-4z" fill="#fff" fillOpacity=".8"/><path d="M9.5 12.5l2 2 3-3" stroke="#16b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </span>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Candidate Submits</h3>
-            <p className="text-base text-gray-600">They complete the task in a secure, monitored environment.</p>
+            <h3 className="text-xl font-semibold mb-2">Validate reference check</h3>
+            <p className="text-base text-gray-600">We contact references and verify the candidate&apos;s background for you.</p>
           </div>
+          {/* Step 3: Get trust score */}
           <div className="flex-1 bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center transition-transform hover:-translate-y-1 hover:shadow-md">
             <div className="mb-4">
               <span className="inline-block bg-gradient-to-br from-emerald-400 to-blue-400 p-3 rounded-full">
-                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path fill="#fff" d="M9 17l-5-5 1.41-1.41L9 14.17l9.59-9.59L20 6l-11 11Z"/></svg>
+                {/* Gauge/Star icon */}
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity=".8"/><path d="M12 6v6l4 2" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 17.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z" stroke="#3b82f6" strokeWidth="2"/></svg>
               </span>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Get Results</h3>
-            <p className="text-base text-gray-600">Review detailed reports and make confident hiring decisions.</p>
+            <h3 className="text-xl font-semibold mb-2">Get trust score</h3>
+            <p className="text-base text-gray-600">Receive an instant, easy-to-understand trust score for your candidate.</p>
           </div>
         </div>
       </section>
@@ -63,7 +69,7 @@ export default function Home() {
           <div className="mb-4">
             <Image src="/avatar.png" alt="User avatar" width={56} height={56} className="rounded-full" />
           </div>
-          <blockquote className="text-lg text-gray-700 italic mb-2">“ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.”</blockquote>
+          <blockquote className="text-lg text-gray-700 italic mb-2">&quot;ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.&quot;</blockquote>
           <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
         </div>
       </section>
