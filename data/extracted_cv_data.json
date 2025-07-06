@@ -1,0 +1,49 @@
+{
+  "lastName": "Jaldevik",
+  "firstName": "Albin",
+  "address": "",
+  "email": "albin@jaldevik.com",
+  "phone": "+46 72-210 76 58",
+  "linkedin": "linkedin.com/in/albin-jaldevik",
+  "github": "",
+  "personalWebsite": "",
+  "professionalSummary": "",
+  "jobTitle": "",
+  "school": "",
+  "schoolLowerCase": "",
+  "promotionYear": 0,
+  "professionalExperiences": [],
+  "otherExperiences": [],
+  "educations": [],
+  "hardSkills": [],
+  "softSkills": [],
+  "languages": [
+    {
+      "language": "English",
+      "proficiency": "Fluent"
+    },
+    {
+      "language": "Swedish",
+      "proficiency": "Fluent"
+    }
+  ],
+  "publications": [
+    {
+      "title": "Blocking Ideals",
+      "date": 2025
+    }
+  ],
+  "distinctions": [
+    "Qualified and represented Sweden in two world championships in dinghy sailing (Italy 2016 + Spain 2017)",
+    "Winner of project of the year in the course Object Oriented Programming in Java (200+ students)",
+    "Winner of course competition in Data Structures and Algorithms (150+ students)",
+    "Scored 1.75 (top 1.3 %) on the Swedish university entrance exam (Högskoleprovet)",
+    "Nova 111 Student List Sweden 2023 and 4Potentials Student of the year 2024"
+  ],
+  "hobbies": [],
+  "references": [],
+  "certifications": [],
+  "totalProfessionalExperience": 0,
+  "totalOtherExperience": 0,
+  "totalEducation": 0
+}

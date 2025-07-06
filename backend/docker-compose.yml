@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  cv-processor:
+    build: .
+    container_name: cv-processor
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - NODE_ENV=production
+    volumes:
+      # Mount data directory for CV files
+      - ../data:/app/data:ro
+      # Mount output directory for results
+      - ./output:/app/output
+      # Mount temp directory for processing
+      - cv-temp:/app/temp_images
+    networks:
+      - cv-network
+    restart: unless-stopped
+
+volumes:
+  cv-temp:
+
+networks:
+  cv-network:
+    driver: bridge

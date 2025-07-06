@@ -1,0 +1,32 @@
+{
+  "name": "le-commit-backend",
+  "version": "1.0.0",
+  "description": "Backend for CV processing with Groq Vision API",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only cv/cv.ts",
+    "start": "node dist/cv/cv.js"
+  },
+  "dependencies": {
+    "groq-sdk": "^0.8.0",
+    "pdf-lib": "^1.17.1",
+    "pdf2pic": "^3.1.1",
+    "sharp": "^0.33.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "ts-node-dev": "^2.0.0"
+  },
+  "keywords": [
+    "cv",
+    "pdf",
+    "ocr",
+    "groq",
+    "vision",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT"
+}
