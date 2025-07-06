@@ -30,7 +30,16 @@ export async function POST(request: NextRequest) {
     const callResponse = await client.conversationalAi.twilio.outboundCall({
       agentId: process.env.ELEVENLABS_AGENT_ID!,
       agentPhoneNumberId: process.env.ELEVENLABS_AGENT_PHONE_ID!,
-      toNumber: phoneNumber
+      toNumber: phoneNumber,
+      conversationInitiationClientData: {
+        dynamicVariables: {
+          candidate_name: candidateName,
+          reference_name: referenceName,
+          company_name: companyName || '',
+          role_title: roleTitle || '',
+          work_duration: workDuration || ''
+        }
+      }
     });
 
     console.log('ElevenLabs call initiated successfully:', {
