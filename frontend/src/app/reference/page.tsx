@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { useRouter } from "next/navigation";
+import TranscriptModal from "../../components/TranscriptModal";
 
 interface Reference {
   id: string;
@@ -38,6 +39,15 @@ export default function ReferencePage() {
   const [references, setReferences] = useState<Reference[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [callInProgress, setCallInProgress] = useState(false);
+  const [transcriptModal, setTranscriptModal] = useState<{
+    isOpen: boolean;
+    conversationId: string;
+    referenceName: string;
+  }>({
+    isOpen: false,
+    conversationId: '',
+    referenceName: ''
+  });
   const [formData, setFormData] = useState<ReferenceFormData>({
     name: '',
     phoneNumber: '',
@@ -88,6 +98,24 @@ export default function ReferencePage() {
       workDuration: ''
     });
     setShowForm(false);
+  };
+
+  const handleViewTranscript = (reference: Reference) => {
+    if (reference.conversationId) {
+      setTranscriptModal({
+        isOpen: true,
+        conversationId: reference.conversationId,
+        referenceName: reference.name
+      });
+    }
+  };
+
+  const closeTranscriptModal = () => {
+    setTranscriptModal({
+      isOpen: false,
+      conversationId: '',
+      referenceName: ''
+    });
   };
 
   const handleCallReference = async (reference: Reference) => {
@@ -367,6 +395,16 @@ export default function ReferencePage() {
                     >
                       {getCallButtonText(reference.callStatus)}
                     </Button>
+                    {reference.callStatus === 'completed' && reference.conversationId && (
+                      <Button
+                        onClick={() => handleViewTranscript(reference)}
+                        variant="outline"
+                        size="sm"
+                        className="whitespace-nowrap"
+                      >
+                        📄 View
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -391,6 +429,14 @@ export default function ReferencePage() {
           </div>
         )}
       </section>
+
+      {/* Transcript Modal */}
+      <TranscriptModal 
+        isOpen={transcriptModal.isOpen}
+        onClose={closeTranscriptModal}
+        conversationId={transcriptModal.conversationId}
+        referenceName={transcriptModal.referenceName}
+      />
     </main>
   );
 } 
