@@ -1,8 +1,15 @@
 'use client';
 
 import { Button } from "../../components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  const handleReferenceCheck = () => {
+    router.push('/reference');
+  };
+
   return (
     <main className="flex flex-col items-center w-full min-h-screen pt-32 pb-12 px-4 bg-gradient-to-b from-white via-slate-50 to-white">
       <section className="w-full max-w-6xl mx-auto">
@@ -112,7 +119,7 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-bold text-white">Ready to proceed with reference check?</h2>
           </div>
           <p className="text-white/90 mb-6 text-lg">Get detailed insights from previous employers and colleagues</p>
-          <Button size="lg" className="bg-white text-emerald-600 hover:bg-gray-100 px-8 py-3 text-xl font-semibold rounded-2xl">
+          <Button onClick={handleReferenceCheck} size="lg" className="bg-white text-emerald-600 hover:bg-gray-100 px-8 py-3 text-xl font-semibold rounded-2xl">
             Start Reference Check
           </Button>
         </div>
