@@ -60,7 +60,7 @@ export default function ReferenceCallForm({
           error: data.error || 'Failed to initiate call' 
         });
       }
-    } catch (error) {
+    } catch {
       setResult({ 
         success: false, 
         error: 'Network error occurred' 
@@ -212,11 +212,11 @@ export default function ReferenceCallForm({
       <div className="mt-6 text-xs text-gray-500">
         <p className="font-medium mb-2">🎯 AI will ask natural questions like:</p>
         <ul className="list-disc list-inside space-y-1">
-          <li>"In what context did you work with [Candidate] at [Company]?"</li>
-          <li>"Can you share any projects you remember [Candidate] working on?"</li>
-          <li>"How would you describe [Candidate]'s work style?"</li>
-          <li>"What were [Candidate]'s main strengths?"</li>
-          <li>"Would you work with [Candidate] again?"</li>
+          <li>&quot;In what context did you work with [Candidate] at [Company]?&quot;</li>
+          <li>&quot;Can you share any projects you remember [Candidate] working on?&quot;</li>
+          <li>&quot;How would you describe [Candidate]&apos;s work style?&quot;</li>
+          <li>&quot;What were [Candidate]&apos;s main strengths?&quot;</li>
+          <li>&quot;Would you work with [Candidate] again?&quot;</li>
         </ul>
         <p className="mt-2 text-blue-600 font-medium">
           💬 Simple, friendly conversation - just like talking to a colleague!

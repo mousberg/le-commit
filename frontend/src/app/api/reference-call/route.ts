@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+
+// Initialize ElevenLabs client
+const client = new ElevenLabsClient({ 
+  apiKey: process.env.ELEVENLABS_API_KEY!
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Creating reference call for:', { 
+    console.log('Initiating ElevenLabs outbound call for:', { 
       candidateName, 
       referenceName, 
       phoneNumber,
@@ -20,112 +26,41 @@ export async function POST(request: NextRequest) {
       workDuration 
     });
 
-    // Make call using ElevenLabs Conversational Agent API
-    const callResponse = await initiateElevenLabsCall(
-      phoneNumber,
-      candidateName, 
-      referenceName, 
-      companyName, 
-      roleTitle, 
-      workDuration
-    );
-    
-    if (!callResponse.success) {
-      throw new Error(`Failed to initiate call: ${callResponse.error}`);
-    }
+    // Make outbound call using ElevenLabs native API
+    const callResponse = await client.conversationalAi.twilio.outboundCall({
+      agentId: process.env.ELEVENLABS_AGENT_ID!,
+      agentPhoneNumberId: process.env.ELEVENLABS_AGENT_PHONE_ID!,
+      toNumber: phoneNumber
+    });
 
-    // Store call details for tracking
-    console.log('Call initiated:', {
+    console.log('ElevenLabs call initiated successfully:', {
       conversationId: callResponse.conversationId,
-      candidateName,
-      referenceName,
-      timestamp: new Date().toISOString(),
+      callSid: callResponse.callSid,
+      success: callResponse.success,
+      message: callResponse.message
     });
 
     return NextResponse.json({
       success: true,
       conversationId: callResponse.conversationId,
-      message: 'Reference call initiated with ElevenLabs agent',
+      callSid: callResponse.callSid,
+      message: callResponse.message || 'Reference call initiated successfully',
       candidateName,
       referenceName,
+      phoneNumber,
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error('Error making reference call:', error);
+    console.error('Error making ElevenLabs outbound call:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
     return NextResponse.json(
-      { error: `Failed to initiate reference call: ${errorMessage}` },
+      { 
+        error: `Failed to initiate reference call: ${errorMessage}`,
+        success: false 
+      },
       { status: 500 }
     );
-  }
-}
-
-async function initiateElevenLabsCall(
-  phoneNumber: string,
-  candidateName: string, 
-  referenceName: string, 
-  companyName?: string, 
-  roleTitle?: string, 
-  workDuration?: string
-) {
-  try {
-    // Create dynamic context for the conversation
-    const context = {
-      candidate_name: candidateName,
-      reference_name: referenceName,
-      company_name: companyName || 'their previous workplace',
-      role_title: roleTitle || 'their role',
-      work_duration: workDuration || 'some time'
-    };
-
-    // Call ElevenLabs Conversational Agent API
-    const response = await fetch('https://api.elevenlabs.io/v1/convai/conversation', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': process.env.ELEVENLABS_API_KEY!,
-      },
-      body: JSON.stringify({
-        agent_id: process.env.ELEVENLABS_AGENT_ID!,
-        user_id: `reference_${Date.now()}`,
-        phone_number_id: process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID!,
-        phone_number: phoneNumber,
-        context: context,
-        // Pass variables to the agent
-        variables: {
-          candidate_name: candidateName,
-          reference_name: referenceName,
-          company_name: companyName || 'their previous workplace',
-          role_title: roleTitle || 'their role',
-          work_duration: workDuration || 'some time'
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    console.log('ElevenLabs call initiated:', {
-      conversationId: data.conversation_id,
-      candidateName,
-      referenceName,
-      context,
-    });
-
-    return {
-      success: true,
-      conversationId: data.conversation_id,
-      context,
-    };
-  } catch (error) {
-    console.error('Error calling ElevenLabs API:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return {
-      success: false,
-      error: errorMessage,
-    };
   }
 } 
