@@ -10,22 +10,22 @@ export const LINKEDIN_SIGNALS: Signal[] = [
   },
   {
     name: 'linkedin_account_age',
-    description: 'Account creation date is reasonable (not suspiciously recent)',
+    description: 'Account creation date is more than 1 year old',
     importance: 0.7,
     requiresCV: false,
     requiresLinkedIn: true
   },
   {
     name: 'linkedin_job_history_match',
-    description: 'Job titles and dates match CV with realistic tenure at each company',
-    importance: 0.95,
+    description: 'Job titles and dates match CV with tenure at each company of more than 3 months',
+    importance: 0.8,
     requiresCV: true,
     requiresLinkedIn: true
   },
   {
     name: 'linkedin_company_verification',
     description: 'Companies mentioned have existing LinkedIn pages and are real organizations',
-    importance: 0.8,
+    importance: 0.9,
     requiresCV: false,
     requiresLinkedIn: true
   },
@@ -38,8 +38,8 @@ export const LINKEDIN_SIGNALS: Signal[] = [
   },
   {
     name: 'linkedin_connection_count',
-    description: 'Has reasonable number of connections (30-50+ indicates authentic profile)',
-    importance: 0.6,
+    description: 'Has more than 50 connections',
+    importance: 0.4,
     requiresCV: false,
     requiresLinkedIn: true
   },
@@ -52,19 +52,12 @@ export const LINKEDIN_SIGNALS: Signal[] = [
   },
   {
     name: 'linkedin_engagement_activity',
-    description: 'Shows authentic activity: posts, likes, comments (not a ghost account)',
-    importance: 0.5,
+    description: 'Shows authentic activity: posts, likes, comments',
+    importance: 0.4,
     requiresCV: false,
     requiresLinkedIn: true
   },
-  {
-    name: 'linkedin_recommendations_authenticity',
-    description: 'Recommendations appear genuine and from real profiles',
-    importance: 0.6,
-    requiresCV: false,
-    requiresLinkedIn: true
-  }
-];
+
 
 export const CV_SIGNALS: Signal[] = [
   {
@@ -84,31 +77,12 @@ export const CV_SIGNALS: Signal[] = [
   {
     name: 'cv_project_specificity',
     description: 'Project descriptions are specific and technical, not just buzzwords',
-    importance: 0.7,
+    importance: 0.3,
     requiresCV: true,
     requiresLinkedIn: false
   },
-  {
-    name: 'cv_technology_stack_plausibility',
-    description: 'Lists real technologies with plausible and coherent tech stacks',
-    importance: 0.8,
-    requiresCV: true,
-    requiresLinkedIn: false
-  },
-  {
-    name: 'cv_template_originality',
-    description: 'Avoids AI-generated templates and shows original formatting',
-    importance: 0.4,
-    requiresCV: true,
-    requiresLinkedIn: false
-  },
-  {
-    name: 'cv_grammar_consistency',
-    description: 'Consistent grammar, writing style, and name usage throughout',
-    importance: 0.5,
-    requiresCV: true,
-    requiresLinkedIn: false
-  },
+
+
   {
     name: 'cv_contact_info_consistency',
     description: 'Email matches GitHub/LinkedIn or shows obvious consistency',
@@ -116,20 +90,8 @@ export const CV_SIGNALS: Signal[] = [
     requiresCV: true,
     requiresLinkedIn: true
   },
-  {
-    name: 'cv_experience_depth',
-    description: 'Experience descriptions show deep understanding of roles and responsibilities',
-    importance: 0.75,
-    requiresCV: true,
-    requiresLinkedIn: false
-  },
-  {
-    name: 'cv_skills_relevance',
-    description: 'Skills listed are relevant to experiences and not just keyword stuffing',
-    importance: 0.6,
-    requiresCV: true,
-    requiresLinkedIn: false
-  }
+
+
 ];
 
 export const COMBINED_SIGNALS: Signal[] = [
