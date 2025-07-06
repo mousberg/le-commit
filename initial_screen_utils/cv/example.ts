@@ -7,14 +7,14 @@ import * as path from 'path'
 async function exampleUsage() {
   try {
     // Path to the example CV PDF
-    const pdfPath = path.join(__dirname, '../../data/exampleLinkedin/albin-linkedin.pdf')
+    const pdfPath = path.join(__dirname, '../../data/exampleCVs/JosephineP-cv.pdf')
 
     // Process the CV PDF
     console.log('Starting CV processing...')
     const cvData = await processCvPdf(pdfPath)
 
     // Save the extracted data to JSON
-    const outputPath = path.join(__dirname, '../data/extracted_cv_data.json')
+    const outputPath = path.join(__dirname, '../../data/extracted_cv_data.json')
     saveCvDataToJson(cvData, outputPath)
 
     // Display summary

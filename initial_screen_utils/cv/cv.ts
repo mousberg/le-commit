@@ -598,6 +598,12 @@ function isValidEmail(email: string): boolean {
  */
 export function saveCvDataToJson(cvData: CvData, outputPath: string): void {
   try {
+    // Ensure the directory exists
+    const dir = path.dirname(outputPath)
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
+
     const jsonData = JSON.stringify(cvData, null, 2)
     fs.writeFileSync(outputPath, jsonData, 'utf8')
     console.log(`CV data saved to: ${outputPath}`)
