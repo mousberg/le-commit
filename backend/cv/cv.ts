@@ -12,6 +12,130 @@ const groq = new Groq({
 })
 
 /**
+ * Generate JSON schema from CvData interface for the AI model
+ * @returns JSON schema object
+ */
+function getCvDataSchema() {
+  return {
+    type: "object",
+    properties: {
+      lastName: { type: "string" },
+      firstName: { type: "string" },
+      address: { type: "string" },
+      email: { type: "string" },
+      phone: { type: "string" },
+      linkedin: { type: "string" },
+      github: { type: "string" },
+      personalWebsite: { type: "string" },
+      professionalSummary: { type: "string" },
+      jobTitle: { type: "string" },
+      school: { type: "string" },
+      schoolLowerCase: { type: "string" },
+      promotionYear: { type: "number" },
+      professionalExperiences: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            companyName: { type: "string" },
+            title: { type: "string" },
+            location: { type: "string" },
+            type: {
+              type: "string",
+              enum: ["PERMANENT_CONTRACT", "SELF_EMPLOYED", "FREELANCE", "FIXED_TERM_CONTRACT",
+                     "INTERNSHIP", "APPRENTICESHIP", "PERFORMING_ARTS_INTERMITTENT",
+                     "PART_TIME_PERMANENT", "CIVIC_SERVICE", "PART_TIME_FIXED_TERM",
+                     "SUPPORTED_EMPLOYMENT", "CIVIL_SERVANT", "TEMPORARY_WORKER", "ASSOCIATIVE"]
+            },
+            startDate: { type: "number" },
+            endDate: { type: "number" },
+            duration: { type: "number" },
+            ongoing: { type: "boolean" },
+            description: { type: "string" },
+            associatedSkills: { type: "array", items: { type: "string" } }
+          }
+        }
+      },
+      otherExperiences: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            companyName: { type: "string" },
+            title: { type: "string" },
+            location: { type: "string" },
+            type: {
+              type: "string",
+              enum: ["PERMANENT_CONTRACT", "SELF_EMPLOYED", "FREELANCE", "FIXED_TERM_CONTRACT",
+                     "INTERNSHIP", "APPRENTICESHIP", "PERFORMING_ARTS_INTERMITTENT",
+                     "PART_TIME_PERMANENT", "CIVIC_SERVICE", "PART_TIME_FIXED_TERM",
+                     "SUPPORTED_EMPLOYMENT", "CIVIL_SERVANT", "TEMPORARY_WORKER", "ASSOCIATIVE"]
+            },
+            startDate: { type: "number" },
+            endDate: { type: "number" },
+            duration: { type: "number" },
+            ongoing: { type: "boolean" },
+            description: { type: "string" },
+            associatedSkills: { type: "array", items: { type: "string" } }
+          }
+        }
+      },
+      educations: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            degree: { type: "string" },
+            institution: { type: "string" },
+            location: { type: "string" },
+            startDate: { type: "number" },
+            endDate: { type: "number" },
+            duration: { type: "number" },
+            ongoing: { type: "boolean" },
+            description: { type: "string" },
+            associatedSkills: { type: "array", items: { type: "string" } }
+          }
+        }
+      },
+      hardSkills: { type: "array", items: { type: "string" } },
+      softSkills: { type: "array", items: { type: "string" } },
+      languages: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            language: { type: "string" },
+            level: {
+              type: "string",
+              enum: ["BASIC_KNOWLEDGE", "LIMITED_PROFESSIONAL", "PROFESSIONAL",
+                     "FULL_PROFESSIONAL", "NATIVE_BILINGUAL"]
+            }
+          }
+        }
+      },
+      publications: { type: "array", items: { type: "string" } },
+      distinctions: { type: "array", items: { type: "string" } },
+      hobbies: { type: "array", items: { type: "string" } },
+      references: { type: "array", items: { type: "string" } },
+      certifications: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            issuer: { type: "string" },
+            issuedDate: { type: "number" }
+          }
+        }
+      },
+      totalProfessionalExperience: { type: "number" },
+      totalOtherExperience: { type: "number" },
+      totalEducation: { type: "number" }
+    }
+  }
+}
+
+/**
  * Convert PDF to images (one per page)
  * @param pdfPath - Path to the PDF file
  * @param outputDir - Directory to save the images
@@ -111,56 +235,22 @@ export async function optimizeImageForOCR(
 export async function extractCvDataFromImage(imagePath: string): Promise<Partial<CvData>> {
   try {
     const base64Image = encodeImageToBase64(imagePath)
+    const schema = getCvDataSchema()
 
-    const systemPrompt = `You are a professional CV/Resume parser. Extract all relevant information from the CV image and return it as a JSON object.
+    const systemPrompt = `You are a CV/Resume parser. Extract information from the CV image and return it as JSON following the provided schema exactly.
 
-    Important instructions:
-    - Extract dates in YYYY format for years (e.g., 2023)
-    - Calculate duration in months between start and end dates
-    - Determine if positions/education are ongoing based on "Present", "Current", or similar indicators
-    - Classify contract types based on job descriptions and context
-    - Assess language proficiency levels based on descriptions
-    - Extract skills, separating hard/technical skills from soft skills
-    - Include all contact information, experiences, education, certifications, etc.
-    - Use empty strings for missing text fields and 0 for missing numeric fields
-    - Use empty arrays for missing array fields
-    - Be thorough and accurate in extraction`
+Rules:
+- Use YYYY format for dates (e.g., 2023)
+- Calculate duration in months between start/end dates
+- Set ongoing=true for current positions/education
+- Use empty strings for missing text, 0 for missing numbers, empty arrays for missing lists
+- Calculate totals: sum all experience/education durations`
 
-    const userPrompt = `Please extract all CV information from this image and return it as a JSON object matching the CvData interface structure. Include:
+    const userPrompt = `Extract all CV information from this image and return it as JSON matching this exact schema:
 
-    Personal Information:
-    - Full name (firstName, lastName)
-    - Contact details (email, phone, address)
-    - Professional links (linkedin, github, personalWebsite)
-    - Professional summary and job title
+${JSON.stringify(schema, null, 2)}
 
-    Professional Experience:
-    - Company name, position title, location
-    - Start/end dates, duration in months
-    - Whether position is ongoing
-    - Job description and associated skills
-    - Contract type classification
-
-    Education:
-    - Degree, institution, location
-    - Start/end dates, duration in months
-    - Whether education is ongoing
-    - Description and associated skills
-
-    Skills & Additional Information:
-    - Hard skills (technical/professional)
-    - Soft skills (interpersonal/personal)
-    - Languages with proficiency levels
-    - Certifications with issuer and dates
-    - Publications, distinctions, hobbies
-    - References if mentioned
-
-    Calculate totals:
-    - Total professional experience in months
-    - Total other experience in months
-    - Total education duration in months
-
-    Return only valid JSON without any additional text or explanations.`
+Return only valid JSON, no explanations.`
 
     const completion = await groq.chat.completions.create({
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -186,10 +276,10 @@ export async function extractCvDataFromImage(imagePath: string): Promise<Partial
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.1,
     })
 
     const extractedData = JSON.parse(completion.choices[0]?.message?.content || '{}')
+    console.log(extractedData)
     return extractedData as Partial<CvData>
 
   } catch (error) {
