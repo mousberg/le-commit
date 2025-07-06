@@ -29,8 +29,13 @@ async function exampleUsage() {
     console.log(`Soft Skills: ${cvData.softSkills.length}`)
     console.log(`Languages: ${cvData.languages.length}`)
     console.log(`Certifications: ${cvData.certifications.length}`)
-    console.log(`Total Professional Experience: ${cvData.totalProfessionalExperience} months`)
-    console.log(`Total Education: ${cvData.totalEducation} months`)
+    // Calculate totals
+    const totalProfessionalExperience = cvData.professionalExperiences.reduce((sum, exp) => sum + exp.duration, 0)
+    const totalEducation = cvData.educations.reduce((sum, edu) => sum + edu.duration, 0)
+
+    console.log(`Total Professional Experience: ${totalProfessionalExperience} months`)
+    console.log(`Total Education: ${totalEducation} months`)
+    console.log(`Additional Information: ${Object.keys(cvData.other).length} items`)
 
     console.log('\n=== Processing Complete ===')
     console.log(`Full CV data saved to: ${outputPath}`)

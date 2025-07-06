@@ -9,9 +9,6 @@ export interface CvData {
   personalWebsite: string
   professionalSummary: string
   jobTitle: string
-  school: string
-  schoolLowerCase: string
-  promotionYear: number
   professionalExperiences: Experience[]
   otherExperiences: Experience[]
   educations: Education[]
@@ -23,9 +20,7 @@ export interface CvData {
   hobbies: string[]
   references: string[]
   certifications: Certification[]
-  totalProfessionalExperience: number
-  totalOtherExperience: number
-  totalEducation: number
+  other: Record<string, any> // Flexible field for any additional data
 }
 
 export interface Certification {

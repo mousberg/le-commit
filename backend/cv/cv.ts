@@ -1,4 +1,4 @@
-import { CvData } from '../interfaces'
+import { CvData, ContractType, LanguageLevel } from '../interfaces'
 import { Groq } from 'groq-sdk'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -12,126 +12,193 @@ const groq = new Groq({
 })
 
 /**
- * Generate JSON schema from CvData interface for the AI model
- * @returns JSON schema object
+ * Generate JSON schema for CvData interface
  */
 function getCvDataSchema() {
   return {
     type: "object",
+    description: "CV/Resume data structure",
     properties: {
-      lastName: { type: "string" },
-      firstName: { type: "string" },
-      address: { type: "string" },
-      email: { type: "string" },
-      phone: { type: "string" },
-      linkedin: { type: "string" },
-      github: { type: "string" },
-      personalWebsite: { type: "string" },
-      professionalSummary: { type: "string" },
-      jobTitle: { type: "string" },
-      school: { type: "string" },
-      schoolLowerCase: { type: "string" },
-      promotionYear: { type: "number" },
+      lastName: {
+        type: "string",
+        description: "Last name/surname of the person"
+      },
+      firstName: {
+        type: "string",
+        description: "First name/given name of the person"
+      },
+      address: {
+        type: "string",
+        description: "Full address or location"
+      },
+      email: {
+        type: "string",
+        description: "Email address"
+      },
+      phone: {
+        type: "string",
+        description: "Phone number"
+      },
+      linkedin: {
+        type: "string",
+        description: "LinkedIn profile URL or username"
+      },
+      github: {
+        type: "string",
+        description: "GitHub profile URL or username"
+      },
+      personalWebsite: {
+        type: "string",
+        description: "Personal website or portfolio URL"
+      },
+      professionalSummary: {
+        type: "string",
+        description: "Professional summary or objective statement"
+      },
+      jobTitle: {
+        type: "string",
+        description: "Current or desired job title"
+      },
       professionalExperiences: {
         type: "array",
+        description: "Professional work experiences",
         items: {
           type: "object",
           properties: {
-            companyName: { type: "string" },
-            title: { type: "string" },
-            location: { type: "string" },
+            companyName: { type: "string", description: "Company name" },
+            title: { type: "string", description: "Job title/position" },
+            location: { type: "string", description: "Work location" },
             type: {
               type: "string",
-              enum: ["PERMANENT_CONTRACT", "SELF_EMPLOYED", "FREELANCE", "FIXED_TERM_CONTRACT",
-                     "INTERNSHIP", "APPRENTICESHIP", "PERFORMING_ARTS_INTERMITTENT",
-                     "PART_TIME_PERMANENT", "CIVIC_SERVICE", "PART_TIME_FIXED_TERM",
-                     "SUPPORTED_EMPLOYMENT", "CIVIL_SERVANT", "TEMPORARY_WORKER", "ASSOCIATIVE"]
+              enum: Object.values(ContractType),
+              description: "Type of employment contract"
             },
-            startDate: { type: "number" },
-            endDate: { type: "number" },
-            duration: { type: "number" },
-            ongoing: { type: "boolean" },
-            description: { type: "string" },
-            associatedSkills: { type: "array", items: { type: "string" } }
+            startDate: { type: "number", description: "Start year (YYYY format)" },
+            endDate: { type: "number", description: "End year (YYYY format), 0 if ongoing" },
+            duration: { type: "number", description: "Duration in months" },
+            ongoing: { type: "boolean", description: "Whether the position is current/ongoing" },
+            description: { type: "string", description: "Job description and responsibilities" },
+            associatedSkills: {
+              type: "array",
+              items: { type: "string" },
+              description: "Skills used in this role"
+            }
           }
         }
       },
       otherExperiences: {
         type: "array",
+        description: "Other experiences (volunteering, projects, etc.)",
         items: {
           type: "object",
           properties: {
-            companyName: { type: "string" },
-            title: { type: "string" },
-            location: { type: "string" },
+            companyName: { type: "string", description: "Organization name" },
+            title: { type: "string", description: "Role/position title" },
+            location: { type: "string", description: "Location" },
             type: {
               type: "string",
-              enum: ["PERMANENT_CONTRACT", "SELF_EMPLOYED", "FREELANCE", "FIXED_TERM_CONTRACT",
-                     "INTERNSHIP", "APPRENTICESHIP", "PERFORMING_ARTS_INTERMITTENT",
-                     "PART_TIME_PERMANENT", "CIVIC_SERVICE", "PART_TIME_FIXED_TERM",
-                     "SUPPORTED_EMPLOYMENT", "CIVIL_SERVANT", "TEMPORARY_WORKER", "ASSOCIATIVE"]
+              enum: Object.values(ContractType),
+              description: "Type of engagement"
             },
-            startDate: { type: "number" },
-            endDate: { type: "number" },
-            duration: { type: "number" },
-            ongoing: { type: "boolean" },
-            description: { type: "string" },
-            associatedSkills: { type: "array", items: { type: "string" } }
+            startDate: { type: "number", description: "Start year (YYYY format)" },
+            endDate: { type: "number", description: "End year (YYYY format), 0 if ongoing" },
+            duration: { type: "number", description: "Duration in months" },
+            ongoing: { type: "boolean", description: "Whether ongoing" },
+            description: { type: "string", description: "Description of activities" },
+            associatedSkills: {
+              type: "array",
+              items: { type: "string" },
+              description: "Skills gained/used"
+            }
           }
         }
       },
       educations: {
         type: "array",
+        description: "Educational background",
         items: {
           type: "object",
           properties: {
-            degree: { type: "string" },
-            institution: { type: "string" },
-            location: { type: "string" },
-            startDate: { type: "number" },
-            endDate: { type: "number" },
-            duration: { type: "number" },
-            ongoing: { type: "boolean" },
-            description: { type: "string" },
-            associatedSkills: { type: "array", items: { type: "string" } }
-          }
-        }
-      },
-      hardSkills: { type: "array", items: { type: "string" } },
-      softSkills: { type: "array", items: { type: "string" } },
-      languages: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            language: { type: "string" },
-            level: {
-              type: "string",
-              enum: ["BASIC_KNOWLEDGE", "LIMITED_PROFESSIONAL", "PROFESSIONAL",
-                     "FULL_PROFESSIONAL", "NATIVE_BILINGUAL"]
+            degree: { type: "string", description: "Degree or qualification name" },
+            institution: { type: "string", description: "School/university name" },
+            location: { type: "string", description: "Institution location" },
+            startDate: { type: "number", description: "Start year (YYYY format)" },
+            endDate: { type: "number", description: "End year (YYYY format), 0 if ongoing" },
+            duration: { type: "number", description: "Duration in months" },
+            ongoing: { type: "boolean", description: "Whether currently studying" },
+            description: { type: "string", description: "Additional details about the education" },
+            associatedSkills: {
+              type: "array",
+              items: { type: "string" },
+              description: "Skills learned"
             }
           }
         }
       },
-      publications: { type: "array", items: { type: "string" } },
-      distinctions: { type: "array", items: { type: "string" } },
-      hobbies: { type: "array", items: { type: "string" } },
-      references: { type: "array", items: { type: "string" } },
-      certifications: {
+      hardSkills: {
         type: "array",
+        items: { type: "string" },
+        description: "Technical/professional skills"
+      },
+      softSkills: {
+        type: "array",
+        items: { type: "string" },
+        description: "Interpersonal/personal skills"
+      },
+      languages: {
+        type: "array",
+        description: "Language proficiencies",
         items: {
           type: "object",
           properties: {
-            title: { type: "string" },
-            issuer: { type: "string" },
-            issuedDate: { type: "number" }
+            language: { type: "string", description: "Language name" },
+            level: {
+              type: "string",
+              enum: Object.values(LanguageLevel),
+              description: "Proficiency level"
+            }
           }
         }
       },
-      totalProfessionalExperience: { type: "number" },
-      totalOtherExperience: { type: "number" },
-      totalEducation: { type: "number" }
-    }
+      publications: {
+        type: "array",
+        items: { type: "string" },
+        description: "Publications, papers, articles"
+      },
+      distinctions: {
+        type: "array",
+        items: { type: "string" },
+        description: "Awards, honors, recognitions"
+      },
+      hobbies: {
+        type: "array",
+        items: { type: "string" },
+        description: "Hobbies and interests"
+      },
+      references: {
+        type: "array",
+        items: { type: "string" },
+        description: "References or recommendations"
+      },
+      certifications: {
+        type: "array",
+        description: "Professional certifications",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Certification name" },
+            issuer: { type: "string", description: "Issuing organization" },
+            issuedDate: { type: "number", description: "Year issued (YYYY format)" }
+          }
+        }
+      },
+      other: {
+        type: "object",
+        description: "Any additional information not covered by other fields",
+        additionalProperties: true
+      }
+    },
+    required: ["lastName", "firstName", "professionalExperiences", "educations", "hardSkills", "softSkills", "languages", "certifications", "other"]
   }
 }
 
@@ -237,20 +304,23 @@ export async function extractCvDataFromImage(imagePath: string): Promise<Partial
     const base64Image = encodeImageToBase64(imagePath)
     const schema = getCvDataSchema()
 
-    const systemPrompt = `You are a CV/Resume parser. Extract information from the CV image and return it as JSON following the provided schema exactly.
+    const systemPrompt = `You are a CV/Resume parser. Extract information from the CV image and return it as JSON matching the provided schema.
 
-Rules:
-- Use YYYY format for dates (e.g., 2023)
-- Calculate duration in months between start/end dates
-- Set ongoing=true for current positions/education
-- Use empty strings for missing text, 0 for missing numbers, empty arrays for missing lists
-- Calculate totals: sum all experience/education durations`
+Instructions:
+- Extract dates as years (YYYY format)
+- Calculate duration in months for experiences/education
+- Mark ongoing positions/education with ongoing: true and endDate: 0
+- Classify contract types from available options
+- Separate technical skills (hardSkills) from interpersonal skills (softSkills)
+- Put any additional information not covered by other fields in the 'other' object
+- Use empty strings/arrays/objects for missing data, 0 for missing numbers
+- Return only valid JSON`
 
-    const userPrompt = `Extract all CV information from this image and return it as JSON matching this exact schema:
+    const userPrompt = `Extract all CV information from this image and return it as JSON matching this schema:
 
 ${JSON.stringify(schema, null, 2)}
 
-Return only valid JSON, no explanations.`
+Focus on accuracy and completeness. Put any information that doesn't fit the main fields into the 'other' object.`
 
     const completion = await groq.chat.completions.create({
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -341,9 +411,6 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     personalWebsite: '',
     professionalSummary: '',
     jobTitle: '',
-    school: '',
-    schoolLowerCase: '',
-    promotionYear: 0,
     professionalExperiences: [],
     otherExperiences: [],
     educations: [],
@@ -355,9 +422,7 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     hobbies: [],
     references: [],
     certifications: [],
-    totalProfessionalExperience: 0,
-    totalOtherExperience: 0,
-    totalEducation: 0,
+    other: {},
   }
 
   // Merge data from all sources
@@ -367,9 +432,6 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     // Merge simple fields (take first non-empty value)
     Object.keys(merged).forEach(key => {
       if (typeof merged[key as keyof CvData] === 'string' && !merged[key as keyof CvData] && data[key as keyof CvData]) {
-        (merged as any)[key] = data[key as keyof CvData]
-      }
-      if (typeof merged[key as keyof CvData] === 'number' && !merged[key as keyof CvData] && data[key as keyof CvData]) {
         (merged as any)[key] = data[key as keyof CvData]
       }
     })
@@ -408,18 +470,11 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     if (data.certifications) {
       merged.certifications = [...merged.certifications, ...data.certifications]
     }
-  }
 
-  // Calculate totals
-  merged.totalProfessionalExperience = merged.professionalExperiences.reduce((sum, exp) => sum + exp.duration, 0)
-  merged.totalOtherExperience = merged.otherExperiences.reduce((sum, exp) => sum + exp.duration, 0)
-  merged.totalEducation = merged.educations.reduce((sum, edu) => sum + edu.duration, 0)
-
-  // Set school fields
-  if (merged.educations.length > 0) {
-    merged.school = merged.educations[0].institution
-    merged.schoolLowerCase = merged.school.toLowerCase()
-    merged.promotionYear = merged.educations[0].endDate
+    // Merge other fields
+    if (data.other) {
+      merged.other = { ...merged.other, ...data.other }
+    }
   }
 
   return merged
@@ -492,9 +547,6 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
     personalWebsite: cvData.personalWebsite || '',
     professionalSummary: cvData.professionalSummary || '',
     jobTitle: cvData.jobTitle || '',
-    school: cvData.school || '',
-    schoolLowerCase: (cvData.school || '').toLowerCase(),
-    promotionYear: cvData.promotionYear || 0,
     professionalExperiences: cvData.professionalExperiences || [],
     otherExperiences: cvData.otherExperiences || [],
     educations: cvData.educations || [],
@@ -506,9 +558,7 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
     hobbies: cvData.hobbies || [],
     references: cvData.references || [],
     certifications: cvData.certifications || [],
-    totalProfessionalExperience: cvData.totalProfessionalExperience || 0,
-    totalOtherExperience: cvData.totalOtherExperience || 0,
-    totalEducation: cvData.totalEducation || 0,
+    other: cvData.other || {},
   }
 
   // Validate email format

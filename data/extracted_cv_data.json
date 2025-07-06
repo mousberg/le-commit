@@ -1,132 +1,156 @@
 {
   "lastName": "Jaldevik",
   "firstName": "Albin",
-  "address": "",
+  "address": "Delft, NL",
   "email": "albin@jaldevik.com",
   "phone": "+46 72-210 76 58",
   "linkedin": "linkedin.com/in/albin-jaldevik",
   "github": "",
   "personalWebsite": "",
   "professionalSummary": "",
-  "jobTitle": "",
-  "school": "Delft University of Technology",
-  "schoolLowerCase": "delft university of technology",
-  "promotionYear": 2024,
+  "jobTitle": "Quantitative Trading Analyst",
   "professionalExperiences": [
     {
       "companyName": "DRW",
       "title": "Quantitative Trading Analyst",
       "location": "London, UK",
-      "type": "",
+      "type": "PERMANENT_CONTRACT",
       "startDate": 2024,
       "endDate": 0,
       "duration": 0,
       "ongoing": true,
       "description": "Algorithmic trader on the equity options desk. Focused on US tech stock correlation",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Algorithmic Trading",
+        "Equity Options"
+      ]
     },
     {
       "companyName": "DRW",
       "title": "Quantitative Trading Analyst Intern",
-      "location": "",
-      "type": "",
+      "location": "London, UK",
+      "type": "INTERNSHIP",
       "startDate": 2023,
       "endDate": 2023,
-      "duration": 3,
+      "duration": 4,
       "ongoing": false,
       "description": "Worked directly with the director of equities to identify algorithmic trading opportunities",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Algorithmic Trading",
+        "Equity Analysis"
+      ]
     },
     {
       "companyName": "Veoneer (Acquired by Qualcomm)",
       "title": "Software Engineer Intern",
       "location": "Linköping, SE",
-      "type": "",
+      "type": "INTERNSHIP",
       "startDate": 2021,
       "endDate": 2021,
-      "duration": 2,
+      "duration": 3,
       "ongoing": false,
       "description": "Developed a tool allowing numerous developers to track their Git commits efficiently",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Software Development",
+        "Git"
+      ]
     },
     {
       "companyName": "We Know IT",
       "title": "Team Leader",
       "location": "Linköping, SE",
-      "type": "",
+      "type": "PART_TIME_FIXED_TERM",
       "startDate": 2020,
       "endDate": 2021,
       "duration": 13,
       "ongoing": false,
       "description": "In addition to consulting, actively managed clients, other consultants, and projects",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Team Management",
+        "Consulting"
+      ]
     },
     {
       "companyName": "We Know IT",
       "title": "IT Consultant",
-      "location": "",
-      "type": "",
+      "location": "Linköping, SE",
+      "type": "PART_TIME_FIXED_TERM",
       "startDate": 2019,
       "endDate": 2021,
-      "duration": 24,
+      "duration": 25,
       "ongoing": false,
       "description": "Technical lead on the team developing the platform place2place.se (Next.js)",
-      "associatedSkills": []
+      "associatedSkills": [
+        "IT Consulting",
+        "Next.js"
+      ]
     },
     {
       "companyName": "QrDesign",
       "title": "Co-Founder",
       "location": "Linköping, SE",
-      "type": "",
+      "type": "SELF_EMPLOYED",
       "startDate": 2019,
       "endDate": 2022,
-      "duration": 39,
+      "duration": 40,
       "ongoing": false,
       "description": "Selling in-house designed QR code artworks to individuals and businesses. Developed the e-commerce site from scratch in Angular and Node.js",
-      "associatedSkills": []
+      "associatedSkills": [
+        "E-commerce Development",
+        "QR Code Design"
+      ]
     },
     {
       "companyName": "Department of Mathematics, Linköping University",
       "title": "Teaching Assistant, Linear Algebra & Foundation Course in Mathematics",
       "location": "Linköping, SE",
-      "type": "",
+      "type": "PART_TIME_FIXED_TERM",
       "startDate": 2019,
       "endDate": 2020,
-      "duration": 13,
+      "duration": 14,
       "ongoing": false,
       "description": "Conducted 40+ lessons and graded 500+ assignments",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Teaching",
+        "Mathematics"
+      ]
     }
   ],
   "otherExperiences": [
     {
-      "companyName": "Link Dagarna – Computer Science Career Fair",
+      "companyName": "Link Dagarna - Computer Science Career Fair",
       "title": "Developer",
       "location": "Linköping, SE",
-      "type": "",
+      "type": "PART_TIME_FIXED_TERM",
       "startDate": 2020,
       "endDate": 2021,
       "duration": 12,
       "ongoing": false,
       "description": "Implemented various IT systems to support a fully digital fair during the pandemic",
-      "associatedSkills": []
+      "associatedSkills": [
+        "IT Development",
+        "Event Management"
+      ]
     },
     {
-      "companyName": "Webgroup, I-Sektionen – IT Student Association",
+      "companyName": "Webgroup, I-Sektionen - IT Student Association",
       "title": "Developer & President",
       "location": "Linköping, SE",
-      "type": "",
+      "type": "PART_TIME_FIXED_TERM",
       "startDate": 2018,
       "endDate": 2020,
-      "duration": 24,
+      "duration": 25,
       "ongoing": false,
       "description": "Managed a team of 10 developing a new version of i-portalen.se",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Team Management",
+        "Web Development"
+      ]
     }
   ],
   "educations": [
     {
-      "degree": "Master of Science in Computer Science – Artificial Intelligence Track",
+      "degree": "Master of Science in Computer Science - Artificial Intelligence Track",
       "institution": "Delft University of Technology",
       "location": "Delft, NL",
       "startDate": 2022,
@@ -134,7 +158,10 @@
       "duration": 24,
       "ongoing": false,
       "description": "Thesis: General Tree Evaluation for AlphaZero. GPA: 8.60 [10.0], Cum Laude (top 5 %), Cross enrolled in M.Sc. Applied Mathematics",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Artificial Intelligence",
+        "Computer Science"
+      ]
     },
     {
       "degree": "Bachelor of Science in Mathematics",
@@ -145,29 +172,38 @@
       "duration": 48,
       "ongoing": false,
       "description": "Thesis: A Study on Poset Probability. Publication (2025): Blocking Ideals. GPA: 4.74 [5.0]",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Mathematics",
+        "Probability Theory"
+      ]
     },
     {
       "degree": "Bachelor of Science in (Computer) Engineering",
-      "institution": "",
-      "location": "",
+      "institution": "Linköping University",
+      "location": "Linköping, SE",
       "startDate": 2018,
       "endDate": 2021,
       "duration": 36,
       "ongoing": false,
       "description": "Via the M.Sc. Industrial Engineering and Management program. Computer Science Orientation",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Computer Engineering",
+        "Industrial Engineering"
+      ]
     },
     {
-      "degree": "",
+      "degree": "Exchange",
       "institution": "National University of Singapore",
       "location": "Singapore, SG",
       "startDate": 2022,
       "endDate": 2022,
       "duration": 5,
       "ongoing": false,
-      "description": "Exchange. GPA: 4.50 [5.0]",
-      "associatedSkills": []
+      "description": "GPA: 4.50 [5.0]",
+      "associatedSkills": [
+        "International Experience",
+        "Cultural Exchange"
+      ]
     },
     {
       "degree": "",
@@ -175,10 +211,13 @@
       "location": "Stockholm, SE",
       "startDate": 2021,
       "endDate": 2022,
-      "duration": 6,
+      "duration": 5,
       "ongoing": false,
       "description": "Extra courses via the M.Sc. Engineering Physics program. GPA: 4.70 [5.0]",
-      "associatedSkills": []
+      "associatedSkills": [
+        "Engineering Physics",
+        "Extra Courses"
+      ]
     }
   ],
   "hardSkills": [
@@ -205,7 +244,8 @@
   "softSkills": [
     "Statistics",
     "Probability Theory",
-    "Data Visualisation"
+    "Data Visualisation",
+    "Fluent in English and Swedish"
   ],
   "languages": [
     {
@@ -217,12 +257,21 @@
       "level": "NATIVE_BILINGUAL"
     }
   ],
-  "publications": [],
-  "distinctions": [],
+  "publications": [
+    "Blocking Ideals"
+  ],
+  "distinctions": [
+    "Qualified and represented Sweden in two world championships in dinghy sailing (Italy 2016 + Spain 2017)",
+    "Winner of project of the year in the course Object Oriented Programming in Java (200+ students)",
+    "Winner of course competition in Data Structures and Algorithms (150+ students)",
+    "Scored 1.75 (top 1.3 %) on the Swedish university entrance exam (Högskoleprovet)",
+    "Nova 111 Student List Sweden 2023",
+    "4Potentials Student of the year 2024"
+  ],
   "hobbies": [],
   "references": [],
   "certifications": [],
-  "totalProfessionalExperience": 94,
-  "totalOtherExperience": 36,
-  "totalEducation": 119
+  "other": {
+    "Swedish citizenship": true
+  }
 }
