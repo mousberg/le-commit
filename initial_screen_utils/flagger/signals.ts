@@ -56,8 +56,8 @@ export const LINKEDIN_SIGNALS: Signal[] = [
     importance: 0.4,
     requiresCV: false,
     requiresLinkedIn: true
-  },
-
+  }
+];
 
 export const CV_SIGNALS: Signal[] = [
   {

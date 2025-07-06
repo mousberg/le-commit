@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only cv/cv.ts",
-    "start": "node dist/cv/cv.js"
+    "start": "node dist/cv/cv.js",
+    "test-evaluation": "ts-node flagger/test-evaluation.ts"
   },
   "dependencies": {
     "groq-sdk": "^0.8.0",
