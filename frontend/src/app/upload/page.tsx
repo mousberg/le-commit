@@ -1,12 +1,13 @@
 'use client';
 
-import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const linkedinInputRef = useRef<HTMLInputElement>(null);
+  const githubInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const handleSubmit = () => {
@@ -30,15 +31,25 @@ export default function UploadPage() {
               className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
             />
           </div>
-          {/* LinkedIn URL */}
+          {/* LinkedIn Profile Upload */}
           <div className="flex flex-col items-center gap-3 bg-slate-50 rounded-xl p-6 shadow-xs">
-            <label htmlFor="linkedin" className="text-lg font-medium text-gray-800 mb-2">LinkedIn Profile URL</label>
-            <Input id="linkedin" type="url" placeholder="https://linkedin.com/in/username" className="w-full max-w-md" />
+            <label className="text-lg font-medium text-gray-800 mb-2">Upload LinkedIn Profile</label>
+            <input
+              ref={linkedinInputRef}
+              type="file"
+              accept=".pdf,.html,.txt"
+              className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+            />
           </div>
-          {/* GitHub URL */}
+          {/* GitHub Profile Upload */}
           <div className="flex flex-col items-center gap-3 bg-slate-50 rounded-xl p-6 shadow-xs">
-            <label htmlFor="github" className="text-lg font-medium text-gray-800 mb-2">GitHub Profile URL</label>
-            <Input id="github" type="url" placeholder="https://github.com/username" className="w-full max-w-md" />
+            <label className="text-lg font-medium text-gray-800 mb-2">Upload GitHub Profile</label>
+            <input
+              ref={githubInputRef}
+              type="file"
+              accept=".pdf,.html,.txt"
+              className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+            />
           </div>
         </div>
         <Button onClick={handleSubmit} size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold mt-6">Analyse Profile</Button>

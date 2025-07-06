@@ -11,7 +11,7 @@ export default function Home() {
       <section className="w-full max-w-3xl text-center mb-24">
         <h1 className="text-5xl font-bold mb-6 text-gray-900">Trust your hiring process again.</h1>
         <p className="text-xl text-gray-700 mb-8">ShadowCheck helps you verify candidate skills with real-world coding tasks, so you can hire with confidence and speed.</p>
-        <Link href="/app">
+        <Link href="/upload">
           <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold">Try ShadowCheck</Button>
         </Link>
       </section>
