@@ -15,7 +15,7 @@ export default function Navbar() {
         <Link href="#testimonials" className="hover:text-primary transition-colors">Testimonials</Link>
       </div>
       <div className="ml-4">
-        <Link href="/app">
+        <Link href="/upload" target="_blank" rel="noopener noreferrer">
           <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-6 py-2 text-base font-semibold">Try ShadowCheck</Button>
         </Link>
       </div>
