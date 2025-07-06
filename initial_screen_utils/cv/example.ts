@@ -1,4 +1,4 @@
-import { processCvPdf, saveCvDataToJson } from './cv/cv'
+import { processCvPdf, saveCvDataToJson } from './cv'
 import * as path from 'path'
 
 /**
@@ -7,11 +7,11 @@ import * as path from 'path'
 async function exampleUsage() {
   try {
     // Path to the example CV PDF
-    const pdfPath = path.join(__dirname, '../data/exampleCVs/jaldevik-cv.pdf')
+    const pdfPath = path.join(__dirname, '../../data/exampleLinkedin/albin-linkedin.pdf')
 
     // Process the CV PDF
     console.log('Starting CV processing...')
-    const cvData = await processCvPdf(pdfPath, false)
+    const cvData = await processCvPdf(pdfPath)
 
     // Save the extracted data to JSON
     const outputPath = path.join(__dirname, '../data/extracted_cv_data.json')
