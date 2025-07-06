@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "le-commit",
-  description: "Hackathon project by le-commit team",
+  title: "NerdBuster - Anti-Cheating Interview Agent",
+  description: "Real-time interview anti-cheating agent for detecting lies and inconsistencies",
 };
 
 export default function RootLayout({

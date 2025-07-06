@@ -2,9 +2,9 @@
   <img src="frontend/public/logo.svg" alt="Le Commit" width="400" />
 </div>
 
-# LeCommit - AI-Powered Reference Calling
+# Le Commit - NerdBuster
 
-A web application that automates reference checking for recruiters using ElevenLabs Conversational AI and Twilio.
+A web application that features anti-cheating interview agent with real-time lie detection and AI-powered reference calling using ElevenLabs Conversational AI and Twilio.
 
 ## 🚀 Features
 
