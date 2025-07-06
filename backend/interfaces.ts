@@ -12,8 +12,7 @@ export interface CvData {
   professionalExperiences: Experience[]
   otherExperiences: Experience[]
   educations: Education[]
-  hardSkills: string[]
-  softSkills: string[]
+  skills: string[]
   languages: Language[]
   publications: string[]
   distinctions: string[]
@@ -26,7 +25,8 @@ export interface CvData {
 export interface Certification {
   title: string
   issuer: string
-  issuedDate: number
+  issuedYear: number
+  issuedMonth?: number // Optional month (1-12)
 }
 
 export interface Experience {
@@ -34,9 +34,10 @@ export interface Experience {
   title?: string
   location: string
   type: ContractType
-  startDate: number
-  endDate: number
-  duration: number // in months
+  startYear: number
+  startMonth?: number // Optional month (1-12)
+  endYear?: number // Optional if ongoing
+  endMonth?: number // Optional month (1-12)
   ongoing: boolean
   description: string
   associatedSkills: string[]
@@ -46,9 +47,10 @@ export interface Education {
   degree: string
   institution: string
   location: string
-  startDate: number
-  endDate: number
-  duration: number // in months
+  startYear: number
+  startMonth?: number // Optional month (1-12)
+  endYear?: number // Optional if ongoing
+  endMonth?: number // Optional month (1-12)
   ongoing: boolean
   description: string
   associatedSkills: string[]

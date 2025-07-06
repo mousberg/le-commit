@@ -73,9 +73,10 @@ function getCvDataSchema() {
               enum: Object.values(ContractType),
               description: "Type of employment contract"
             },
-            startDate: { type: "number", description: "Start year (YYYY format)" },
-            endDate: { type: "number", description: "End year (YYYY format), 0 if ongoing" },
-            duration: { type: "number", description: "Duration in months" },
+            startYear: { type: "number", description: "Start year (YYYY)" },
+            startMonth: { type: "number", minimum: 1, maximum: 12, description: "Start month (1-12), optional" },
+            endYear: { type: "number", description: "End year (YYYY), omit if ongoing" },
+            endMonth: { type: "number", minimum: 1, maximum: 12, description: "End month (1-12), optional" },
             ongoing: { type: "boolean", description: "Whether the position is current/ongoing" },
             description: { type: "string", description: "Job description and responsibilities" },
             associatedSkills: {
@@ -83,7 +84,8 @@ function getCvDataSchema() {
               items: { type: "string" },
               description: "Skills used in this role"
             }
-          }
+          },
+          required: ["title", "location", "type", "startYear", "ongoing", "description", "associatedSkills"]
         }
       },
       otherExperiences: {
@@ -100,9 +102,10 @@ function getCvDataSchema() {
               enum: Object.values(ContractType),
               description: "Type of engagement"
             },
-            startDate: { type: "number", description: "Start year (YYYY format)" },
-            endDate: { type: "number", description: "End year (YYYY format), 0 if ongoing" },
-            duration: { type: "number", description: "Duration in months" },
+            startYear: { type: "number", description: "Start year (YYYY)" },
+            startMonth: { type: "number", minimum: 1, maximum: 12, description: "Start month (1-12), optional" },
+            endYear: { type: "number", description: "End year (YYYY), omit if ongoing" },
+            endMonth: { type: "number", minimum: 1, maximum: 12, description: "End month (1-12), optional" },
             ongoing: { type: "boolean", description: "Whether ongoing" },
             description: { type: "string", description: "Description of activities" },
             associatedSkills: {
@@ -110,7 +113,8 @@ function getCvDataSchema() {
               items: { type: "string" },
               description: "Skills gained/used"
             }
-          }
+          },
+          required: ["title", "location", "type", "startYear", "ongoing", "description", "associatedSkills"]
         }
       },
       educations: {
@@ -122,9 +126,10 @@ function getCvDataSchema() {
             degree: { type: "string", description: "Degree or qualification name" },
             institution: { type: "string", description: "School/university name" },
             location: { type: "string", description: "Institution location" },
-            startDate: { type: "number", description: "Start year (YYYY format)" },
-            endDate: { type: "number", description: "End year (YYYY format), 0 if ongoing" },
-            duration: { type: "number", description: "Duration in months" },
+            startYear: { type: "number", description: "Start year (YYYY)" },
+            startMonth: { type: "number", minimum: 1, maximum: 12, description: "Start month (1-12), optional" },
+            endYear: { type: "number", description: "End year (YYYY), omit if ongoing" },
+            endMonth: { type: "number", minimum: 1, maximum: 12, description: "End month (1-12), optional" },
             ongoing: { type: "boolean", description: "Whether currently studying" },
             description: { type: "string", description: "Additional details about the education" },
             associatedSkills: {
@@ -132,18 +137,14 @@ function getCvDataSchema() {
               items: { type: "string" },
               description: "Skills learned"
             }
-          }
+          },
+          required: ["degree", "institution", "location", "startYear", "ongoing", "description", "associatedSkills"]
         }
       },
-      hardSkills: {
+      skills: {
         type: "array",
         items: { type: "string" },
-        description: "Technical/professional skills"
-      },
-      softSkills: {
-        type: "array",
-        items: { type: "string" },
-        description: "Interpersonal/personal skills"
+        description: "All skills (technical, professional, and soft skills)"
       },
       languages: {
         type: "array",
@@ -157,7 +158,8 @@ function getCvDataSchema() {
               enum: Object.values(LanguageLevel),
               description: "Proficiency level"
             }
-          }
+          },
+          required: ["language", "level"]
         }
       },
       publications: {
@@ -188,8 +190,10 @@ function getCvDataSchema() {
           properties: {
             title: { type: "string", description: "Certification name" },
             issuer: { type: "string", description: "Issuing organization" },
-            issuedDate: { type: "number", description: "Year issued (YYYY format)" }
-          }
+            issuedYear: { type: "number", description: "Year issued (YYYY)" },
+            issuedMonth: { type: "number", minimum: 1, maximum: 12, description: "Month issued (1-12), optional" }
+          },
+          required: ["title", "issuer", "issuedYear"]
         }
       },
       other: {
@@ -198,7 +202,7 @@ function getCvDataSchema() {
         additionalProperties: true
       }
     },
-    required: ["lastName", "firstName", "professionalExperiences", "educations", "hardSkills", "softSkills", "languages", "certifications", "other"]
+    required: ["lastName", "firstName", "professionalExperiences", "educations", "skills", "languages", "certifications", "other"]
   }
 }
 
@@ -307,11 +311,11 @@ export async function extractCvDataFromImage(imagePath: string): Promise<Partial
     const systemPrompt = `You are a CV/Resume parser. Extract information from the CV image and return it as JSON matching the provided schema.
 
 Instructions:
-- Extract dates as years (YYYY format)
-- Calculate duration in months for experiences/education
-- Mark ongoing positions/education with ongoing: true and endDate: 0
+- Extract years as integers (e.g., 2023) and months as integers 1-12 (e.g., 3 for March)
+- For ongoing positions/education: set ongoing: true and omit endYear/endMonth fields
+- Month fields (startMonth, endMonth, issuedMonth) are optional
 - Classify contract types from available options
-- Separate technical skills (hardSkills) from interpersonal skills (softSkills)
+- Combine all skills (technical, professional, soft skills) into the single 'skills' array
 - Put any additional information not covered by other fields in the 'other' object
 - Use empty strings/arrays/objects for missing data, 0 for missing numbers
 - Return only valid JSON`
@@ -414,8 +418,7 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     professionalExperiences: [],
     otherExperiences: [],
     educations: [],
-    hardSkills: [],
-    softSkills: [],
+    skills: [],
     languages: [],
     publications: [],
     distinctions: [],
@@ -446,11 +449,8 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     if (data.educations) {
       merged.educations = [...merged.educations, ...data.educations]
     }
-    if (data.hardSkills) {
-      merged.hardSkills = [...new Set([...merged.hardSkills, ...data.hardSkills])]
-    }
-    if (data.softSkills) {
-      merged.softSkills = [...new Set([...merged.softSkills, ...data.softSkills])]
+    if (data.skills) {
+      merged.skills = [...new Set([...merged.skills, ...data.skills])]
     }
     if (data.languages) {
       merged.languages = [...merged.languages, ...data.languages]
@@ -550,8 +550,7 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
     professionalExperiences: cvData.professionalExperiences || [],
     otherExperiences: cvData.otherExperiences || [],
     educations: cvData.educations || [],
-    hardSkills: cvData.hardSkills || [],
-    softSkills: cvData.softSkills || [],
+    skills: cvData.skills || [],
     languages: cvData.languages || [],
     publications: cvData.publications || [],
     distinctions: cvData.distinctions || [],
@@ -569,16 +568,14 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
   // Validate dates
   cleanData.professionalExperiences = cleanData.professionalExperiences.map(exp => ({
     ...exp,
-    startDate: exp.startDate || 0,
-    endDate: exp.endDate || 0,
-    duration: exp.duration || 0,
+    startYear: exp.startYear || 0,
+    endYear: exp.ongoing ? undefined : (exp.endYear || 0),
   }))
 
   cleanData.educations = cleanData.educations.map(edu => ({
     ...edu,
-    startDate: edu.startDate || 0,
-    endDate: edu.endDate || 0,
-    duration: edu.duration || 0,
+    startYear: edu.startYear || 0,
+    endYear: edu.ongoing ? undefined : (edu.endYear || 0),
   }))
 
   return cleanData

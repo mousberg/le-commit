@@ -23,19 +23,23 @@ async function exampleUsage() {
     console.log(`Email: ${cvData.email}`)
     console.log(`Phone: ${cvData.phone}`)
     console.log(`Job Title: ${cvData.jobTitle}`)
-    console.log(`Professional Experiences: ${cvData.professionalExperiences.length}`)
+        console.log(`Professional Experiences: ${cvData.professionalExperiences.length}`)
     console.log(`Education: ${cvData.educations.length}`)
-    console.log(`Hard Skills: ${cvData.hardSkills.length}`)
-    console.log(`Soft Skills: ${cvData.softSkills.length}`)
+    console.log(`Skills: ${cvData.skills.length}`)
     console.log(`Languages: ${cvData.languages.length}`)
     console.log(`Certifications: ${cvData.certifications.length}`)
-    // Calculate totals
-    const totalProfessionalExperience = cvData.professionalExperiences.reduce((sum, exp) => sum + exp.duration, 0)
-    const totalEducation = cvData.educations.reduce((sum, edu) => sum + edu.duration, 0)
-
-    console.log(`Total Professional Experience: ${totalProfessionalExperience} months`)
-    console.log(`Total Education: ${totalEducation} months`)
     console.log(`Additional Information: ${Object.keys(cvData.other).length} items`)
+
+    // Display date ranges for experiences
+    if (cvData.professionalExperiences.length > 0) {
+      console.log('\nProfessional Experience Timeline:')
+      cvData.professionalExperiences.forEach((exp, index) => {
+        const startDate = exp.startMonth ? `${exp.startMonth}/${exp.startYear}` : exp.startYear.toString()
+        const endDate = exp.ongoing ? 'Present' :
+          (exp.endYear ? (exp.endMonth ? `${exp.endMonth}/${exp.endYear}` : exp.endYear.toString()) : 'Unknown')
+        console.log(`  ${index + 1}. ${exp.title} at ${exp.companyName} (${startDate} - ${endDate})`)
+      })
+    }
 
     console.log('\n=== Processing Complete ===')
     console.log(`Full CV data saved to: ${outputPath}`)
