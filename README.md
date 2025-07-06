@@ -22,9 +22,9 @@ bun install
 bun dev
 ```
 
-# The project🕵️‍♂️ GhostBuster
+# The project🕵️‍♂️ LeCommit
 
-**GhostBuster** is a lightweight AI agent that helps hiring managers detect potentially fraudulent engineering candidates — before the interview even happens.
+**leCommit** is a lightweight AI agent that helps hiring managers detect potentially fraudulent engineering candidates — before the interview even happens.
 
 Built in 48 hours at [Hackathon Name], it uses LLMs, public profile data, and timeline analysis to flag suspicious candidates and generate smart follow-ups.
 
