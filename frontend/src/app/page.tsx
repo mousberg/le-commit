@@ -118,6 +118,22 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Testimonial Section */}
+      <section className="w-full max-w-2xl mb-24 flex flex-col items-center">
+        <h2 className="text-2xl font-semibold text-center mb-6 text-gray-900">What our users say</h2>
+        <div className="bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center border border-gray-200">
+          <div className="mb-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-blue-400 rounded-full flex items-center justify-center text-white text-lg font-bold">
+              AP
+            </div>
+          </div>
+          <blockquote className="text-lg text-gray-700 italic mb-2 text-center">
+            "ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews."
+          </blockquote>
+          <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="w-full max-w-3xl mx-auto text-center text-sm text-gray-400 pt-8 border-t border-gray-100">
         <div className="flex flex-col md:flex-row items-center justify-between gap-2 pb-2">
