@@ -2,154 +2,90 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="flex flex-col items-center justify-center py-12">
-        <Image
-          src="/logo.svg"
-          alt="le-commit"
-          width={120}
-          height={120}
-          className="mb-8"
-        />
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          LeCommit
-        </h1>
-        <p className="text-xl text-gray-600 text-center max-w-2xl">
-          AI-powered hiring validation platform for the Raise Summit Hackathon
-        </p>
-      </div>
+    <main className="flex flex-col items-center w-full pt-32 pb-12 px-4 bg-gradient-to-b from-white via-slate-50 to-white min-h-screen">
+      {/* Hero Section */}
+      <section className="w-full max-w-3xl text-center mb-24">
+        <h1 className="text-5xl font-bold mb-6 text-gray-900">Trust your hiring process again.</h1>
+        <p className="text-xl text-gray-700 mb-8">ShadowCheck helps you verify candidate skills with real-world coding tasks, so you can hire with confidence and speed.</p>
+        <Link href="/app">
+          <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold">Try ShadowCheck</Button>
+        </Link>
+      </section>
 
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Info */}
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-                🕵️‍♂️ What We Do
-              </h2>
-              <p className="text-gray-600 mb-4">
-                LeCommit helps hiring managers detect potentially fraudulent engineering candidates 
-                through automated AI-powered reference calling.
-              </p>
-              <ul className="space-y-2 text-gray-600">
-                <li>🤖 AI-powered reference calling with ElevenLabs</li>
-                <li>📞 Professional conversations via Twilio</li>
-                <li>📊 Instant credibility scoring and analysis</li>
-                <li>🚩 Automated red flag detection</li>
-                <li>📋 Complete transcripts and insights</li>
-              </ul>
+      {/* How It Works */}
+      <section id="how-it-works" className="w-full max-w-4xl mb-24">
+        <h2 className="text-2xl font-semibold text-center mb-10 text-gray-900">How it works</h2>
+        <div className="flex flex-col md:flex-row justify-center items-stretch gap-8">
+          {/* Step 1: Upload candidate info */}
+          <div className="flex-1 bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center transition-transform hover:-translate-y-1 hover:shadow-md">
+            <div className="mb-4">
+              <span className="inline-block bg-gradient-to-br from-emerald-400 to-blue-400 p-3 rounded-full">
+                {/* Upload icon */}
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path fill="#fff" d="M12 16V4m0 0l-4 4m4-4l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="4" y="16" width="16" height="4" rx="2" fill="#fff" fillOpacity=".2"/></svg>
+              </span>
             </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold mb-3 text-gray-800">
-                🛠️ Tech Stack
-              </h3>
-              <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                <div>• Next.js + React</div>
-                <div>• Tailwind CSS</div>
-                <div>• ElevenLabs AI</div>
-                <div>• Twilio Voice</div>
-                <div>• TypeScript</div>
-                <div>• Conversational AI</div>
-              </div>
-            </div>
-
-            <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-              <h3 className="text-lg font-semibold mb-3 text-purple-800">
-                📖 Feature Documentation
-              </h3>
-              <p className="text-purple-700 text-sm mb-3">
-                Comprehensive technical documentation with architecture diagrams and implementation details.
-              </p>
-              <Link 
-                href="/docs/REFERENCE_CALLING_FEATURE.md" 
-                target="_blank"
-                className="text-purple-600 hover:text-purple-800 text-sm font-medium"
-              >
-                📄 View Technical Docs →
-              </Link>
-            </div>
+            <h3 className="text-xl font-semibold mb-2">Upload candidate info</h3>
+            <p className="text-base text-gray-600">Start by entering or uploading your candidate&apos;s details.</p>
           </div>
-
-          {/* Right Column - Features */}
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-                🚀 Features
-              </h2>
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="font-semibold text-blue-800 mb-2">
-                    🤖 AI Reference Calling
-                  </h3>
-                  <p className="text-blue-700 text-sm mb-3">
-                    ElevenLabs Conversational AI automatically calls and interviews candidate references with natural conversation flow
-                  </p>
-                  <Link href="/call">
-                    <Button className="w-full">
-                      Try AI Reference Calling
-                    </Button>
-                  </Link>
-                </div>
-
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <h3 className="font-semibold text-green-800 mb-2">
-                    🔍 CV Analysis
-                  </h3>
-                  <p className="text-green-700 text-sm mb-3">
-                    Deep analysis of candidate resumes and timelines
-                  </p>
-                  <Button variant="outline" className="w-full" disabled>
-                    Coming Soon
-                  </Button>
-                </div>
-
-                <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                  <h3 className="font-semibold text-orange-800 mb-2">
-                    📊 Advanced Analytics
-                  </h3>
-                  <p className="text-orange-700 text-sm mb-3">
-                    AI-powered scoring system with detailed credibility analysis
-                  </p>
-                  <Button variant="outline" className="w-full" disabled>
-                    Coming Soon
-                  </Button>
-                </div>
-              </div>
+          {/* Step 2: Validate reference check */}
+          <div className="flex-1 bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center transition-transform hover:-translate-y-1 hover:shadow-md">
+            <div className="mb-4">
+              <span className="inline-block bg-gradient-to-br from-emerald-400 to-blue-400 p-3 rounded-full">
+                {/* Shield/Check icon */}
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 5.25-3.5 9.74-7 11-3.5-1.26-7-5.75-7-11V7l7-4z" fill="#fff" fillOpacity=".8"/><path d="M9.5 12.5l2 2 3-3" stroke="#16b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
             </div>
+            <h3 className="text-xl font-semibold mb-2">Validate reference check</h3>
+            <p className="text-base text-gray-600">We contact references and verify the candidate&apos;s background for you.</p>
+          </div>
+          {/* Step 3: Get trust score */}
+          <div className="flex-1 bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center transition-transform hover:-translate-y-1 hover:shadow-md">
+            <div className="mb-4">
+              <span className="inline-block bg-gradient-to-br from-emerald-400 to-blue-400 p-3 rounded-full">
+                {/* Gauge/Star icon */}
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" fillOpacity=".8"/><path d="M12 6v6l4 2" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 17.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z" stroke="#3b82f6" strokeWidth="2"/></svg>
+              </span>
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Get trust score</h3>
+            <p className="text-base text-gray-600">Receive an instant, easy-to-understand trust score for your candidate.</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* CTA Section */}
-      <div className="bg-white py-16">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Ready to validate your candidates?
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Start with AI-powered reference checking to build trust in your hiring process
-          </p>
-          <div className="space-x-4">
-            <Link href="/call">
-              <Button size="lg" className="px-8">
-                🚀 Start AI Reference Calls
-              </Button>
-            </Link>
-            <Link href="/docs/REFERENCE_CALLING_FEATURE.md" target="_blank">
-              <Button variant="outline" size="lg" className="px-8">
-                📖 Read Documentation
-              </Button>
-            </Link>
-          </div>
+      {/* Live Demo/GIF Placeholder */}
+      <section id="demo" className="w-full max-w-3xl mb-24 flex flex-col items-center">
+        <h2 className="text-2xl font-semibold text-center mb-6 text-gray-900">Live Demo</h2>
+        <div className="w-full h-64 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl flex items-center justify-center text-gray-400 text-xl font-medium border border-dashed border-emerald-200">
+          [Demo GIF or interactive preview coming soon]
         </div>
-      </div>
-    </div>
+      </section>
+
+      {/* Testimonial/Use Case */}
+      <section id="testimonials" className="w-full max-w-2xl mb-24 flex flex-col items-center">
+        <h2 className="text-2xl font-semibold text-center mb-6 text-gray-900">What our users say</h2>
+        <div className="bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center">
+          <div className="mb-4">
+            <Image src="/avatar.png" alt="User avatar" width={56} height={56} className="rounded-full" />
+          </div>
+          <blockquote className="text-lg text-gray-700 italic mb-2">&quot;ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.&quot;</blockquote>
+          <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="w-full max-w-3xl mx-auto text-center text-sm text-gray-400 pt-8 border-t border-gray-100">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2 pb-2">
+          <span>Contact: <a href="mailto:hello@shadowcheck.com" className="underline hover:text-emerald-500">hello@shadowcheck.com</a></span>
+          <span>
+            <a href="https://github.com/le-commit" target="_blank" rel="noopener noreferrer" className="underline hover:text-emerald-500">GitHub</a>
+          </span>
+          <span>Built at Hackathon 2025</span>
+        </div>
+      </footer>
+    </main>
   );
 }
