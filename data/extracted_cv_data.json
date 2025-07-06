@@ -51,7 +51,7 @@
       "companyName": "We Know IT",
       "title": "Team Leader",
       "location": "Linköping, SE",
-      "type": "PART_TIME_FIXED_TERM",
+      "type": "FREELANCE",
       "startYear": 2020,
       "startMonth": 4,
       "endYear": 2021,
@@ -64,7 +64,7 @@
       "companyName": "We Know IT",
       "title": "IT Consultant",
       "location": "",
-      "type": "PART_TIME_FIXED_TERM",
+      "type": "FREELANCE",
       "startYear": 2019,
       "startMonth": 5,
       "endYear": 2021,
@@ -102,10 +102,10 @@
   ],
   "otherExperiences": [
     {
-      "companyName": "Link Dagarna – Computer Science Career Fair",
+      "companyName": "Link Dagarna - Computer Science Career Fair",
       "title": "Developer",
       "location": "Linköping, SE",
-      "type": "PART_TIME_FIXED_TERM",
+      "type": "FREELANCE",
       "startYear": 2020,
       "startMonth": 5,
       "endYear": 2021,
@@ -115,10 +115,10 @@
       "associatedSkills": []
     },
     {
-      "companyName": "Webgroup, I-Sektionen – IT Student Association",
+      "companyName": "Webgroup, I-Sektionen - IT Student Association",
       "title": "Developer & President",
       "location": "Linköping, SE",
-      "type": "PART_TIME_FIXED_TERM",
+      "type": "FREELANCE",
       "startYear": 2018,
       "startMonth": 9,
       "endYear": 2020,
@@ -230,12 +230,11 @@
   "references": [],
   "certifications": [],
   "other": {
-    "Swedish citizenship": true,
-    "Nova 111 Student List Sweden 2023": true,
-    "4Potentials Student of the year 2024": true,
-    "Two world championships in dinghy sailing (Italy 2016 + Spain 2017)": true,
-    "Winner of project of the year in the course Object Oriented Programming in Java (200+ students)": true,
-    "Winner of course competition in Data Structures and Algorithms (150+ students)": true,
-    "Scored 1.75 (top 1.3 %) on the Swedish university entrance exam (Högskoleprovet)": true
+    "GPA_Delft": "8.60",
+    "Cum_Laude": "top 5%",
+    "GPA_Linkoping_Math": "4.74",
+    "GPA_National_Singapore": "4.50",
+    "GPA_KTH": "4.70",
+    "Swedish_citizenship": true
   }
 }
