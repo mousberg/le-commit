@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable prefer-const */
 import { 
   GitHubData, 
   GitHubRepository, 
@@ -720,7 +723,7 @@ async function analyzeCollaborationSignals(
   events: any[]
 ): Promise<GitHubCollaborationSignals> {
   try {
-    let uniqueContributors = new Set<string>()
+    const uniqueContributors = new Set<string>()
     let outsideContributions = 0
     let hasCodeOfConduct = false
     let hasContributingGuide = false

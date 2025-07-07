@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Shield, ShieldAlert, Zap, Target, Phone, Eye } from "lucide-react";
 

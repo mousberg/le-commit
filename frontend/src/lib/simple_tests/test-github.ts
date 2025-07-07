@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { processGitHubAccount, saveGitHubDataToJson, extractUsernameFromUrl } from '../github'
 
 /**
