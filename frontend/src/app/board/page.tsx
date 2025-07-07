@@ -260,7 +260,7 @@ export default function BoardPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white via-slate-50 to-white">
       {/* Header */}
       <header className="w-full h-16 flex items-center px-8 bg-white shadow-sm border-b border-gray-100 text-2xl font-bold tracking-tight text-gray-900">
-        ShadowCheck Board
+        Unmask Board
       </header>
       <div className="flex flex-1">
         {/* Sidebar */}
