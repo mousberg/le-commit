@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
+  // Reduce build complexity to avoid memory issues
+  experimental: {
+    optimizePackageImports: [],
+  },
+  // Disable some optimizations that might cause memory issues
+  swcMinify: false,
+  compiler: {
+    removeConsole: false,
+  },
 };
 
 export default nextConfig;
