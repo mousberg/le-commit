@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Applicant } from '@/lib/interfaces/applicant';
 import { CvData } from '@/lib/interfaces/cv';
+import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
+import { processGitHubAccount } from '@/lib/github';
 import * as fs from 'fs';
 import {
   loadAllApplicants,
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const cvFile = formData.get('cvFile') as File;
     const linkedinFile = formData.get('linkedinFile') as File;
-    const githubFile = formData.get('githubFile') as File;
+    const githubUrl = formData.get('githubUrl') as string;
 
     if (!cvFile) {
       return NextResponse.json(
@@ -55,7 +57,8 @@ export async function POST(request: NextRequest) {
       email: '',
       status: 'uploading',
       createdAt: new Date().toISOString(),
-      originalFileName: cvFile.name
+      originalFileName: cvFile.name,
+      originalGithubUrl: githubUrl
     };
 
     // Save initial record
@@ -72,15 +75,8 @@ export async function POST(request: NextRequest) {
       saveApplicantFile(applicantId, linkedinBuffer, `linkedin.${linkedinExt}`);
     }
 
-    // Save GitHub file if provided
-    if (githubFile) {
-      const githubBuffer = Buffer.from(await githubFile.arrayBuffer());
-      const githubExt = githubFile.name.endsWith('.html') ? 'html' : 'pdf';
-      saveApplicantFile(applicantId, githubBuffer, `github.${githubExt}`);
-    }
-
     // Process asynchronously
-    processApplicantAsync(applicantId);
+    processApplicantAsync(applicantId, githubUrl);
 
     return NextResponse.json({
       applicant,
@@ -96,7 +92,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processApplicantAsync(applicantId: string) {
+async function processApplicantAsync(applicantId: string, githubUrl?: string) {
   try {
     const paths = getApplicantPaths(applicantId);
     const applicant = loadApplicant(applicantId);
@@ -166,7 +162,7 @@ async function processApplicantAsync(applicantId: string) {
     }
 
     // Calculate a simple score based on available data
-    const score = calculateScore(cvData);
+    const score = calculateScore(cvData, linkedinData, applicant.githubData);
 
     // Update applicant with processed data
     applicant.cvData = cvData;
@@ -179,7 +175,30 @@ async function processApplicantAsync(applicantId: string) {
 
     saveApplicant(applicant);
 
-    console.log(`Successfully processed applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}`);
+    console.log(`Successfully processed applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}${applicant.githubData ? ' (with GitHub data)' : ''}`);
+
+    // Process GitHub account if URL is provided
+    if (githubUrl) {
+      try {
+        console.log(`Processing GitHub account: ${githubUrl}`);
+        const githubData = await processGitHubAccount(githubUrl, {
+          maxRepos: 50,
+          includeOrganizations: true,
+          analyzeContent: true,
+          maxContentAnalysis: 10,
+          includeActivity: true
+        });
+        
+        // Update applicant with GitHub data
+        applicant.githubData = githubData;
+        saveApplicant(applicant);
+        
+        console.log(`Successfully processed GitHub data for ${applicantId}`);
+      } catch (githubError) {
+        console.error(`Error processing GitHub account for ${applicantId}:`, githubError);
+        // Continue without GitHub data rather than failing the entire process
+      }
+    }
 
   } catch (error) {
     console.error(`Error processing applicant ${applicantId}:`, error);
@@ -192,16 +211,44 @@ async function processApplicantAsync(applicantId: string) {
   }
 }
 
-function calculateScore(cvData: CvData): number {
+function calculateScore(cvData: CvData, githubData?: GitHubData): number {
   let score = 50; // Base score
 
-  // Add points for completeness
+  // Add points for CV completeness
   if (cvData.email) score += 5;
   if (cvData.phone) score += 5;
   if (cvData.professionalSummary) score += 10;
   if (cvData.professionalExperiences?.length > 0) score += 15;
   if (cvData.educations?.length > 0) score += 10;
   if (cvData.skills?.length > 0) score += 5;
+
+  // Add points for LinkedIn data
+  if (linkedinData) {
+    score += 10; // Base bonus for having LinkedIn data
+    if (linkedinData.professionalExperiences?.length > 0) score += 5;
+    if (linkedinData.skills?.length > 0) score += 3;
+  }
+
+  // Add points for GitHub data
+  if (githubData) {
+    score += 15; // Base bonus for having GitHub data
+    
+    // Repository activity scoring
+    if (githubData.publicRepos > 0) score += 5;
+    if (githubData.publicRepos > 10) score += 5;
+    
+    // Contribution activity scoring
+    if (githubData.contributions?.totalCommits > 0) score += 5;
+    if (githubData.contributions?.streakDays > 7) score += 3;
+    
+    // Social proof scoring
+    if (githubData.followers > 10) score += 3;
+    if (githubData.starredRepos > 50) score += 2;
+    
+    // Quality indicators
+    if (githubData.overallQualityScore && githubData.overallQualityScore.overall > 70) score += 5;
+    if (githubData.activityAnalysis?.commitFrequency.conventionalCommits) score += 2;
+  }
 
   return Math.min(score, 100);
 }

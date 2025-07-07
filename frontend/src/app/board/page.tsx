@@ -64,12 +64,11 @@ export default function BoardPage() {
   // File upload state
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
-  const [githubFile, setGithubFile] = useState<File | null>(null);
+  const [githubUrl, setGithubUrl] = useState<string>('');
 
   // File input refs
   const cvInputRef = useRef<HTMLInputElement>(null);
   const linkedinInputRef = useRef<HTMLInputElement>(null);
-  const githubInputRef = useRef<HTMLInputElement>(null);
 
   // Load applicants on component mount
   useEffect(() => {
@@ -110,24 +109,21 @@ export default function BoardPage() {
     const applicantId = await createApplicant({
       cvFile,
       linkedinFile: linkedinFile || undefined,
-      githubFile: githubFile || undefined
+      githubUrl: githubUrl.trim() || undefined
     });
 
     if (applicantId) {
       // Reset form
       setCvFile(null);
       setLinkedinFile(null);
-      setGithubFile(null);
+      setGithubUrl('');
 
       // Reset file inputs
       if (cvInputRef.current) cvInputRef.current.value = '';
       if (linkedinInputRef.current) linkedinInputRef.current.value = '';
-      if (githubInputRef.current) githubInputRef.current.value = '';
 
-            // Navigate to the new applicant
+      // Navigate to the new applicant
       navigateToApplicant(applicantId);
-
-      // No alert needed - user will see the processing screen
     }
   };
 
@@ -140,11 +136,11 @@ export default function BoardPage() {
   });
   const [openReferenceId, setOpenReferenceId] = useState<string | null>(null);
   const [callInProgress, setCallInProgress] = useState(false);
-  const [transcriptModal, setTranscriptModal] = useState<{
-    isOpen: boolean;
-    conversationId: string;
-    referenceName: string;
-  }>({ isOpen: false, conversationId: '', referenceName: '' });
+  const [transcriptModal, setTranscriptModal] = useState({
+    isOpen: false,
+    conversationId: '',
+    referenceName: ''
+  });
 
   const selectedCandidateId = selectedCandidate ? selectedCandidate.id : null;
   const candidateReferences = selectedCandidateId ? referencesByCandidate[selectedCandidateId] || [] : [];
@@ -340,18 +336,18 @@ export default function BoardPage() {
                     <p className="text-sm text-green-600">✓ {linkedinFile.name}</p>
                   )}
                 </div>
-                {/* GitHub Profile Upload */}
+                {/* GitHub Profile URL */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">Upload GitHub Profile (Optional)</label>
+                  <label className="text-lg font-medium text-gray-800 mb-1">GitHub Profile (Optional)</label>
                   <input
-                    ref={githubInputRef}
-                    type="file"
-                    accept=".pdf,.html,.txt"
-                    onChange={(e) => setGithubFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    type="text"
+                    placeholder="https://github.com/username"
+                    value={githubUrl}
+                    onChange={(e) => setGithubUrl(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
-                  {githubFile && (
-                    <p className="text-sm text-green-600">✓ {githubFile.name}</p>
+                  {githubUrl && (
+                    <p className="text-sm text-green-600">✅ GitHub URL entered</p>
                   )}
                 </div>
               </div>
@@ -391,7 +387,11 @@ export default function BoardPage() {
                     ) : (
                       <span className="text-gray-400">LinkedIn</span>
                     )}
-                    <span className="text-gray-400">GitHub</span>
+                    {selectedCandidate.githubData ? (
+                      <span className="text-purple-600">GitHub ✓</span>
+                    ) : (
+                      <span className="text-gray-400">GitHub</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {selectedCandidate.score && (
@@ -532,6 +532,121 @@ export default function BoardPage() {
                 </div>
               )}
 
+              {/* GitHub Data Summary */}
+              {selectedCandidate.githubData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
+                  <div className="col-span-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      🐙 GitHub Profile Data
+                      <a 
+                        href={selectedCandidate.githubData.profileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="ml-2 text-sm text-purple-600 hover:text-purple-800"
+                      >
+                        @{selectedCandidate.githubData.username} ↗
+                      </a>
+                    </h3>
+                  </div>
+
+                  <div>
+                    <h4 className="text-md font-medium text-gray-800 mb-2">Activity Overview</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Public Repos:</span>
+                        <span className="font-medium">{selectedCandidate.githubData.publicRepos}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Followers:</span>
+                        <span className="font-medium">{selectedCandidate.githubData.followers}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Stars:</span>
+                        <span className="font-medium">{selectedCandidate.githubData.starredRepos}</span>
+                      </div>
+                      {selectedCandidate.githubData.contributions && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Streak:</span>
+                          <span className="font-medium">{selectedCandidate.githubData.contributions.streakDays} days</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedCandidate.githubData.languages && selectedCandidate.githubData.languages.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-2">Top Languages</h4>
+                      <div className="space-y-1">
+                        {selectedCandidate.githubData.languages.slice(0, 5).map((lang, i) => (
+                          <div key={i} className="flex justify-between items-center text-sm">
+                            <span className="text-gray-700">{lang.language}</span>
+                            <span className="text-gray-500">{lang.percentage.toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.githubData.repositories && selectedCandidate.githubData.repositories.length > 0 && (
+                    <div className="col-span-2">
+                      <h4 className="text-md font-medium text-gray-800 mb-2">Notable Repositories</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {selectedCandidate.githubData.repositories
+                          .filter(repo => !repo.isFork && repo.stars > 0)
+                          .slice(0, 4)
+                          .map((repo, i) => (
+                            <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="font-medium text-sm">{repo.name}</span>
+                                <div className="flex items-center gap-1 text-xs text-gray-500">
+                                  <span>⭐ {repo.stars}</span>
+                                  <span>🍴 {repo.forks}</span>
+                                </div>
+                              </div>
+                              {repo.description && (
+                                <p className="text-xs text-gray-600 mb-2 line-clamp-2">{repo.description}</p>
+                              )}
+                              {repo.language && (
+                                <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                                  {repo.language}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.githubData.overallQualityScore && (
+                    <div className="col-span-2">
+                      <h4 className="text-md font-medium text-gray-800 mb-2">Code Quality Metrics</h4>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium">Overall Quality Score</span>
+                          <span className="text-lg font-bold text-emerald-600">
+                            {selectedCandidate.githubData.overallQualityScore.overall}/100
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">README:</span>
+                            <span>{selectedCandidate.githubData.overallQualityScore.readme}/100</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">CI/CD:</span>
+                            <span>{selectedCandidate.githubData.overallQualityScore.cicd}/100</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Documentation:</span>
+                            <span>{selectedCandidate.githubData.overallQualityScore.documentation}/100</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Processing status message */}
               {selectedCandidate.status === 'failed' && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -540,6 +655,7 @@ export default function BoardPage() {
                   </p>
                 </div>
               )}
+
               {/* Reference Calls */}
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -634,13 +750,6 @@ export default function BoardPage() {
                     <div className="text-gray-400 text-center py-6">No references added yet.</div>
                   )}
                 </div>
-                {/* Transcript Modal */}
-                <TranscriptModal
-                  isOpen={transcriptModal.isOpen}
-                  onClose={closeTranscriptModal}
-                  conversationId={transcriptModal.conversationId}
-                  referenceName={transcriptModal.referenceName}
-                />
               </div>
               {/* Notes Toggle */}
               <div>
@@ -668,6 +777,13 @@ export default function BoardPage() {
           ) : null}
         </main>
       </div>
+      {/* Transcript Modal */}
+      <TranscriptModal
+        isOpen={transcriptModal.isOpen}
+        onClose={closeTranscriptModal}
+        conversationId={transcriptModal.conversationId}
+        referenceName={transcriptModal.referenceName}
+      />
     </div>
   );
 }

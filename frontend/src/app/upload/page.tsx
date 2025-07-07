@@ -46,8 +46,8 @@ export default function UploadPage() {
             <label className="text-lg font-medium text-gray-800 mb-2">Upload GitHub Profile</label>
             <input
               ref={githubInputRef}
-              type="file"
-              accept=".pdf,.html,.txt"
+              type="text"
+              placeholder="https://github.com/username"
               className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
             />
           </div>
