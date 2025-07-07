@@ -52,14 +52,14 @@ async function exampleUsage() {
         // Repository statistics
         console.log(`\nRepository Statistics:`)
         console.log(`  Total Analyzed: ${githubData.repositories.length}`)
-        console.log(`  Own Repositories: ${githubData.repositories.filter((r: any) => !r.isFork).length}`)
+        console.log(`  Own Repositories: ${githubData.repositories.filter((r) => !r.isFork).length}`)
         console.log(`  Forked Repositories: ${githubData.forkedRepos}`)
         console.log(`  Total Stars Received: ${githubData.starredRepos}`)
         
         // Language statistics
         if (githubData.languages.length > 0) {
           console.log(`\nTop Programming Languages:`)
-          githubData.languages.slice(0, 5).forEach((lang: any, index: number) => {
+          githubData.languages.slice(0, 5).forEach((lang, index: number) => {
             console.log(`  ${index + 1}. ${lang.language}: ${lang.percentage.toFixed(1)}%`)
           })
         }
@@ -69,7 +69,7 @@ async function exampleUsage() {
           console.log(`\nMost Recently Updated Repositories:`)
           githubData.repositories
             .slice(0, 5)
-            .forEach((repo: any, index: number) => {
+            .forEach((repo, index: number) => {
               const lastUpdate = new Date(repo.updatedAt).toLocaleDateString()
               console.log(`  ${index + 1}. ${repo.name} (${repo.language || 'No language'}) - Updated: ${lastUpdate}`)
               console.log(`     ⭐ ${repo.stars} | 🍴 ${repo.forks} | 👁️ ${repo.watchers}`)
@@ -79,7 +79,7 @@ async function exampleUsage() {
         // Organizations
         if (githubData.organizations.length > 0) {
           console.log(`\nOrganizations (${githubData.organizations.length}):`)
-          githubData.organizations.forEach((org: any, index: number) => {
+          githubData.organizations.forEach((org, index: number) => {
             console.log(`  ${index + 1}. ${org.name || org.login} (${org.publicRepos} public repos)`)
           })
         }
@@ -99,7 +99,7 @@ async function exampleUsage() {
         // Repository Content Analysis
         if (githubData.repositoryContent && githubData.repositoryContent.length > 0) {
           console.log(`\n📊 Repository Content Analysis (${githubData.repositoryContent.length} repos):`)
-          githubData.repositoryContent.forEach((content: any, index: number) => {
+          githubData.repositoryContent.forEach((content, index: number) => {
             const repo = githubData.repositories[index]
             console.log(`\n  ${index + 1}. ${repo.name} (Quality: ${content.qualityScore.overall}/100)`)
             console.log(`     📝 README: ${content.readme.exists ? '✅' : '❌'} (${content.readme.qualityScore}/100)`)
@@ -246,7 +246,7 @@ async function compareGitHubAccounts(githubUrls: string[]) {
     
     // Convert comparison data to JSON
     const comparisonPath = 'github_comparison.json'
-    const jsonData = saveGitHubDataToJson(accountData as any, comparisonPath)
+    const jsonData = saveGitHubDataToJson(accountData[0], comparisonPath)
     console.log(`\nComparison data ready (${jsonData.length} characters)`)
     
     return { accountData, jsonData }

@@ -23,7 +23,7 @@ export interface GitHubData {
     forkedRepos: number;
     organizations: GitHubOrganization[];
     overallQualityScore?: GitHubQualityScore;
-    other: Record<string, any>;
+    other: Record<string, unknown>;
   }
   
   export interface GitHubRepository {
