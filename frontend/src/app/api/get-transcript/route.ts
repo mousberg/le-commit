@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // Find the specific conversation
     const conversation = conversationsData.conversations?.find(
-      (conv: any) => conv.conversation_id === conversationId
+      (conv: { conversation_id: string }) => conv.conversation_id === conversationId
     );
 
     if (!conversation) {
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
           status: conversation.status,
           call_duration_secs: conversation.call_duration_secs,
           message_count: conversation.message_count,
-          transcript: transcriptData.map((entry: any) => ({
+          transcript: transcriptData.map((entry: { role: string; time_in_call_secs?: number; message?: string; text?: string }) => ({
             speaker: entry.role === 'user' ? 'Reference' : 'AI Agent',
             timestamp: formatTime(entry.time_in_call_secs || 0),
             text: entry.message || entry.text || ''
