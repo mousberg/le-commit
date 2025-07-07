@@ -1,58 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import TranscriptModal from '../../components/TranscriptModal';
+import { useApplicants } from '../../lib/contexts/ApplicantContext';
 
-const mockCandidates = [
-  {
-    id: 1,
-    name: 'Alice Johnson',
-    role: 'Frontend Developer',
-    score: 92,
-    links: {
-      cv: '#',
-      linkedin: '#',
-      github: '#',
-    },
-    flags: [
-      { type: 'positive', label: 'Strong React skills' },
-      { type: 'caution', label: 'Limited backend experience' },
-    ],
-    questions: [
-      'How do you manage state in React?',
-      'Describe a time you improved UI performance.',
-    ],
-    references: [
-      { name: 'Jane Smith', phone: '+1 (555) 123-4567' },
-      { name: 'Bob Lee', phone: '+1 (555) 987-6543' },
-    ],
-    notes: 'Great communicator. Needs more backend exposure.',
-  },
-  {
-    id: 2,
-    name: 'Bob Lee',
-    role: 'Backend Engineer',
-    score: 85,
-    links: {
-      cv: '#',
-      linkedin: '#',
-      github: '#',
-    },
-    flags: [
-      { type: 'positive', label: 'Excellent Node.js' },
-      { type: 'verify', label: 'Reference check needed' },
-    ],
-    questions: [
-      'How do you optimize database queries?',
-      'Explain your experience with microservices.',
-    ],
-    references: [
-      { name: 'Alice Johnson', phone: '+1 (555) 222-3333' },
-    ],
-    notes: 'Solid backend, check teamwork skills.',
-  },
-];
+
 
 // Add Reference and Transcript types from /reference
 interface Reference {
@@ -76,29 +29,85 @@ interface ReferenceFormData {
 }
 
 export default function BoardPage() {
-  const [selectedId, setSelectedId] = useState<number | 'new'>(mockCandidates[0].id);
+  const {
+    applicants,
+    fetchApplicants,
+    createApplicant,
+    refreshApplicant,
+    isLoading
+  } = useApplicants();
+
+  const [selectedId, setSelectedId] = useState<string | 'new'>('new');
   const [showNotes, setShowNotes] = useState(false);
-  // Dynamic references for the selected candidate
-  // const [dynamicReferences, setDynamicReferences] = useState([
-  //   { name: 'Jane Smith', phone: '+1 (555) 123-4567', notes: '', flags: mockReferenceFlags[0], questions: mockReferenceQuestions[0] },
-  //   { name: 'Bob Lee', phone: '+1 (555) 987-6543', notes: '', flags: mockReferenceFlags[1], questions: mockReferenceQuestions[1] },
-  // ]);
 
-  // Upload refs for new candidate
-  // const [cv, setCV] = useState<File | null>(null);
-  // const [linkedin, setLinkedin] = useState<File | null>(null);
-  // const [github, setGithub] = useState<File | null>(null);
+  // File upload state
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
+  const [githubFile, setGithubFile] = useState<File | null>(null);
 
-  // Simulate adding a new candidate
-  const handleCreateCandidate = () => {
-    // In a real app, process uploads and add to list
-    setSelectedId(mockCandidates[0].id); // Go back to first candidate for now
+  // File input refs
+  const cvInputRef = useRef<HTMLInputElement>(null);
+  const linkedinInputRef = useRef<HTMLInputElement>(null);
+  const githubInputRef = useRef<HTMLInputElement>(null);
+
+  // Load applicants on component mount
+  useEffect(() => {
+    fetchApplicants();
+  }, [fetchApplicants]);
+
+  // Auto-refresh processing applicants
+  useEffect(() => {
+    const interval = setInterval(() => {
+      applicants.forEach(applicant => {
+        if (applicant.status === 'processing' || applicant.status === 'uploading') {
+          refreshApplicant(applicant.id);
+        }
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [applicants, refreshApplicant]);
+
+  // Set first applicant as selected when applicants load
+  useEffect(() => {
+    if (applicants.length > 0 && selectedId === 'new') {
+      setSelectedId(applicants[0].id);
+    }
+  }, [applicants, selectedId]);
+
+  const handleCreateCandidate = async () => {
+    if (!cvFile) {
+      alert('Please select a CV file');
+      return;
+    }
+
+    const applicantId = await createApplicant({
+      cvFile,
+      linkedinFile: linkedinFile || undefined,
+      githubFile: githubFile || undefined
+    });
+
+    if (applicantId) {
+      // Reset form
+      setCvFile(null);
+      setLinkedinFile(null);
+      setGithubFile(null);
+
+      // Reset file inputs
+      if (cvInputRef.current) cvInputRef.current.value = '';
+      if (linkedinInputRef.current) linkedinInputRef.current.value = '';
+      if (githubInputRef.current) githubInputRef.current.value = '';
+
+      // Switch to the new applicant
+      setSelectedId(applicantId);
+
+      alert('Applicant created successfully! Processing CV...');
+    }
   };
 
-  const selectedCandidate =
-    selectedId === 'new' ? null : mockCandidates.find(c => c.id === selectedId);
+  const selectedCandidate = selectedId === 'new' ? null : applicants.find(a => a.id === selectedId);
 
-  const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: number]: Reference[] }>({});
+  const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: string]: Reference[] }>({});
   const [addingReference, setAddingReference] = useState(false);
   const [newReferenceForm, setNewReferenceForm] = useState<ReferenceFormData>({
     name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: ''
@@ -231,15 +240,32 @@ export default function BoardPage() {
         {/* Sidebar */}
         <aside className="w-72 bg-white border-r border-gray-100 flex flex-col py-6 px-4 gap-4">
           <div className="mb-4">
-            <div className="text-lg font-semibold mb-2">Candidates</div>
+            <div className="text-lg font-semibold mb-2">Applicants</div>
             <ul className="space-y-1">
-              {mockCandidates.map(c => (
-                <li key={c.id}>
+              {applicants.map(applicant => (
+                <li key={applicant.id}>
                   <button
-                    className={`w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${selectedId === c.id ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-100 text-gray-800'}`}
-                    onClick={() => setSelectedId(c.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${selectedId === applicant.id ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-100 text-gray-800'}`}
+                    onClick={() => setSelectedId(applicant.id)}
                   >
-                    {c.name}
+                    <div className="flex items-center justify-between">
+                      <span>{applicant.name}</span>
+                      {applicant.status === 'processing' && (
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                          Processing...
+                        </span>
+                      )}
+                      {applicant.status === 'uploading' && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          Uploading...
+                        </span>
+                      )}
+                      {applicant.status === 'failed' && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                          Failed
+                        </span>
+                      )}
+                    </div>
                   </button>
                 </li>
               ))}
@@ -249,94 +275,165 @@ export default function BoardPage() {
             onClick={() => setSelectedId('new')}
             className="w-full rounded-lg bg-gradient-to-r from-emerald-400 to-blue-400 text-white font-semibold shadow-sm"
           >
-            + Add New Candidate
+            + Add New Applicant
           </Button>
         </aside>
         {/* Main Content */}
         <main className="flex-1 p-10">
           {selectedId === 'new' ? (
             <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
-              <h2 className="text-2xl font-bold text-center mb-2 text-gray-900">Add New Candidate</h2>
+              <h2 className="text-2xl font-bold text-center mb-2 text-gray-900">Add New Applicant</h2>
               <div className="flex flex-col gap-6">
                 {/* CV Upload */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">Upload CV</label>
+                  <label className="text-lg font-medium text-gray-800 mb-1">
+                    Upload CV <span className="text-red-500">*</span>
+                  </label>
                   <input
+                    ref={cvInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx"
+                    onChange={(e) => setCvFile(e.target.files?.[0] || null)}
                     className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                   />
+                  {cvFile && (
+                    <p className="text-sm text-green-600">✓ {cvFile.name}</p>
+                  )}
                 </div>
                 {/* LinkedIn Profile Upload */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">Upload LinkedIn Profile</label>
+                  <label className="text-lg font-medium text-gray-800 mb-1">Upload LinkedIn Profile (Optional)</label>
                   <input
+                    ref={linkedinInputRef}
                     type="file"
                     accept=".pdf,.html,.txt"
+                    onChange={(e) => setLinkedinFile(e.target.files?.[0] || null)}
                     className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                   />
+                  {linkedinFile && (
+                    <p className="text-sm text-green-600">✓ {linkedinFile.name}</p>
+                  )}
                 </div>
                 {/* GitHub Profile Upload */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">Upload GitHub Profile</label>
+                  <label className="text-lg font-medium text-gray-800 mb-1">Upload GitHub Profile (Optional)</label>
                   <input
+                    ref={githubInputRef}
                     type="file"
                     accept=".pdf,.html,.txt"
+                    onChange={(e) => setGithubFile(e.target.files?.[0] || null)}
                     className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                   />
+                  {githubFile && (
+                    <p className="text-sm text-green-600">✓ {githubFile.name}</p>
+                  )}
                 </div>
               </div>
               <Button
                 onClick={handleCreateCandidate}
+                disabled={!cvFile || isLoading}
                 size="lg"
-                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold mt-4"
+                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Analyse Profile
+                {isLoading ? 'Processing...' : 'Analyse Profile'}
               </Button>
             </div>
           ) : selectedCandidate ? (
             <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
-              {/* Candidate Header */}
+              {/* Applicant Header */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900 mb-1">{selectedCandidate.name}</h2>
-                  <p className="text-lg text-gray-600">{selectedCandidate.role}</p>
+                  <p className="text-lg text-gray-600">{selectedCandidate.role || 'Position not specified'}</p>
+                  {selectedCandidate.email && (
+                    <p className="text-sm text-gray-500">{selectedCandidate.email}</p>
+                  )}
                 </div>
                 <div className="flex flex-col md:items-end gap-2">
                   <div className="flex gap-4">
-                    <a href={selectedCandidate.links.cv} className="text-emerald-600 hover:text-emerald-800 underline">CV</a>
-                    <a href={selectedCandidate.links.linkedin} className="text-blue-600 hover:text-blue-800 underline">LinkedIn</a>
-                    <a href={selectedCandidate.links.github} className="text-gray-800 hover:text-gray-600 underline">GitHub</a>
+                    <span className="text-emerald-600">CV ✓</span>
+                    {selectedCandidate.linkedinData ? (
+                      <span className="text-blue-600">LinkedIn ✓</span>
+                    ) : (
+                      <span className="text-gray-400">LinkedIn</span>
+                    )}
+                    <span className="text-gray-400">GitHub</span>
                   </div>
-                  <div className="text-2xl font-bold text-emerald-600">{selectedCandidate.score}%</div>
+                  <div className="flex items-center gap-2">
+                    {selectedCandidate.score && (
+                      <div className="text-2xl font-bold text-emerald-600">{selectedCandidate.score}%</div>
+                    )}
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${
+                      selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      selectedCandidate.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                      selectedCandidate.status === 'uploading' ? 'bg-blue-100 text-blue-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {selectedCandidate.status}
+                    </div>
+                  </div>
                 </div>
               </div>
-              {/* Flags */}
-              <div className="flex flex-wrap gap-3">
-                {selectedCandidate.flags.map((flag, i) => (
-                  <span
-                    key={i}
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      flag.type === 'positive'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : flag.type === 'caution'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}
-                  >
-                    {flag.label}
-                  </span>
-                ))}
-              </div>
-              {/* Questions to Ask */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Questions to Ask</h3>
-                <ul className="list-disc list-inside text-gray-700 space-y-1">
-                  {selectedCandidate.questions.map((q, i) => (
-                    <li key={i}>{q}</li>
-                  ))}
-                </ul>
-              </div>
+
+              {/* CV Data Summary */}
+              {selectedCandidate.cvData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedCandidate.cvData.professionalSummary && (
+                    <div className="col-span-2">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Professional Summary</h3>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.cvData.professionalSummary}</p>
+                    </div>
+                  )}
+
+                  {selectedCandidate.cvData.skills && selectedCandidate.cvData.skills.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Skills</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCandidate.cvData.skills.slice(0, 10).map((skill, i) => (
+                          <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                            {skill}
+                          </span>
+                        ))}
+                        {selectedCandidate.cvData.skills.length > 10 && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                            +{selectedCandidate.cvData.skills.length - 10} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.cvData.professionalExperiences && selectedCandidate.cvData.professionalExperiences.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Experience</h3>
+                      <div className="space-y-2">
+                        {selectedCandidate.cvData.professionalExperiences.slice(0, 3).map((exp, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="font-medium">{exp.title} at {exp.companyName}</div>
+                            <div className="text-gray-600">
+                              {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
+                                exp.ongoing ? 'Present' :
+                                (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
+                              }
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Processing status message */}
+              {selectedCandidate.status !== 'completed' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-blue-700">
+                    {selectedCandidate.status === 'processing' && 'CV is being processed. Data will appear here once complete.'}
+                    {selectedCandidate.status === 'uploading' && 'Files are being uploaded...'}
+                    {selectedCandidate.status === 'failed' && 'Processing failed. Please try uploading again.'}
+                  </p>
+                </div>
+              )}
               {/* Reference Calls */}
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -449,7 +546,7 @@ export default function BoardPage() {
                 </button>
                 {showNotes && (
                   <div className="bg-slate-50 rounded-xl p-4 text-gray-800 shadow-inner">
-                    {selectedCandidate.notes}
+                    <p className="text-gray-500 italic">No notes available for this applicant yet.</p>
                   </div>
                 )}
               </div>
@@ -466,4 +563,4 @@ export default function BoardPage() {
       </div>
     </div>
   );
-} 
+}
