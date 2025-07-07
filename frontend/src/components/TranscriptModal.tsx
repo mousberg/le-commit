@@ -160,9 +160,10 @@ export default function TranscriptModal({
 
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-500">
+            {/* <div className="text-sm text-gray-500">
               Conversation ID: {conversationId}
-            </div>
+            </div> */}
+            <span />
             <Button 
               onClick={onClose}
               className="bg-gray-600 hover:bg-gray-700 text-white"
