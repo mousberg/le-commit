@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [],
   },
   // Disable some optimizations that might cause memory issues
-  swcMinify: false,
   compiler: {
     removeConsole: false,
   },
