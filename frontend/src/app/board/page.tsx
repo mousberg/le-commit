@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '../../components/ui/button';
 import TranscriptModal from '../../components/TranscriptModal';
+import ProcessingLoader from '../../components/ProcessingLoader';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
 
 
@@ -37,8 +39,27 @@ export default function BoardPage() {
     isLoading
   } = useApplicants();
 
-  const [selectedId, setSelectedId] = useState<string | 'new'>('new');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [showNotes, setShowNotes] = useState(false);
+
+  // Get current selection from URL or determine default
+  const urlId = searchParams.get('id');
+  const selectedId = urlId || (applicants.length > 0 ? applicants[0].id : 'new');
+
+    // Navigation helpers
+  const navigateToApplicant = useCallback((id: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('id', id);
+    router.push(`/board?${params.toString()}`);
+  }, [searchParams, router]);
+
+  const navigateToNew = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.set('id', 'new');
+    router.push(`/board?${params.toString()}`);
+  }, [searchParams, router]);
 
   // File upload state
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -68,12 +89,17 @@ export default function BoardPage() {
     return () => clearInterval(interval);
   }, [applicants, refreshApplicant]);
 
-  // Set first applicant as selected when applicants load
+  // Auto-navigate to first applicant if no URL param and applicants exist
+  // If no applicants exist, default to 'new' form
   useEffect(() => {
-    if (applicants.length > 0 && selectedId === 'new') {
-      setSelectedId(applicants[0].id);
+    if (!urlId) {
+      if (applicants.length > 0) {
+        navigateToApplicant(applicants[0].id);
+      } else {
+        navigateToNew();
+      }
     }
-  }, [applicants, selectedId]);
+  }, [urlId, applicants, navigateToApplicant, navigateToNew]);
 
   const handleCreateCandidate = async () => {
     if (!cvFile) {
@@ -98,10 +124,10 @@ export default function BoardPage() {
       if (linkedinInputRef.current) linkedinInputRef.current.value = '';
       if (githubInputRef.current) githubInputRef.current.value = '';
 
-      // Switch to the new applicant
-      setSelectedId(applicantId);
+            // Navigate to the new applicant
+      navigateToApplicant(applicantId);
 
-      alert('Applicant created successfully! Processing CV...');
+      // No alert needed - user will see the processing screen
     }
   };
 
@@ -246,7 +272,7 @@ export default function BoardPage() {
                 <li key={applicant.id}>
                   <button
                     className={`w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${selectedId === applicant.id ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-100 text-gray-800'}`}
-                    onClick={() => setSelectedId(applicant.id)}
+                    onClick={() => navigateToApplicant(applicant.id)}
                   >
                     <div className="flex items-center justify-between">
                       <span>{applicant.name}</span>
@@ -272,7 +298,7 @@ export default function BoardPage() {
             </ul>
           </div>
           <Button
-            onClick={() => setSelectedId('new')}
+            onClick={navigateToNew}
             className="w-full rounded-lg bg-gradient-to-r from-emerald-400 to-blue-400 text-white font-semibold shadow-sm"
           >
             + Add New Applicant
@@ -339,6 +365,14 @@ export default function BoardPage() {
               </Button>
             </div>
           ) : selectedCandidate ? (
+            // Show processing loader for uploading/processing states
+            selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' ? (
+              <ProcessingLoader
+                applicantName={selectedCandidate.name}
+                status={selectedCandidate.status}
+                fileName={selectedCandidate.originalFileName}
+              />
+            ) : (
             <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
               {/* Applicant Header */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -365,8 +399,6 @@ export default function BoardPage() {
                     )}
                     <div className={`px-2 py-1 rounded text-xs font-medium ${
                       selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      selectedCandidate.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                      selectedCandidate.status === 'uploading' ? 'bg-blue-100 text-blue-700' :
                       'bg-red-100 text-red-700'
                     }`}>
                       {selectedCandidate.status}
@@ -425,12 +457,10 @@ export default function BoardPage() {
               )}
 
               {/* Processing status message */}
-              {selectedCandidate.status !== 'completed' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-blue-700">
-                    {selectedCandidate.status === 'processing' && 'CV is being processed. Data will appear here once complete.'}
-                    {selectedCandidate.status === 'uploading' && 'Files are being uploaded...'}
-                    {selectedCandidate.status === 'failed' && 'Processing failed. Please try uploading again.'}
+              {selectedCandidate.status === 'failed' && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-700">
+                    Processing failed. Please try uploading again.
                   </p>
                 </div>
               )}
@@ -558,6 +588,7 @@ export default function BoardPage() {
                 Start Interview
               </Button>
             </div>
+            )
           ) : null}
         </main>
       </div>
