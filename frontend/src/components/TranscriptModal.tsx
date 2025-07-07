@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from "./ui/button";
 
 interface TranscriptEntry {
@@ -34,13 +34,7 @@ export default function TranscriptModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen && conversationId) {
-      fetchTranscript();
-    }
-  }, [isOpen, conversationId]);
-
-  const fetchTranscript = async () => {
+  const fetchTranscript = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -63,7 +57,13 @@ export default function TranscriptModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (isOpen && conversationId) {
+      fetchTranscript();
+    }
+  }, [isOpen, conversationId, fetchTranscript]);
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -150,7 +150,7 @@ export default function TranscriptModal({
                   <div className="text-center">
                     <div className="text-gray-500 mb-2">📄</div>
                     <div className="text-gray-700 font-medium mb-1">No Messages</div>
-                    <div className="text-gray-500 text-sm">This conversation doesn't have any transcript messages yet.</div>
+                    <div className="text-gray-500 text-sm">This conversation doesn&apos;t have any transcript messages yet.</div>
                   </div>
                 </div>
               )}

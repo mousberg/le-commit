@@ -425,7 +425,7 @@ export default function ReferencePage() {
         {references.length === 0 && !showForm && (
           <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
             <p className="text-gray-500 text-lg mb-4">No references added yet.</p>
-            <p className="text-gray-400">Click "Create Reference" above to add your first reference.</p>
+            <p className="text-gray-400">Click &ldquo;Create Reference&rdquo; above to add your first reference.</p>
           </div>
         )}
       </section>

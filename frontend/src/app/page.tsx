@@ -128,7 +128,7 @@ export default function Home() {
             </div>
           </div>
           <blockquote className="text-lg text-gray-700 italic mb-2 text-center">
-            "ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews."
+            &ldquo;ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.&rdquo;
           </blockquote>
           <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
         </div>
