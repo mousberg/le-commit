@@ -1,4 +1,5 @@
-import { processCvPdf, saveCvDataToJson } from './cv'
+import { processCvPdf, saveCvDataToJson } from '../cv.js'
+import { Experience } from '../interfaces.js'
 import * as path from 'path'
 
 /**
@@ -7,15 +8,15 @@ import * as path from 'path'
 async function exampleUsage() {
   try {
     // Path to the example CV PDF
-    const pdfPath = path.join(__dirname, '../../data/exampleCVs/JosephineP-cv.pdf')
+    const pdfPath = path.join(__dirname, '../../../../data/exampleCVs/JosephineP-cv.pdf')
 
     // Process the CV PDF
     console.log('Starting CV processing...')
-    const cvData = await processCvPdf(pdfPath)
+    const cvData = await processCvPdf(pdfPath, true)
 
     // Save the extracted data to JSON
-    const outputPath = path.join(__dirname, '../../data/extracted_cv_data.json')
-    saveCvDataToJson(cvData, outputPath)
+    // const outputPath = path.join(__dirname, '../../../../data/extracted_cv_data.json')
+    // saveCvDataToJson(cvData, outputPath)
 
     // Display summary
     console.log('\n=== CV Processing Summary ===')
@@ -33,7 +34,7 @@ async function exampleUsage() {
     // Display date ranges for experiences
     if (cvData.professionalExperiences.length > 0) {
       console.log('\nProfessional Experience Timeline:')
-      cvData.professionalExperiences.forEach((exp, index) => {
+      cvData.professionalExperiences.forEach((exp: Experience, index: number) => {
         const startDate = exp.startMonth ? `${exp.startMonth}/${exp.startYear}` : exp.startYear.toString()
         const endDate = exp.ongoing ? 'Present' :
           (exp.endYear ? (exp.endMonth ? `${exp.endMonth}/${exp.endYear}` : exp.endYear.toString()) : 'Unknown')

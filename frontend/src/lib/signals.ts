@@ -1,4 +1,4 @@
-import { Signal } from '../interfaces';
+import { Signal } from './interfaces';
 
 export const LINKEDIN_SIGNALS: Signal[] = [
   {

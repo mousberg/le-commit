@@ -5,7 +5,7 @@
   */
 
 import Groq from 'groq-sdk';
-import { Signal, SignalEvaluation, CvData, LinkedInData } from '../interfaces';
+import { Signal, SignalEvaluation, CvData, LinkedInData } from './interfaces';
 import { ALL_SIGNALS } from './signals';
 
 // Initialize Groq client

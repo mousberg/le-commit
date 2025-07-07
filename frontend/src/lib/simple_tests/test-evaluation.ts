@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { exampleEvaluation } from './evaluateSignals';
+import { exampleEvaluation } from '../evaluateSignals';
 
 async function runTest() {
   console.log('🚀 Starting Signal Evaluation Test...\n');
