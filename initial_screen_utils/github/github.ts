@@ -9,7 +9,12 @@ import {
   GitHubPackageAnalysis,
   GitHubWorkflowAnalysis,
   GitHubCodeStructure,
-  GitHubQualityScore
+  GitHubQualityScore,
+  GitHubActivityAnalysis,
+  GitHubCommitFrequency,
+  GitHubIssueMetrics,
+  GitHubPullRequestMetrics,
+  GitHubCollaborationSignals
 } from '../interfaces'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -250,17 +255,30 @@ async function fetchGitHubApi(endpoint: string, username?: string): Promise<any>
     
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error(`GitHub user '${username}' not found`)
-      } else if (response.status === 403) {
-        throw new Error('GitHub API rate limit exceeded. Consider adding a GitHub token.')
+        // Different 404 error messages based on endpoint type
+        if (endpoint.includes('/users/')) {
+          throw new Error(`GitHub user '${username || 'unknown'}' not found`)
+        } else if (endpoint.includes('/contents/')) {
+          throw new Error(`Resource not found: ${endpoint} (this is normal - resource doesn't exist)`)
+        } else if (endpoint.includes('/protection')) {
+          throw new Error(`Branch protection not found: ${endpoint} (this is normal - no protection configured)`)
+        } else {
+          throw new Error(`Resource not found: ${endpoint}`)
+        }
+              } else if (response.status === 403) {
+          throw new Error('GitHub API rate limit exceeded. Consider adding a GitHub token.')
       } else {
         throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
       }
     }
     
     return await response.json()
-  } catch (error) {
-    console.error(`Error fetching ${endpoint}:`, error)
+  } catch (error: any) {
+    // Only log non-404 errors or 404s that aren't "normal" missing resources
+    if (!error.message?.includes('Resource not found') && 
+        !error.message?.includes('Branch protection not found')) {
+      console.error(`Error fetching ${endpoint}:`, error)
+    }
     throw error
   }
 }
@@ -409,7 +427,7 @@ export async function getGitHubUserOrganizations(username: string): Promise<GitH
     for (const org of orgData) {
       // Get detailed organization info
       try {
-        const detailedOrg = await fetchGitHubApi(`/orgs/${org.login}`)
+        const detailedOrg = await fetchGitHubApi(`/orgs/${org.login}`, username)
         
         organizations.push({
           login: detailedOrg.login,
@@ -448,44 +466,527 @@ export async function getGitHubUserOrganizations(username: string): Promise<GitH
 }
 
 /**
- * Calculate contribution statistics from available data
+ * Get user's recent activity events for contribution analysis
+ * @param username - GitHub username
+ * @param maxEvents - Maximum number of events to fetch (default: 300)
+ * @returns Array of user events
+ */
+async function getGitHubUserEvents(username: string, maxEvents: number = 300): Promise<any[]> {
+  try {
+    const events: any[] = []
+    let page = 1
+    const perPage = Math.min(maxEvents, 100)
+    
+    while (events.length < maxEvents) {
+      const eventData = await fetchGitHubApi(
+        `/users/${username}/events?page=${page}&per_page=${perPage}`,
+        username
+      )
+      
+      if (!eventData || eventData.length === 0) {
+        break
+      }
+      
+      events.push(...eventData)
+      page++
+      
+      // Break if we got less than perPage results (last page)
+      if (eventData.length < perPage) {
+        break
+      }
+    }
+    
+    return events.slice(0, maxEvents)
+  } catch (error) {
+    console.warn('Error fetching user events:', error)
+    return []
+  }
+}
+
+/**
+ * Analyze commit frequency and patterns from user events
+ * @param events - User's GitHub events
+ * @returns Commit frequency analysis
+ */
+function analyzeCommitFrequency(events: any[]): GitHubCommitFrequency {
+  try {
+    const now = new Date()
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+    
+    // Filter push events (commits)
+    const pushEvents = events.filter(event => event.type === 'PushEvent')
+    
+    // Count commits in different time periods
+    const lastWeek = pushEvents.filter(event => 
+      new Date(event.created_at) > oneWeekAgo
+    ).reduce((sum, event) => sum + (event.payload?.commits?.length || 0), 0)
+    
+    const lastMonth = pushEvents.filter(event => 
+      new Date(event.created_at) > oneMonthAgo
+    ).reduce((sum, event) => sum + (event.payload?.commits?.length || 0), 0)
+    
+    const lastYear = pushEvents.filter(event => 
+      new Date(event.created_at) > oneYearAgo
+    ).reduce((sum, event) => sum + (event.payload?.commits?.length || 0), 0)
+    
+    // Calculate average per week over the year
+    const averagePerWeek = Math.round(lastYear / 52)
+    
+    // Analyze commit message quality
+    const commitMessages = pushEvents
+      .flatMap(event => event.payload?.commits || [])
+      .map(commit => commit.message)
+      .filter(Boolean)
+    
+    let commitMessageQuality = 50 // Default score
+    let conventionalCommits = false
+    
+    if (commitMessages.length > 0) {
+      // Check for conventional commit patterns
+      const conventionalPattern = /^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?: .+/
+      const conventionalCount = commitMessages.filter(msg => conventionalPattern.test(msg)).length
+      conventionalCommits = conventionalCount / commitMessages.length > 0.5
+      
+      // Calculate message quality score
+      const avgLength = commitMessages.reduce((sum, msg) => sum + msg.length, 0) / commitMessages.length
+      const hasDescriptive = commitMessages.filter(msg => msg.length > 20).length / commitMessages.length
+      
+      commitMessageQuality = Math.min(100, Math.round(
+        (avgLength > 20 ? 30 : avgLength / 20 * 30) +
+        (hasDescriptive * 40) +
+        (conventionalCommits ? 30 : 0)
+      ))
+    }
+    
+    return {
+      lastWeek,
+      lastMonth,
+      lastYear,
+      averagePerWeek,
+      commitMessageQuality,
+      conventionalCommits,
+    }
+  } catch (error) {
+    console.error('Error analyzing commit frequency:', error)
+    return {
+      lastWeek: 0,
+      lastMonth: 0,
+      lastYear: 0,
+      averagePerWeek: 0,
+      commitMessageQuality: 0,
+      conventionalCommits: false,
+    }
+  }
+}
+
+/**
+ * Get detailed repository statistics including issues and PRs
+ * @param username - GitHub username
+ * @param repositories - User's repositories
+ * @returns Issue and PR metrics
+ */
+async function getRepositoryStats(username: string, repositories: GitHubRepository[]): Promise<{
+  issueMetrics: GitHubIssueMetrics
+  pullRequestMetrics: GitHubPullRequestMetrics
+}> {
+  try {
+    let totalOpenIssues = 0
+    let totalClosedIssues = 0
+    let totalOpenPRs = 0
+    let totalMergedPRs = 0
+    let hasTemplates = false
+    let requiresReviews = false
+    let hasLabels = false
+    
+    // Sample a few repositories for detailed analysis (to avoid rate limits)
+    const samplesToAnalyze = repositories.filter(repo => !repo.isFork).slice(0, 5)
+    
+    for (const repo of samplesToAnalyze) {
+      try {
+        // Get issues (includes PRs in GitHub API)
+        const issues = await fetchGitHubApi(`/repos/${repo.fullName}/issues?state=all&per_page=100`, username)
+        const pullRequests = issues.filter((issue: any) => issue.pull_request)
+        const pureIssues = issues.filter((issue: any) => !issue.pull_request)
+        
+        // Count issues
+        totalOpenIssues += pureIssues.filter((issue: any) => issue.state === 'open').length
+        totalClosedIssues += pureIssues.filter((issue: any) => issue.state === 'closed').length
+        
+        // Count PRs
+        totalOpenPRs += pullRequests.filter((pr: any) => pr.state === 'open').length
+        totalMergedPRs += pullRequests.filter((pr: any) => pr.state === 'closed').length
+        
+        // Check for labels
+        if (issues.some((issue: any) => issue.labels && issue.labels.length > 0)) {
+          hasLabels = true
+        }
+        
+        // Check for issue/PR templates
+        try {
+          const templates = await fetchGitHubApi(`/repos/${repo.fullName}/contents/.github`, username)
+          if (templates && Array.isArray(templates)) {
+            const templateFiles = templates.filter((file: any) => 
+              file.name.includes('template') || 
+              file.name.includes('TEMPLATE') ||
+              file.name === 'PULL_REQUEST_TEMPLATE.md' ||
+              file.name === 'ISSUE_TEMPLATE.md'
+            )
+            if (templateFiles.length > 0) {
+              hasTemplates = true
+            }
+          }
+        } catch (error: any) {
+          // 404 is normal (no .github directory), but log other errors
+          if (!error.message?.includes('Resource not found')) {
+            console.warn(`Unexpected error checking templates for ${repo.name}:`, error.message)
+          }
+        }
+        
+        // Check branch protection (indicates review requirements)
+        try {
+          const branch = await fetchGitHubApi(`/repos/${repo.fullName}/branches/${repo.defaultBranch}/protection`, username)
+          if (branch && branch.required_pull_request_reviews) {
+            requiresReviews = true
+          }
+        } catch (error: any) {
+          // 404 is normal (no branch protection), but log other errors
+          if (!error.message?.includes('Branch protection not found')) {
+            console.warn(`Unexpected error checking branch protection for ${repo.name}:`, error.message)
+          }
+        }
+        
+      } catch (error) {
+        console.warn(`Failed to analyze repository ${repo.name}:`, error)
+      }
+    }
+    
+    const issueMetrics: GitHubIssueMetrics = {
+      totalOpen: totalOpenIssues,
+      totalClosed: totalClosedIssues,
+      averageResponseTime: 0, // Would need detailed timeline analysis
+      averageResolutionTime: 0, // Would need detailed timeline analysis
+      hasLabels,
+      hasTemplates,
+      maintainerResponseRate: 0, // Would need comment analysis
+    }
+    
+    const pullRequestMetrics: GitHubPullRequestMetrics = {
+      totalOpen: totalOpenPRs,
+      totalMerged: totalMergedPRs,
+      averageReviewTime: 0, // Would need detailed PR timeline analysis
+      averageMergeTime: 0, // Would need detailed PR timeline analysis
+      hasTemplates,
+      requiresReviews,
+      maintainerMergeRate: totalMergedPRs > 0 ? Math.round((totalMergedPRs / (totalMergedPRs + totalOpenPRs)) * 100) : 0,
+    }
+    
+    return { issueMetrics, pullRequestMetrics }
+  } catch (error) {
+    console.error('Error getting repository stats:', error)
+    return {
+      issueMetrics: {
+        totalOpen: 0,
+        totalClosed: 0,
+        averageResponseTime: 0,
+        averageResolutionTime: 0,
+        hasLabels: false,
+        hasTemplates: false,
+        maintainerResponseRate: 0,
+      },
+      pullRequestMetrics: {
+        totalOpen: 0,
+        totalMerged: 0,
+        averageReviewTime: 0,
+        averageMergeTime: 0,
+        hasTemplates: false,
+        requiresReviews: false,
+        maintainerMergeRate: 0,
+      }
+    }
+  }
+}
+
+/**
+ * Analyze collaboration signals from repositories and events
+ * @param username - GitHub username
+ * @param repositories - User's repositories
+ * @param events - User's GitHub events
+ * @returns Collaboration analysis
+ */
+async function analyzeCollaborationSignals(
+  username: string, 
+  repositories: GitHubRepository[], 
+  events: any[]
+): Promise<GitHubCollaborationSignals> {
+  try {
+    let uniqueContributors = new Set<string>()
+    let outsideContributions = 0
+    let hasCodeOfConduct = false
+    let hasContributingGuide = false
+    let hasSecurityPolicy = false
+    
+    // Analyze contributions to other repositories
+    const contributionEvents = events.filter(event => 
+      event.type === 'PullRequestEvent' || 
+      event.type === 'IssuesEvent' ||
+      event.type === 'PullRequestReviewEvent'
+    )
+    
+    outsideContributions = contributionEvents.filter(event => {
+      const repoOwner = event.repo?.name?.split('/')[0]
+      return repoOwner && repoOwner !== username
+    }).length
+    
+    // Sample repositories for contributor analysis
+    const samplesToAnalyze = repositories.filter(repo => !repo.isFork && repo.stars > 0).slice(0, 3)
+    
+    for (const repo of samplesToAnalyze) {
+      try {
+        // Get contributors
+        const contributors = await fetchGitHubApi(`/repos/${repo.fullName}/contributors?per_page=100`, username)
+        if (contributors && Array.isArray(contributors)) {
+          contributors.forEach((contributor: any) => {
+            if (contributor.login !== username) {
+              uniqueContributors.add(contributor.login)
+            }
+          })
+        }
+        
+        // Check for community files
+        try {
+          const communityFiles = await fetchGitHubApi(`/repos/${repo.fullName}/community/profile`, username)
+          if (communityFiles) {
+            if (communityFiles.files?.code_of_conduct) hasCodeOfConduct = true
+            if (communityFiles.files?.contributing) hasContributingGuide = true
+            if (communityFiles.files?.security) hasSecurityPolicy = true
+          }
+        } catch (error: any) {
+          // Community profile not available (this is normal for many repos)
+          if (!error.message?.includes('Resource not found')) {
+            console.warn(`Unexpected error checking community profile for ${repo.name}:`, error.message)
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to analyze collaboration for ${repo.name}:`, error)
+      }
+    }
+    
+    // Calculate metrics
+    const totalStars = repositories.reduce((sum, repo) => sum + repo.stars, 0)
+    const totalForks = repositories.reduce((sum, repo) => sum + repo.forks, 0)
+    const forkToStarRatio = totalStars > 0 ? totalForks / totalStars : 0
+    
+    // Calculate community engagement score
+    const engagementFactors = [
+      outsideContributions > 10 ? 1 : outsideContributions / 10,
+      uniqueContributors.size > 5 ? 1 : uniqueContributors.size / 5,
+      forkToStarRatio > 0.1 ? 1 : forkToStarRatio * 10,
+      hasCodeOfConduct ? 1 : 0,
+      hasContributingGuide ? 1 : 0,
+    ]
+    
+    const communityEngagement = Math.round(
+      (engagementFactors.reduce((sum, factor) => sum + factor, 0) / engagementFactors.length) * 100
+    )
+    
+    return {
+      uniqueContributors: uniqueContributors.size,
+      coreTeamSize: Math.min(5, uniqueContributors.size), // Estimate core team
+      outsideContributions,
+      forkToStarRatio: Math.round(forkToStarRatio * 100) / 100,
+      communityEngagement,
+      hasCodeOfConduct,
+      hasContributingGuide,
+      hasSecurityPolicy,
+    }
+  } catch (error) {
+    console.error('Error analyzing collaboration signals:', error)
+    return {
+      uniqueContributors: 0,
+      coreTeamSize: 0,
+      outsideContributions: 0,
+      forkToStarRatio: 0,
+      communityEngagement: 0,
+      hasCodeOfConduct: false,
+      hasContributingGuide: false,
+      hasSecurityPolicy: false,
+    }
+  }
+}
+
+/**
+ * Enhanced framework detection from package.json and file structure
+ * @param packageJson - Parsed package.json content
+ * @param repoStructure - Repository file structure
+ * @returns Enhanced package analysis with framework detection
+ */
+function enhancedPackageAnalysis(packageJson: any, repoStructure?: any): GitHubPackageAnalysis {
+  if (!packageJson) {
+    return {
+      exists: false,
+      hasScripts: false,
+      scriptCount: 0,
+      dependencyCount: 0,
+      devDependencyCount: 0,
+      hasLinting: false,
+      hasTesting: false,
+      hasTypeScript: false,
+      hasDocumentation: false,
+      hasValidLicense: false,
+    }
+  }
+  
+  const dependencies = packageJson.dependencies || {}
+  const devDependencies = packageJson.devDependencies || {}
+  const scripts = packageJson.scripts || {}
+  const allDeps = { ...dependencies, ...devDependencies }
+  
+  // Enhanced framework detection
+  const frameworks = {
+    react: ['react', '@types/react', 'react-dom'],
+    vue: ['vue', '@vue/cli', 'vue-router', 'vuex'],
+    angular: ['@angular/core', '@angular/cli', 'angular'],
+    express: ['express', 'fastify', 'koa'],
+    nestjs: ['@nestjs/core', '@nestjs/common'],
+    nextjs: ['next'],
+    nuxt: ['nuxt'],
+    svelte: ['svelte', 'sveltekit'],
+    gatsby: ['gatsby'],
+    flutter: ['flutter'],
+    django: ['django'],
+    rails: ['rails'],
+  }
+  
+  const detectedFrameworks: string[] = []
+  Object.entries(frameworks).forEach(([framework, packages]) => {
+    if (packages.some(pkg => allDeps[pkg])) {
+      detectedFrameworks.push(framework)
+    }
+  })
+  
+  // Enhanced tooling detection
+  const lintingTools = ['eslint', 'tslint', 'jshint', 'prettier', 'stylelint']
+  const testingTools = ['jest', 'mocha', 'jasmine', 'karma', 'cypress', 'playwright', 'vitest']
+  const buildTools = ['webpack', 'rollup', 'parcel', 'vite', 'esbuild']
+  
+  const hasLinting = lintingTools.some(tool => allDeps[tool]) || 
+                    Object.keys(scripts).some(script => script.includes('lint'))
+  
+  const hasTesting = testingTools.some(tool => allDeps[tool]) ||
+                     Object.keys(scripts).some(script => script.includes('test'))
+  
+  const hasBuildTool = buildTools.some(tool => allDeps[tool])
+  const hasTypeScript = !!allDeps['typescript'] || !!allDeps['@types/node']
+  
+  return {
+    exists: true,
+    hasScripts: Object.keys(scripts).length > 0,
+    scriptCount: Object.keys(scripts).length,
+    dependencyCount: Object.keys(dependencies).length,
+    devDependencyCount: Object.keys(devDependencies).length,
+    hasLinting,
+    hasTesting,
+    hasTypeScript,
+    hasDocumentation: !!scripts.docs || !!allDeps['typedoc'] || !!allDeps['jsdoc'],
+    hasValidLicense: !!packageJson.license,
+    frameworks: detectedFrameworks,
+    buildTools: buildTools.filter(tool => allDeps[tool]),
+    testingFrameworks: testingTools.filter(tool => allDeps[tool]),
+    lintingTools: lintingTools.filter(tool => allDeps[tool]),
+  } as any
+}
+
+/**
+ * Calculate contribution statistics with enhanced activity analysis
  * @param repositories - User's repositories
  * @param userInfo - Basic user information
  * @param languageStats - Language statistics
- * @returns Contribution statistics
+ * @param events - User's GitHub events
+ * @returns Enhanced contribution statistics
  */
 export function calculateContributionStats(
   repositories: GitHubRepository[],
   userInfo: Partial<GitHubData>,
-  languageStats: GitHubLanguageStats[]
+  languageStats: GitHubLanguageStats[],
+  events?: any[]
 ): GitHubContributionStats {
   try {
-    // Calculate basic stats from available data
     const totalRepositories = repositories.length
-    const totalStars = repositories.reduce((sum, repo) => sum + repo.stars, 0)
-    const totalForks = repositories.reduce((sum, repo) => sum + repo.forks, 0)
-    const ownRepos = repositories.filter(repo => !repo.isFork)
-    const forkedRepos = repositories.filter(repo => repo.isFork)
-    
-    // Find most used language
     const mostUsedLanguage = languageStats.length > 0 ? languageStats[0].language : ''
     
-    // Estimate activity based on repository updates
-    const recentlyUpdated = repositories.filter(repo => {
-      const updatedDate = new Date(repo.updatedAt)
+    // Enhanced calculations with events data
+    let totalCommits = 0
+    let totalPullRequests = 0
+    let totalIssues = 0
+    let streakDays = 0
+    let contributionsLastYear = 0
+    let mostActiveDay = ''
+    
+    if (events && events.length > 0) {
+      // Calculate commits from push events
+      totalCommits = events
+        .filter(event => event.type === 'PushEvent')
+        .reduce((sum, event) => sum + (event.payload?.commits?.length || 0), 0)
+      
+      // Calculate PRs and issues
+      totalPullRequests = events.filter(event => event.type === 'PullRequestEvent').length
+      totalIssues = events.filter(event => event.type === 'IssuesEvent').length
+      
+      // Calculate contribution streak
+      const contributionDates = events.map(event => 
+        new Date(event.created_at).toDateString()
+      ).filter((date, index, array) => array.indexOf(date) === index)
+      
+      contributionDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+      
+      // Calculate current streak
+      let currentStreak = 0
+      const today = new Date().toDateString()
+      
+      for (let i = 0; i < contributionDates.length; i++) {
+        const date = new Date(contributionDates[i])
+        const expectedDate = new Date()
+        expectedDate.setDate(expectedDate.getDate() - i)
+        
+        if (date.toDateString() === expectedDate.toDateString() || 
+            (i === 0 && date.toDateString() === new Date(Date.now() - 24*60*60*1000).toDateString())) {
+          currentStreak++
+        } else {
+          break
+        }
+      }
+      
+      streakDays = currentStreak
+      
+      // Calculate contributions in last year
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-      return updatedDate > oneYearAgo
-    }).length
+      contributionsLastYear = events.filter(event => 
+        new Date(event.created_at) > oneYearAgo
+      ).length
+      
+      // Find most active day of week
+      const dayCount: Record<string, number> = {}
+      events.forEach(event => {
+        const day = new Date(event.created_at).toLocaleDateString('en-US', { weekday: 'long' })
+        dayCount[day] = (dayCount[day] || 0) + 1
+      })
+      
+      mostActiveDay = Object.entries(dayCount).reduce((a, b) => 
+        dayCount[a[0]] > dayCount[b[0]] ? a : b
+      )?.[0] || ''
+    }
     
     return {
-      totalCommits: 0, // Would need additional API calls to get accurate commit count
-      totalPullRequests: 0, // Would need additional API calls
-      totalIssues: 0, // Would need additional API calls
+      totalCommits,
+      totalPullRequests,
+      totalIssues,
       totalRepositories,
-      streakDays: 0, // Would need contribution calendar data
-      contributionsLastYear: recentlyUpdated,
-      mostActiveDay: '', // Would need contribution calendar data
+      streakDays,
+      contributionsLastYear,
+      mostActiveDay,
       mostUsedLanguage,
     }
   } catch (error) {
@@ -516,7 +1017,7 @@ async function getRepositoryFileContent(
   filePath: string
 ): Promise<string | null> {
   try {
-    const response = await fetchGitHubApi(`/repos/${username}/${repoName}/contents/${filePath}`)
+    const response = await fetchGitHubApi(`/repos/${username}/${repoName}/contents/${filePath}`, username)
     
     if (response.type === 'file' && response.content) {
       // GitHub API returns base64 encoded content
@@ -524,8 +1025,11 @@ async function getRepositoryFileContent(
     }
     
     return null
-  } catch (error) {
-    // File doesn't exist or other error
+  } catch (error: any) {
+    // Don't log 404s as they're expected for missing files
+    if (!error.message?.includes('Resource not found')) {
+      console.warn(`Unexpected error getting file content for ${username}/${repoName}/${filePath}:`, error.message)
+    }
     return null
   }
 }
@@ -543,9 +1047,13 @@ async function getRepositoryDirectoryContents(
   dirPath: string = ''
 ): Promise<any[]> {
   try {
-    const response = await fetchGitHubApi(`/repos/${username}/${repoName}/contents/${dirPath}`)
+    const response = await fetchGitHubApi(`/repos/${username}/${repoName}/contents/${dirPath}`, username)
     return Array.isArray(response) ? response : []
-  } catch (error) {
+  } catch (error: any) {
+    // Don't log 404s as they're expected for missing directories
+    if (!error.message?.includes('Resource not found')) {
+      console.warn(`Unexpected error getting directory contents for ${username}/${repoName}/${dirPath}:`, error.message)
+    }
     return []
   }
 }
@@ -703,6 +1211,11 @@ async function analyzeGitHubWorkflows(
   try {
     const workflowsDir = await getRepositoryDirectoryContents(username, repoName, '.github/workflows')
     const workflows: GitHubWorkflowAnalysis[] = []
+    
+    // If no workflows directory exists, return empty array (this is normal)
+    if (workflowsDir.length === 0) {
+      return workflows
+    }
     
     for (const file of workflowsDir) {
       if (file.type === 'file' && (file.name.endsWith('.yml') || file.name.endsWith('.yaml'))) {
@@ -966,9 +1479,11 @@ export async function analyzeRepositoryContent(repository: GitHubRepository): Pr
     
     const readme = analyzeReadmeContent(readmeContent)
     
-    // Analyze package.json (if it exists)
+    // Analyze package.json (if it exists) with enhanced framework detection
     const packageContent = await getRepositoryFileContent(owner, repoName, 'package.json')
-    const packageJson = analyzePackageJson(packageContent)
+    const packageJson = packageContent ? 
+      enhancedPackageAnalysis(JSON.parse(packageContent)) : 
+      undefined
     
     // Analyze workflows
     const workflows = await analyzeGitHubWorkflows(owner, repoName)
@@ -1046,6 +1561,7 @@ export async function processGitHubAccount(
     includeOrganizations?: boolean
     analyzeContent?: boolean
     maxContentAnalysis?: number
+    includeActivity?: boolean
   } = {}
 ): Promise<GitHubData> {
   try {
@@ -1053,7 +1569,8 @@ export async function processGitHubAccount(
       maxRepos = 100, 
       includeOrganizations = true, 
       analyzeContent = false, 
-      maxContentAnalysis = 10 
+      maxContentAnalysis = 10,
+      includeActivity = true
     } = options
     
     console.log(`Processing GitHub account: ${githubUrl}`)
@@ -1069,6 +1586,33 @@ export async function processGitHubAccount(
     // Get user's repositories
     console.log('Fetching repositories...')
     const repositories = await getGitHubUserRepositories(username, maxRepos)
+    
+    // Get user activity events for enhanced analysis
+    let userEvents: any[] = []
+    let activityAnalysis: GitHubActivityAnalysis | undefined
+    if (includeActivity) {
+      console.log('Fetching user activity events...')
+      userEvents = await getGitHubUserEvents(username)
+      
+      console.log('Analyzing activity patterns...')
+      // Analyze commit frequency and patterns
+      const commitFrequency = analyzeCommitFrequency(userEvents)
+      
+      // Get detailed repository statistics
+      const { issueMetrics, pullRequestMetrics } = await getRepositoryStats(username, repositories)
+      
+      // Analyze collaboration signals
+      const collaborationSignals = await analyzeCollaborationSignals(username, repositories, userEvents)
+      
+      activityAnalysis = {
+        commitFrequency,
+        issueMetrics,
+        pullRequestMetrics,
+        collaborationSignals,
+      }
+      
+      console.log('Activity analysis completed')
+    }
     
     // Analyze repository content (if requested)
     let repositoryContent: GitHubRepositoryContent[] | undefined
@@ -1103,9 +1647,9 @@ export async function processGitHubAccount(
       organizations = await getGitHubUserOrganizations(username)
     }
     
-    // Calculate contribution statistics
+    // Calculate enhanced contribution statistics
     console.log('Calculating contribution statistics...')
-    const contributionStats = calculateContributionStats(repositories, userInfo, languageStats)
+    const contributionStats = calculateContributionStats(repositories, userInfo, languageStats, userEvents)
     
     // Calculate overall quality score (if content was analyzed)
     let overallQualityScore: GitHubQualityScore | undefined
@@ -1179,6 +1723,7 @@ export async function processGitHubAccount(
       repositoryContent,
       languages: languageStats,
       contributions: contributionStats,
+      activityAnalysis,
       starredRepos,
       forkedRepos,
       organizations,
@@ -1188,7 +1733,9 @@ export async function processGitHubAccount(
         apiVersion: 'v3',
         processingOptions: options,
         contentAnalysisEnabled: !!analyzeContent,
+        activityAnalysisEnabled: !!includeActivity,
         repositoriesAnalyzed: repositoryContent?.length || 0,
+        eventsAnalyzed: userEvents.length,
       },
     }
     

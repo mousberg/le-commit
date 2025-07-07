@@ -9,6 +9,11 @@ This module provides functionality to collect and analyze GitHub account informa
 - **🆕 Analyze repository content** (README quality, CI/CD setup, code structure)
 - **🆕 Calculate quality scores** for repositories and overall account
 - **🆕 Detect development practices** (testing, linting, documentation)
+- **🆕 Enhanced framework detection** (React, Vue, Angular, Express, etc.)
+- **🆕 Contribution calendar & streak analysis** with real activity data
+- **🆕 Detailed PR tracking** (review requirements, templates, merge rates)
+- **🆕 Collaboration signals** (contributors, community files, engagement)
+- **🆕 Commit quality analysis** (conventional commits, message quality)
 - Calculate programming language statistics
 - Gather organization memberships
 - Generate contribution statistics
@@ -82,11 +87,34 @@ const options = {
   maxRepos: 100,              // Maximum repositories to analyze (default: 100)
   includeOrganizations: true, // Include organization data (default: true)
   analyzeContent: true,       // 🆕 Enable repository content analysis (default: false)
-  maxContentAnalysis: 10      // 🆕 Maximum repositories to analyze in detail (default: 10)
+  maxContentAnalysis: 10,     // 🆕 Maximum repositories to analyze in detail (default: 10)
+  includeActivity: true       // 🆕 Enable enhanced activity analysis (default: true)
 }
 
 const githubData = await processGitHubAccount('username', options)
 ```
+
+### 🚀 Enhanced Features
+
+#### Contribution Calendar & Streak Analysis
+- **Real Activity Data**: Fetches actual GitHub events for accurate contribution tracking
+- **Streak Calculation**: Calculates current contribution streaks based on daily activity
+- **Activity Patterns**: Identifies most active days and contribution patterns
+
+#### Advanced Framework Detection
+- **Smart Detection**: Identifies frameworks from package.json dependencies and file structure
+- **Comprehensive Coverage**: Detects React, Vue, Angular, Express, Next.js, and many more
+- **Tooling Analysis**: Identifies build tools, testing frameworks, and linting tools
+
+#### Detailed PR & Issue Tracking
+- **PR Quality Metrics**: Analyzes merge rates, review requirements, and templates
+- **Issue Management**: Tracks issue resolution patterns and template usage
+- **Repository Governance**: Detects branch protection and review requirements
+
+#### Collaboration Analysis
+- **Community Engagement**: Measures contributions to other projects and community involvement
+- **Contributor Networks**: Analyzes unique contributors and collaboration patterns
+- **Community Health**: Detects code of conduct, contributing guides, and security policies
 
 ## Data Structure
 
@@ -175,12 +203,51 @@ Quality Breakdown:
   🔧 Maintenance: 90/100
   👥 Community: 65/100
 
+🎯 Contribution Calendar & Streaks:
+  Current Streak: 15 days
+  Total Commits: 1,247
+  Total Pull Requests: 89
+  Total Issues Opened: 156
+  Most Active Day: Tuesday
+  Contributions This Year: 892
+
+⚡ Enhanced Activity Analysis:
+
+  📝 Commit Patterns & Quality:
+     Last Week: 12 commits
+     Last Month: 48 commits
+     Last Year: 520 commits
+     Weekly Average: 10 commits
+     Commit Message Quality: 85/100
+     Conventional Commits: ✅
+
+  🔄 Pull Request Quality:
+     Open PRs: 3
+     Merged PRs: 86
+     Requires Reviews: ✅
+     Has PR Templates: ✅
+     Maintainer Merge Rate: 96%
+
+  🤝 Collaboration & Community:
+     Unique Contributors: 23
+     Outside Contributions: 42
+     Fork-to-Star Ratio: 0.15
+     Community Engagement Score: 78/100
+     Code of Conduct: ✅
+     Contributing Guide: ✅
+     Security Policy: ❌
+
 📊 Repository Content Analysis (5 repos):
   1. Hello-World (Quality: 82/100)
      📝 README: ✅ (85/100)
      🔨 CI/CD: ❌
      🧪 Tests: ❌
      📦 Package.json: ❌
+     - Frameworks: React, Express
+     - Linting: ✅ (eslint, prettier)
+     - Testing: ✅ (jest, cypress)
+     - TypeScript: ✅
+     - Build Tools: webpack, vite
 ```
 
 ## API Rate Limits
@@ -217,14 +284,14 @@ This module follows the same patterns as the CV processing module:
 
 1. **Public Data Only**: Without authentication, only public repositories and profile information are accessible
 2. **Rate Limits**: GitHub API has usage limits that may affect large-scale analysis
-3. **Contribution Calendar**: Detailed contribution statistics require additional API calls not implemented in basic version
-4. **Private Repositories**: Require authentication and appropriate permissions
+3. **Private Repositories**: Require authentication and appropriate permissions
+4. **Historical Scope**: Activity analysis is limited to recent events (typically last 300 events)
+5. **Sample Analysis**: For rate limit efficiency, detailed repository analysis is performed on a sample of repositories
 
 ## Future Enhancements
 
-- Contribution calendar analysis
-- Commit activity patterns
-- Issue and pull request statistics
-- Collaboration network analysis
-- Repository dependency analysis
-- Code quality metrics integration 
+- Historical contribution timeline analysis beyond recent events
+- Repository dependency analysis and security vulnerability scanning
+- Advanced code quality metrics integration
+- Team collaboration patterns and network analysis
+- Integration with other development platforms (GitLab, Bitbucket) 

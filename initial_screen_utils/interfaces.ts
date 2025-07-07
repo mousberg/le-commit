@@ -275,6 +275,10 @@ export interface GitHubPackageAnalysis {
   hasTypeScript: boolean;
   hasDocumentation: boolean;
   hasValidLicense: boolean;
+  frameworks?: string[]; // Detected frameworks (React, Vue, Angular, etc.)
+  buildTools?: string[]; // Build tools (webpack, rollup, vite, etc.)
+  testingFrameworks?: string[]; // Testing frameworks (jest, mocha, cypress, etc.)
+  lintingTools?: string[]; // Linting tools (eslint, prettier, etc.)
   outdatedDependencies?: number;
   securityVulnerabilities?: number;
 }

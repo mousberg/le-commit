@@ -20,13 +20,14 @@ async function exampleUsage() {
       const username = extractUsernameFromUrl(githubUrl)
       
       try {
-        // Process the GitHub account
+        // Process the GitHub account with enhanced features
         console.log('Starting GitHub account processing...')
         const githubData = await processGitHubAccount(githubUrl, {
           maxRepos: 50,  // Limit repositories for faster processing
           includeOrganizations: true,
           analyzeContent: true,  // Enable content analysis
-          maxContentAnalysis: 5  // Analyze top 5 repositories
+          maxContentAnalysis: 5,  // Analyze top 5 repositories
+          includeActivity: true   // Enable enhanced activity analysis
         })
 
         // Save the extracted data to JSON
@@ -107,12 +108,59 @@ async function exampleUsage() {
             console.log(`     🧪 Tests: ${content.codeStructure.hasTests ? '✅' : '❌'}`)
             console.log(`     📦 Package.json: ${content.packageJson?.exists ? '✅' : '❌'}`)
             if (content.packageJson) {
-              console.log(`       - Linting: ${content.packageJson.hasLinting ? '✅' : '❌'}`)
-              console.log(`       - Testing: ${content.packageJson.hasTesting ? '✅' : '❌'}`)
+              console.log(`       - Frameworks: ${content.packageJson.frameworks?.join(', ') || 'None detected'}`)
+              console.log(`       - Linting: ${content.packageJson.hasLinting ? '✅' : '❌'} ${content.packageJson.lintingTools?.length ? `(${content.packageJson.lintingTools.join(', ')})` : ''}`)
+              console.log(`       - Testing: ${content.packageJson.hasTesting ? '✅' : '❌'} ${content.packageJson.testingFrameworks?.length ? `(${content.packageJson.testingFrameworks.join(', ')})` : ''}`)
               console.log(`       - TypeScript: ${content.packageJson.hasTypeScript ? '✅' : '❌'}`)
+              console.log(`       - Build Tools: ${content.packageJson.buildTools?.length ? content.packageJson.buildTools.join(', ') : 'None detected'}`)
             }
           })
         }
+
+        // Enhanced Activity Analysis
+        if (githubData.activityAnalysis) {
+          console.log(`\n⚡ Enhanced Activity Analysis:`)
+          const { commitFrequency, issueMetrics, pullRequestMetrics, collaborationSignals } = githubData.activityAnalysis
+          
+          console.log(`\n  📝 Commit Patterns & Quality:`)
+          console.log(`     Last Week: ${commitFrequency.lastWeek} commits`)
+          console.log(`     Last Month: ${commitFrequency.lastMonth} commits`)
+          console.log(`     Last Year: ${commitFrequency.lastYear} commits`)
+          console.log(`     Weekly Average: ${commitFrequency.averagePerWeek} commits`)
+          console.log(`     Commit Message Quality: ${commitFrequency.commitMessageQuality}/100`)
+          console.log(`     Conventional Commits: ${commitFrequency.conventionalCommits ? '✅' : '❌'}`)
+          
+          console.log(`\n  🐛 Issue Management:`)
+          console.log(`     Open Issues: ${issueMetrics.totalOpen}`)
+          console.log(`     Closed Issues: ${issueMetrics.totalClosed}`)
+          console.log(`     Uses Labels: ${issueMetrics.hasLabels ? '✅' : '❌'}`)
+          console.log(`     Has Issue Templates: ${issueMetrics.hasTemplates ? '✅' : '❌'}`)
+          
+          console.log(`\n  🔄 Pull Request Quality:`)
+          console.log(`     Open PRs: ${pullRequestMetrics.totalOpen}`)
+          console.log(`     Merged PRs: ${pullRequestMetrics.totalMerged}`)
+          console.log(`     Requires Reviews: ${pullRequestMetrics.requiresReviews ? '✅' : '❌'}`)
+          console.log(`     Has PR Templates: ${pullRequestMetrics.hasTemplates ? '✅' : '❌'}`)
+          console.log(`     Maintainer Merge Rate: ${pullRequestMetrics.maintainerMergeRate}%`)
+          
+          console.log(`\n  🤝 Collaboration & Community:`)
+          console.log(`     Unique Contributors: ${collaborationSignals.uniqueContributors}`)
+          console.log(`     Outside Contributions: ${collaborationSignals.outsideContributions}`)
+          console.log(`     Fork-to-Star Ratio: ${collaborationSignals.forkToStarRatio}`)
+          console.log(`     Community Engagement Score: ${collaborationSignals.communityEngagement}/100`)
+          console.log(`     Code of Conduct: ${collaborationSignals.hasCodeOfConduct ? '✅' : '❌'}`)
+          console.log(`     Contributing Guide: ${collaborationSignals.hasContributingGuide ? '✅' : '❌'}`)
+          console.log(`     Security Policy: ${collaborationSignals.hasSecurityPolicy ? '✅' : '❌'}`)
+        }
+
+        // Enhanced Contribution Statistics
+        console.log(`\n🎯 Contribution Calendar & Streaks:`)
+        console.log(`  Current Streak: ${githubData.contributions.streakDays} days`)
+        console.log(`  Total Commits: ${githubData.contributions.totalCommits}`)
+        console.log(`  Total Pull Requests: ${githubData.contributions.totalPullRequests}`)
+        console.log(`  Total Issues Opened: ${githubData.contributions.totalIssues}`)
+        console.log(`  Most Active Day: ${githubData.contributions.mostActiveDay}`)
+        console.log(`  Contributions This Year: ${githubData.contributions.contributionsLastYear}`)
 
         console.log(`\n=== Processing Complete ===`)
         console.log(`Full GitHub data saved to: ${outputPath}`)
@@ -140,7 +188,8 @@ async function processSingleAccount(githubUrl: string) {
       maxRepos: 100,
       includeOrganizations: true,
       analyzeContent: true,
-      maxContentAnalysis: 10
+      maxContentAnalysis: 10,
+      includeActivity: true
     })
     
     const username = extractUsernameFromUrl(githubUrl)
