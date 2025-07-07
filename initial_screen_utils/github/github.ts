@@ -1,4 +1,16 @@
-import { GitHubData, GitHubRepository, GitHubLanguageStats, GitHubContributionStats, GitHubOrganization } from '../interfaces'
+import { 
+  GitHubData, 
+  GitHubRepository, 
+  GitHubLanguageStats, 
+  GitHubContributionStats, 
+  GitHubOrganization,
+  GitHubRepositoryContent,
+  GitHubReadmeAnalysis,
+  GitHubPackageAnalysis,
+  GitHubWorkflowAnalysis,
+  GitHubCodeStructure,
+  GitHubQualityScore
+} from '../interfaces'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -492,6 +504,536 @@ export function calculateContributionStats(
 }
 
 /**
+ * Get file content from a repository
+ * @param username - Repository owner
+ * @param repoName - Repository name
+ * @param filePath - Path to the file in the repository
+ * @returns File content as string or null if not found
+ */
+async function getRepositoryFileContent(
+  username: string,
+  repoName: string,
+  filePath: string
+): Promise<string | null> {
+  try {
+    const response = await fetchGitHubApi(`/repos/${username}/${repoName}/contents/${filePath}`)
+    
+    if (response.type === 'file' && response.content) {
+      // GitHub API returns base64 encoded content
+      return Buffer.from(response.content, 'base64').toString('utf-8')
+    }
+    
+    return null
+  } catch (error) {
+    // File doesn't exist or other error
+    return null
+  }
+}
+
+/**
+ * Get repository directory contents
+ * @param username - Repository owner
+ * @param repoName - Repository name
+ * @param dirPath - Directory path (empty for root)
+ * @returns Array of file/directory information
+ */
+async function getRepositoryDirectoryContents(
+  username: string,
+  repoName: string,
+  dirPath: string = ''
+): Promise<any[]> {
+  try {
+    const response = await fetchGitHubApi(`/repos/${username}/${repoName}/contents/${dirPath}`)
+    return Array.isArray(response) ? response : []
+  } catch (error) {
+    return []
+  }
+}
+
+/**
+ * Analyze README file content
+ * @param readmeContent - README file content
+ * @returns README analysis
+ */
+function analyzeReadmeContent(readmeContent: string | null): GitHubReadmeAnalysis {
+  if (!readmeContent) {
+    return {
+      exists: false,
+      length: 0,
+      sections: [],
+      hasBadges: false,
+      hasInstallInstructions: false,
+      hasUsageExamples: false,
+      hasContributing: false,
+      hasLicense: false,
+      imageCount: 0,
+      linkCount: 0,
+      codeBlockCount: 0,
+      qualityScore: 0,
+    }
+  }
+
+  const content = readmeContent.toLowerCase()
+  const lines = readmeContent.split('\n')
+  
+  // Extract sections (lines starting with #)
+  const sections = lines
+    .filter(line => line.trim().startsWith('#'))
+    .map(line => line.replace(/^#+\s*/, '').trim())
+  
+  // Count various elements
+  const imageCount = (readmeContent.match(/!\[.*?\]\(.*?\)/g) || []).length
+  const linkCount = (readmeContent.match(/\[.*?\]\(.*?\)/g) || []).length
+  const codeBlockCount = (readmeContent.match(/```/g) || []).length / 2
+  
+  // Check for key sections and content
+  const hasBadges = /!\[.*?\]\(https?:\/\/.*?(shields\.io|badge|travis|circleci|github\.com\/.*\/workflows)/i.test(readmeContent)
+  const hasInstallInstructions = /install|npm i|yarn add|pip install|composer install|go get/i.test(content)
+  const hasUsageExamples = /usage|example|getting started|quick start/i.test(content) && codeBlockCount > 0
+  const hasContributing = /contributing|contribution/i.test(content)
+  const hasLicense = /license|mit|apache|gpl/i.test(content)
+  
+  // Calculate quality score (0-100)
+  let qualityScore = 0
+  
+  // Length scoring (0-25 points)
+  if (readmeContent.length > 500) qualityScore += 5
+  if (readmeContent.length > 1500) qualityScore += 5
+  if (readmeContent.length > 3000) qualityScore += 10
+  if (readmeContent.length < 10000) qualityScore += 5 // Not too long
+  
+  // Content scoring (0-75 points)
+  if (sections.length >= 3) qualityScore += 10
+  if (hasBadges) qualityScore += 10
+  if (hasInstallInstructions) qualityScore += 15
+  if (hasUsageExamples) qualityScore += 15
+  if (hasContributing) qualityScore += 10
+  if (hasLicense) qualityScore += 5
+  if (imageCount > 0) qualityScore += 5
+  if (codeBlockCount >= 2) qualityScore += 5
+  
+  return {
+    exists: true,
+    length: readmeContent.length,
+    sections,
+    hasBadges,
+    hasInstallInstructions,
+    hasUsageExamples,
+    hasContributing,
+    hasLicense,
+    imageCount,
+    linkCount,
+    codeBlockCount,
+    qualityScore: Math.min(100, qualityScore),
+  }
+}
+
+/**
+ * Analyze package.json content
+ * @param packageContent - package.json content
+ * @returns Package analysis
+ */
+function analyzePackageJson(packageContent: string | null): GitHubPackageAnalysis | undefined {
+  if (!packageContent) {
+    return undefined
+  }
+
+  try {
+    const pkg = JSON.parse(packageContent)
+    
+    const scripts = pkg.scripts || {}
+    const dependencies = pkg.dependencies || {}
+    const devDependencies = pkg.devDependencies || {}
+    
+    const hasLinting = Object.keys({...dependencies, ...devDependencies}).some(dep => 
+      /eslint|tslint|prettier|stylelint|jshint/.test(dep)
+    ) || Object.keys(scripts).some(script => /lint|format/.test(script))
+    
+    const hasTesting = Object.keys({...dependencies, ...devDependencies}).some(dep => 
+      /jest|mocha|chai|jasmine|karma|ava|tape|cypress|playwright/.test(dep)
+    ) || Object.keys(scripts).some(script => /test|spec/.test(script))
+    
+    const hasTypeScript = Object.keys({...dependencies, ...devDependencies}).some(dep => 
+      /typescript|@types\//.test(dep)
+    )
+    
+    const hasDocumentation = Object.keys(scripts).some(script => 
+      /docs|documentation|typedoc|jsdoc/.test(script)
+    )
+    
+    return {
+      exists: true,
+      hasScripts: Object.keys(scripts).length > 0,
+      scriptCount: Object.keys(scripts).length,
+      dependencyCount: Object.keys(dependencies).length,
+      devDependencyCount: Object.keys(devDependencies).length,
+      hasLinting,
+      hasTesting,
+      hasTypeScript,
+      hasDocumentation,
+      hasValidLicense: !!pkg.license,
+    }
+  } catch (error) {
+    console.warn('Failed to parse package.json:', error)
+    return {
+      exists: true,
+      hasScripts: false,
+      scriptCount: 0,
+      dependencyCount: 0,
+      devDependencyCount: 0,
+      hasLinting: false,
+      hasTesting: false,
+      hasTypeScript: false,
+      hasDocumentation: false,
+      hasValidLicense: false,
+    }
+  }
+}
+
+/**
+ * Analyze GitHub workflow files
+ * @param username - Repository owner
+ * @param repoName - Repository name
+ * @returns Array of workflow analyses
+ */
+async function analyzeGitHubWorkflows(
+  username: string,
+  repoName: string
+): Promise<GitHubWorkflowAnalysis[]> {
+  try {
+    const workflowsDir = await getRepositoryDirectoryContents(username, repoName, '.github/workflows')
+    const workflows: GitHubWorkflowAnalysis[] = []
+    
+    for (const file of workflowsDir) {
+      if (file.type === 'file' && (file.name.endsWith('.yml') || file.name.endsWith('.yaml'))) {
+        const content = await getRepositoryFileContent(username, repoName, `.github/workflows/${file.name}`)
+        
+        if (content) {
+          const analysis = analyzeWorkflowContent(file.name, content)
+          workflows.push(analysis)
+        }
+      }
+    }
+    
+    return workflows
+  } catch (error) {
+    console.warn('Failed to analyze workflows:', error)
+    return []
+  }
+}
+
+/**
+ * Analyze individual workflow content
+ * @param fileName - Workflow file name
+ * @param content - Workflow YAML content
+ * @returns Workflow analysis
+ */
+function analyzeWorkflowContent(fileName: string, content: string): GitHubWorkflowAnalysis {
+  const lines = content.split('\n')
+  const lowerContent = content.toLowerCase()
+  
+  // Extract workflow name
+  const nameMatch = content.match(/name:\s*(.+)/i)
+  const name = nameMatch ? nameMatch[1].trim().replace(/['"]/g, '') : fileName
+  
+  // Extract triggers
+  const triggers: string[] = []
+  if (lowerContent.includes('on:')) {
+    if (lowerContent.includes('push')) triggers.push('push')
+    if (lowerContent.includes('pull_request')) triggers.push('pull_request')
+    if (lowerContent.includes('schedule')) triggers.push('schedule')
+    if (lowerContent.includes('workflow_dispatch')) triggers.push('manual')
+  }
+  
+  // Extract job names
+  const jobMatches = content.match(/^\s{2}[a-zA-Z0-9_-]+:/gm) || []
+  const jobs = jobMatches.map(match => match.trim().replace(':', ''))
+  
+  // Analyze job types
+  const hasTestJob = /test|spec|jest|mocha|cypress|playwright/i.test(content)
+  const hasLintJob = /lint|format|eslint|prettier/i.test(content)
+  const hasBuildJob = /build|compile|webpack|rollup|vite/i.test(content)
+  const hasDeployJob = /deploy|publish|release/i.test(content)
+  
+  // Check for advanced features
+  const usesSecrets = /secrets\./i.test(content)
+  const matrixStrategy = /strategy:\s*matrix:/i.test(content)
+  
+  // Calculate complexity score
+  let complexity = 0
+  complexity += jobs.length * 10 // 10 points per job
+  complexity += triggers.length * 5 // 5 points per trigger
+  if (hasTestJob) complexity += 15
+  if (hasLintJob) complexity += 10
+  if (hasBuildJob) complexity += 10
+  if (hasDeployJob) complexity += 15
+  if (usesSecrets) complexity += 10
+  if (matrixStrategy) complexity += 20
+  
+  return {
+    name,
+    fileName,
+    triggers,
+    jobs,
+    hasTestJob,
+    hasLintJob,
+    hasBuildJob,
+    hasDeployJob,
+    usesSecrets,
+    matrixStrategy,
+    complexity: Math.min(100, complexity),
+  }
+}
+
+/**
+ * Analyze repository code structure
+ * @param username - Repository owner
+ * @param repoName - Repository name
+ * @returns Code structure analysis
+ */
+async function analyzeCodeStructure(
+  username: string,
+  repoName: string
+): Promise<GitHubCodeStructure> {
+  try {
+    const rootContents = await getRepositoryDirectoryContents(username, repoName, '')
+    
+    let fileCount = 0
+    let directoryCount = 0
+    const languageFiles: Record<string, number> = {}
+    let hasTests = false
+    const testFrameworks: string[] = []
+    let hasDocumentation = false
+    let hasExamples = false
+    let hasConfigFiles = false
+    
+    // Analyze root level files and directories
+    for (const item of rootContents) {
+      if (item.type === 'file') {
+        fileCount++
+        
+        // Check file extensions for languages
+        const ext = path.extname(item.name).toLowerCase()
+        if (ext) {
+          languageFiles[ext] = (languageFiles[ext] || 0) + 1
+        }
+        
+        // Check for config files
+        if (/\.(json|yml|yaml|toml|ini|conf|config)$/.test(item.name.toLowerCase()) ||
+            /^(\..*rc|\..*ignore|.*\.config\.|dockerfile)/i.test(item.name)) {
+          hasConfigFiles = true
+        }
+      } else if (item.type === 'dir') {
+        directoryCount++
+        
+        const dirName = item.name.toLowerCase()
+        
+        // Check for test directories
+        if (/test|spec|__tests__|tests/.test(dirName)) {
+          hasTests = true
+        }
+        
+        // Check for documentation directories
+        if (/docs?|documentation|wiki/.test(dirName)) {
+          hasDocumentation = true
+        }
+        
+        // Check for examples directories
+        if (/examples?|demo|samples?/.test(dirName)) {
+          hasExamples = true
+        }
+      }
+    }
+    
+    // Detect test frameworks from package.json or file patterns
+    // This would be enhanced with actual file content analysis
+    
+    // Calculate organization score
+    let organizationScore = 0
+    
+    // Structure points (0-40)
+    if (hasTests) organizationScore += 20
+    if (hasDocumentation) organizationScore += 10
+    if (hasExamples) organizationScore += 10
+    
+    // File organization points (0-30)
+    if (directoryCount >= 3) organizationScore += 10
+    if (hasConfigFiles) organizationScore += 10
+    if (fileCount > 5 && fileCount < 100) organizationScore += 10 // Not too few, not too many in root
+    
+    // Language diversity (0-30)
+    const languageCount = Object.keys(languageFiles).length
+    if (languageCount >= 2) organizationScore += 10
+    if (languageCount >= 4) organizationScore += 10
+    if (languageCount <= 8) organizationScore += 10 // Not too diverse
+    
+    return {
+      fileCount,
+      directoryCount,
+      languageFiles,
+      hasTests,
+      testFrameworks,
+      hasDocumentation,
+      hasExamples,
+      hasConfigFiles,
+      organizationScore: Math.min(100, organizationScore),
+    }
+  } catch (error) {
+    console.warn('Failed to analyze code structure:', error)
+    return {
+      fileCount: 0,
+      directoryCount: 0,
+      languageFiles: {},
+      hasTests: false,
+      testFrameworks: [],
+      hasDocumentation: false,
+      hasExamples: false,
+      hasConfigFiles: false,
+      organizationScore: 0,
+    }
+  }
+}
+
+/**
+ * Calculate overall quality score for a repository
+ * @param readme - README analysis
+ * @param packageJson - Package.json analysis
+ * @param workflows - Workflow analyses
+ * @param codeStructure - Code structure analysis
+ * @param repository - Repository metadata
+ * @returns Quality score breakdown
+ */
+function calculateRepositoryQualityScore(
+  readme: GitHubReadmeAnalysis,
+  packageJson: GitHubPackageAnalysis | undefined,
+  workflows: GitHubWorkflowAnalysis[],
+  codeStructure: GitHubCodeStructure,
+  repository: GitHubRepository
+): GitHubQualityScore {
+  const breakdown = {
+    readmeQuality: readme.qualityScore,
+    hasCI: workflows.length > 0 ? 100 : 0,
+    hasTests: codeStructure.hasTests ? 100 : 0,
+    hasLinting: packageJson?.hasLinting ? 100 : 0,
+    dependencyHealth: packageJson ? Math.max(0, 100 - (packageJson.outdatedDependencies || 0) * 10) : 50,
+    communityFiles: (readme.hasContributing ? 50 : 0) + (readme.hasLicense ? 50 : 0),
+    recentActivity: Math.max(0, 100 - Math.floor((Date.now() - new Date(repository.updatedAt).getTime()) / (1000 * 60 * 60 * 24 * 7))), // Weeks since update
+  }
+  
+  // Weighted average
+  const weights = {
+    readmeQuality: 0.25,
+    hasCI: 0.15,
+    hasTests: 0.15,
+    hasLinting: 0.10,
+    dependencyHealth: 0.10,
+    communityFiles: 0.15,
+    recentActivity: 0.10,
+  }
+  
+  const overall = Object.entries(breakdown).reduce((sum, [key, value]) => {
+    return sum + (value * weights[key as keyof typeof weights])
+  }, 0)
+  
+  return {
+    overall: Math.round(overall),
+    readme: readme.qualityScore,
+    codeOrganization: codeStructure.organizationScore,
+    cicd: workflows.length > 0 ? Math.round(workflows.reduce((sum, w) => sum + w.complexity, 0) / workflows.length) : 0,
+    documentation: codeStructure.hasDocumentation ? 80 : (readme.exists ? 60 : 0),
+    maintenance: Math.round((breakdown.recentActivity + breakdown.dependencyHealth) / 2),
+    community: Math.round((breakdown.communityFiles + (repository.stars > 10 ? 20 : 0)) / 2),
+    breakdown,
+  }
+}
+
+/**
+ * Analyze repository content comprehensively
+ * @param repository - Repository information
+ * @returns Repository content analysis
+ */
+export async function analyzeRepositoryContent(repository: GitHubRepository): Promise<GitHubRepositoryContent> {
+  try {
+    console.log(`Analyzing content for repository: ${repository.name}`)
+    
+    const [owner, repoName] = repository.fullName.split('/')
+    
+    // Analyze README
+    const readmeContent = await getRepositoryFileContent(owner, repoName, 'README.md') ||
+                          await getRepositoryFileContent(owner, repoName, 'readme.md') ||
+                          await getRepositoryFileContent(owner, repoName, 'README.rst') ||
+                          await getRepositoryFileContent(owner, repoName, 'README.txt')
+    
+    const readme = analyzeReadmeContent(readmeContent)
+    
+    // Analyze package.json (if it exists)
+    const packageContent = await getRepositoryFileContent(owner, repoName, 'package.json')
+    const packageJson = analyzePackageJson(packageContent)
+    
+    // Analyze workflows
+    const workflows = await analyzeGitHubWorkflows(owner, repoName)
+    
+    // Analyze code structure
+    const codeStructure = await analyzeCodeStructure(owner, repoName)
+    
+    // Calculate quality score
+    const qualityScore = calculateRepositoryQualityScore(
+      readme,
+      packageJson,
+      workflows,
+      codeStructure,
+      repository
+    )
+    
+    return {
+      readme,
+      packageJson,
+      workflows,
+      codeStructure,
+      qualityScore,
+    }
+  } catch (error) {
+    console.error(`Error analyzing repository content for ${repository.name}:`, error)
+    
+    // Return minimal analysis on error
+    return {
+      readme: analyzeReadmeContent(null),
+      packageJson: undefined,
+      workflows: [],
+      codeStructure: {
+        fileCount: 0,
+        directoryCount: 0,
+        languageFiles: {},
+        hasTests: false,
+        testFrameworks: [],
+        hasDocumentation: false,
+        hasExamples: false,
+        hasConfigFiles: false,
+        organizationScore: 0,
+      },
+      qualityScore: {
+        overall: 0,
+        readme: 0,
+        codeOrganization: 0,
+        cicd: 0,
+        documentation: 0,
+        maintenance: 0,
+        community: 0,
+        breakdown: {
+          readmeQuality: 0,
+          hasCI: 0,
+          hasTests: 0,
+          hasLinting: 0,
+          dependencyHealth: 0,
+          communityFiles: 0,
+          recentActivity: 0,
+        },
+      },
+    }
+  }
+}
+
+/**
  * Process GitHub account and collect comprehensive data
  * @param githubUrl - GitHub profile URL or username
  * @param options - Processing options
@@ -502,10 +1044,17 @@ export async function processGitHubAccount(
   options: {
     maxRepos?: number
     includeOrganizations?: boolean
+    analyzeContent?: boolean
+    maxContentAnalysis?: number
   } = {}
 ): Promise<GitHubData> {
   try {
-    const { maxRepos = 100, includeOrganizations = true } = options
+    const { 
+      maxRepos = 100, 
+      includeOrganizations = true, 
+      analyzeContent = false, 
+      maxContentAnalysis = 10 
+    } = options
     
     console.log(`Processing GitHub account: ${githubUrl}`)
     
@@ -521,6 +1070,28 @@ export async function processGitHubAccount(
     console.log('Fetching repositories...')
     const repositories = await getGitHubUserRepositories(username, maxRepos)
     
+    // Analyze repository content (if requested)
+    let repositoryContent: GitHubRepositoryContent[] | undefined
+    if (analyzeContent && repositories.length > 0) {
+      console.log('Analyzing repository content...')
+      const reposToAnalyze = repositories
+        .filter(repo => !repo.isFork) // Skip forks for content analysis
+        .slice(0, maxContentAnalysis)
+      
+      repositoryContent = []
+      
+      for (const repo of reposToAnalyze) {
+        try {
+          const content = await analyzeRepositoryContent(repo)
+          repositoryContent.push(content)
+        } catch (error) {
+          console.warn(`Failed to analyze repository ${repo.name}:`, error)
+        }
+      }
+      
+      console.log(`Analyzed ${repositoryContent.length} repositories`)
+    }
+    
     // Calculate language statistics
     console.log('Calculating language statistics...')
     const languageStats = calculateLanguageStats(repositories)
@@ -535,6 +1106,53 @@ export async function processGitHubAccount(
     // Calculate contribution statistics
     console.log('Calculating contribution statistics...')
     const contributionStats = calculateContributionStats(repositories, userInfo, languageStats)
+    
+    // Calculate overall quality score (if content was analyzed)
+    let overallQualityScore: GitHubQualityScore | undefined
+    if (repositoryContent && repositoryContent.length > 0) {
+      console.log('Calculating overall quality score...')
+      
+      // Average quality scores across analyzed repositories
+      const avgScores = repositoryContent.reduce((acc, content) => {
+        acc.overall += content.qualityScore.overall
+        acc.readme += content.qualityScore.readme
+        acc.codeOrganization += content.qualityScore.codeOrganization
+        acc.cicd += content.qualityScore.cicd
+        acc.documentation += content.qualityScore.documentation
+        acc.maintenance += content.qualityScore.maintenance
+        acc.community += content.qualityScore.community
+        
+        Object.keys(content.qualityScore.breakdown).forEach(key => {
+          if (!acc.breakdown[key]) acc.breakdown[key] = 0
+          acc.breakdown[key] += content.qualityScore.breakdown[key as keyof typeof content.qualityScore.breakdown]
+        })
+        
+        return acc
+      }, {
+        overall: 0,
+        readme: 0,
+        codeOrganization: 0,
+        cicd: 0,
+        documentation: 0,
+        maintenance: 0,
+        community: 0,
+        breakdown: {} as Record<string, number>
+      })
+      
+      const count = repositoryContent.length
+      overallQualityScore = {
+        overall: Math.round(avgScores.overall / count),
+        readme: Math.round(avgScores.readme / count),
+        codeOrganization: Math.round(avgScores.codeOrganization / count),
+        cicd: Math.round(avgScores.cicd / count),
+        documentation: Math.round(avgScores.documentation / count),
+        maintenance: Math.round(avgScores.maintenance / count),
+        community: Math.round(avgScores.community / count),
+        breakdown: Object.fromEntries(
+          Object.entries(avgScores.breakdown).map(([key, value]) => [key, Math.round(value / count)])
+        ) as any,
+      }
+    }
     
     // Count starred and forked repositories
     const starredRepos = repositories.reduce((sum, repo) => sum + repo.stars, 0)
@@ -558,15 +1176,19 @@ export async function processGitHubAccount(
       accountCreationDate: userInfo.accountCreationDate || '',
       lastActivityDate: userInfo.lastActivityDate,
       repositories,
+      repositoryContent,
       languages: languageStats,
       contributions: contributionStats,
       starredRepos,
       forkedRepos,
       organizations,
+      overallQualityScore,
       other: {
         processingDate: new Date().toISOString(),
         apiVersion: 'v3',
         processingOptions: options,
+        contentAnalysisEnabled: !!analyzeContent,
+        repositoriesAnalyzed: repositoryContent?.length || 0,
       },
     }
     
@@ -602,6 +1224,7 @@ export function validateAndCleanGitHubData(githubData: Partial<GitHubData>): Git
     accountCreationDate: githubData.accountCreationDate || '',
     lastActivityDate: githubData.lastActivityDate,
     repositories: githubData.repositories || [],
+    repositoryContent: githubData.repositoryContent,
     languages: githubData.languages || [],
     contributions: githubData.contributions || {
       totalCommits: 0,
@@ -613,9 +1236,11 @@ export function validateAndCleanGitHubData(githubData: Partial<GitHubData>): Git
       mostActiveDay: '',
       mostUsedLanguage: '',
     },
+    activityAnalysis: githubData.activityAnalysis,
     starredRepos: githubData.starredRepos || 0,
     forkedRepos: githubData.forkedRepos || 0,
     organizations: githubData.organizations || [],
+    overallQualityScore: githubData.overallQualityScore,
     other: githubData.other || {},
   }
   

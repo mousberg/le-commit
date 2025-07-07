@@ -24,7 +24,9 @@ async function exampleUsage() {
         console.log('Starting GitHub account processing...')
         const githubData = await processGitHubAccount(githubUrl, {
           maxRepos: 50,  // Limit repositories for faster processing
-          includeOrganizations: true
+          includeOrganizations: true,
+          analyzeContent: true,  // Enable content analysis
+          maxContentAnalysis: 5  // Analyze top 5 repositories
         })
 
         // Save the extracted data to JSON
@@ -82,6 +84,36 @@ async function exampleUsage() {
           })
         }
 
+        // Quality Analysis Results
+        if (githubData.overallQualityScore) {
+          console.log(`\n🏆 Overall Quality Score: ${githubData.overallQualityScore.overall}/100`)
+          console.log(`Quality Breakdown:`)
+          console.log(`  📖 README Quality: ${githubData.overallQualityScore.readme}/100`)
+          console.log(`  🏗️  Code Organization: ${githubData.overallQualityScore.codeOrganization}/100`)
+          console.log(`  🚀 CI/CD: ${githubData.overallQualityScore.cicd}/100`)
+          console.log(`  📚 Documentation: ${githubData.overallQualityScore.documentation}/100`)
+          console.log(`  🔧 Maintenance: ${githubData.overallQualityScore.maintenance}/100`)
+          console.log(`  👥 Community: ${githubData.overallQualityScore.community}/100`)
+        }
+
+        // Repository Content Analysis
+        if (githubData.repositoryContent && githubData.repositoryContent.length > 0) {
+          console.log(`\n📊 Repository Content Analysis (${githubData.repositoryContent.length} repos):`)
+          githubData.repositoryContent.forEach((content, index) => {
+            const repo = githubData.repositories[index]
+            console.log(`\n  ${index + 1}. ${repo.name} (Quality: ${content.qualityScore.overall}/100)`)
+            console.log(`     📝 README: ${content.readme.exists ? '✅' : '❌'} (${content.readme.qualityScore}/100)`)
+            console.log(`     🔨 CI/CD: ${content.workflows.length > 0 ? `✅ (${content.workflows.length} workflows)` : '❌'}`)
+            console.log(`     🧪 Tests: ${content.codeStructure.hasTests ? '✅' : '❌'}`)
+            console.log(`     📦 Package.json: ${content.packageJson?.exists ? '✅' : '❌'}`)
+            if (content.packageJson) {
+              console.log(`       - Linting: ${content.packageJson.hasLinting ? '✅' : '❌'}`)
+              console.log(`       - Testing: ${content.packageJson.hasTesting ? '✅' : '❌'}`)
+              console.log(`       - TypeScript: ${content.packageJson.hasTypeScript ? '✅' : '❌'}`)
+            }
+          })
+        }
+
         console.log(`\n=== Processing Complete ===`)
         console.log(`Full GitHub data saved to: ${outputPath}`)
         
@@ -106,7 +138,9 @@ async function processSingleAccount(githubUrl: string) {
     
     const githubData = await processGitHubAccount(githubUrl, {
       maxRepos: 100,
-      includeOrganizations: true
+      includeOrganizations: true,
+      analyzeContent: true,
+      maxContentAnalysis: 10
     })
     
     const username = extractUsernameFromUrl(githubUrl)

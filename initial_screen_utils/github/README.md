@@ -6,6 +6,9 @@ This module provides functionality to collect and analyze GitHub account informa
 
 - Extract comprehensive account information from GitHub usernames or profile URLs
 - Collect repository data including languages, stars, forks, and metadata
+- **🆕 Analyze repository content** (README quality, CI/CD setup, code structure)
+- **🆕 Calculate quality scores** for repositories and overall account
+- **🆕 Detect development practices** (testing, linting, documentation)
 - Calculate programming language statistics
 - Gather organization memberships
 - Generate contribution statistics
@@ -39,10 +42,12 @@ import { processGitHubAccount, saveGitHubDataToJson } from './github/github'
 
 async function analyzeAccount() {
   try {
-    // Process a GitHub account
+    // Process a GitHub account with content analysis
     const githubData = await processGitHubAccount('octocat', {
       maxRepos: 50,
-      includeOrganizations: true
+      includeOrganizations: true,
+      analyzeContent: true,        // 🆕 Enable deep content analysis
+      maxContentAnalysis: 10       // 🆕 Analyze top 10 repositories
     })
     
     // Save the data
@@ -50,6 +55,13 @@ async function analyzeAccount() {
     
     console.log(`Analyzed ${githubData.repositories.length} repositories`)
     console.log(`Top language: ${githubData.languages[0]?.language}`)
+    
+    // 🆕 Display quality scores
+    if (githubData.overallQualityScore) {
+      console.log(`Overall Quality Score: ${githubData.overallQualityScore.overall}/100`)
+      console.log(`README Quality: ${githubData.overallQualityScore.readme}/100`)
+      console.log(`CI/CD Maturity: ${githubData.overallQualityScore.cicd}/100`)
+    }
   } catch (error) {
     console.error('Error:', error)
   }
@@ -68,7 +80,9 @@ The module accepts various GitHub URL formats:
 ```typescript
 const options = {
   maxRepos: 100,              // Maximum repositories to analyze (default: 100)
-  includeOrganizations: true  // Include organization data (default: true)
+  includeOrganizations: true, // Include organization data (default: true)
+  analyzeContent: true,       // 🆕 Enable repository content analysis (default: false)
+  maxContentAnalysis: 10      // 🆕 Maximum repositories to analyze in detail (default: 10)
 }
 
 const githubData = await processGitHubAccount('username', options)
@@ -104,19 +118,34 @@ The module returns a comprehensive `GitHubData` object containing:
 - Most used programming language
 - Recent activity indicators
 
+### 🆕 Repository Content Analysis
+- **README Quality**: Length, sections, badges, documentation completeness
+- **Package.json Analysis**: Scripts, dependencies, tooling setup
+- **GitHub Workflows**: CI/CD pipeline analysis and complexity scoring
+- **Code Structure**: File organization, test presence, documentation folders
+
+### 🆕 Quality Scoring (0-100 scale)
+- **Overall Score**: Weighted average across all quality dimensions
+- **README Quality**: Documentation completeness and helpfulness
+- **Code Organization**: Project structure and file organization
+- **CI/CD Maturity**: Automated workflow sophistication
+- **Documentation**: Presence of docs, examples, and guides
+- **Maintenance**: Recent activity and dependency health
+- **Community**: Contributing guidelines, licenses, and engagement
+
 ## Examples
 
 ### Run Example Scripts
 
 ```bash
 # Default example - processes multiple accounts
-node example.js
+node example.ts
 
 # Process a single account with detailed output
-node example.js single octocat
+node example.ts single mousberg
 
 # Compare multiple accounts
-node example.js compare octocat torvalds gaearon
+node example.ts compare octocat torvalds gaearon
 ```
 
 ### Example Output
@@ -136,6 +165,22 @@ Top Programming Languages:
 Most Recently Updated Repositories:
   1. Hello-World (C) - Updated: 12/1/2023
      ⭐ 2156 | 🍴 1067 | 👁️ 97
+
+🏆 Overall Quality Score: 78/100
+Quality Breakdown:
+  📖 README Quality: 85/100
+  🏗️  Code Organization: 72/100
+  🚀 CI/CD: 45/100
+  📚 Documentation: 80/100
+  🔧 Maintenance: 90/100
+  👥 Community: 65/100
+
+📊 Repository Content Analysis (5 repos):
+  1. Hello-World (Quality: 82/100)
+     📝 README: ✅ (85/100)
+     🔨 CI/CD: ❌
+     🧪 Tests: ❌
+     📦 Package.json: ❌
 ```
 
 ## API Rate Limits
