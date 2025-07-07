@@ -460,31 +460,36 @@ export default function BoardPage() {
               {selectedCandidate.linkedinData && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
                   <div className="col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">LinkedIn Profile</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">LinkedIn Profile Data</h3>
                   </div>
 
-                  {selectedCandidate.linkedinData.headline && (
+                  {selectedCandidate.linkedinData.professionalSummary && (
                     <div className="col-span-2">
-                      <h4 className="text-md font-medium text-gray-800 mb-1">Headline</h4>
-                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.headline}</p>
+                      <h4 className="text-md font-medium text-gray-800 mb-1">Professional Summary</h4>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.professionalSummary}</p>
                     </div>
                   )}
 
-                  {selectedCandidate.linkedinData.connections > 0 && (
+                  {selectedCandidate.linkedinData.jobTitle && (
                     <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-1">Network</h4>
-                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.connections} connections</p>
+                      <h4 className="text-md font-medium text-gray-800 mb-1">Current Role</h4>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.jobTitle}</p>
                     </div>
                   )}
 
-                  {selectedCandidate.linkedinData.experience && selectedCandidate.linkedinData.experience.length > 0 && (
+                  {selectedCandidate.linkedinData.professionalExperiences && selectedCandidate.linkedinData.professionalExperiences.length > 0 && (
                     <div>
                       <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Experience</h4>
                       <div className="space-y-2">
-                        {selectedCandidate.linkedinData.experience.slice(0, 3).map((exp, i) => (
+                        {selectedCandidate.linkedinData.professionalExperiences.slice(0, 3).map((exp, i) => (
                           <div key={i} className="text-sm">
-                            <div className="font-medium">{exp.title} at {exp.company}</div>
-                            <div className="text-gray-600">{exp.duration}</div>
+                            <div className="font-medium">{exp.title} at {exp.companyName}</div>
+                            <div className="text-gray-600">
+                              {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
+                                exp.ongoing ? 'Present' :
+                                (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
+                              }
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -509,13 +514,18 @@ export default function BoardPage() {
                     </div>
                   )}
 
-                  {selectedCandidate.linkedinData.activity && (
+                  {selectedCandidate.linkedinData.educations && selectedCandidate.linkedinData.educations.length > 0 && (
                     <div className="col-span-2">
-                      <h4 className="text-md font-medium text-gray-800 mb-2">Activity</h4>
-                      <div className="flex gap-4 text-sm text-gray-600">
-                        <span>{selectedCandidate.linkedinData.activity.posts} posts</span>
-                        <span>{selectedCandidate.linkedinData.activity.likes} likes</span>
-                        <span>{selectedCandidate.linkedinData.activity.comments} comments</span>
+                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Education</h4>
+                      <div className="space-y-2">
+                        {selectedCandidate.linkedinData.educations.slice(0, 2).map((edu, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="font-medium">{edu.degree} at {edu.institution}</div>
+                            <div className="text-gray-600">
+                              {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
