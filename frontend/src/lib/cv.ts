@@ -390,16 +390,21 @@ function cleanAndFixJsonData(rawData: unknown): Partial<CvData> {
 }
 
 /**
- * Extract CV data from image using Groq Vision API with robust error handling
- * @param imagePath - Path to the CV image
- * @returns Extracted CV data
+ * Extract data from image using Groq Vision API with robust error handling
+ * @param imagePath - Path to the document image
+ * @param documentType - Type of document ('cv' or 'linkedin')
+ * @returns Extracted document data
  */
-export async function extractCvDataFromImage(imagePath: string): Promise<Partial<CvData>> {
+export async function extractDataFromImage(
+  imagePath: string,
+  documentType: 'cv' | 'linkedin'
+): Promise<Partial<CvData>> {
   try {
     const base64Image = encodeImageToBase64(imagePath)
     const schema = getCvDataSchema()
 
-    const systemPrompt = `You are a CV/Resume parser. Extract information from the CV image and return it as valid JSON.
+    const systemPrompt = documentType === 'cv'
+      ? `You are a CV/Resume parser. Extract information from the CV image and return it as valid JSON.
 
 CRITICAL: Your response must be valid JSON that can be parsed. Focus on this above all else.
 
@@ -412,99 +417,7 @@ Guidelines:
 - Ensure all quotes and brackets are properly closed
 
 Return only the JSON object, nothing else.`
-
-    const userPrompt = `Extract CV information from this image and return as JSON. Here's the expected structure:
-
-${JSON.stringify(schema, null, 2)}
-
-Focus on extracting what you can see clearly. If information is missing or unclear, use empty values rather than guessing.`
-
-    const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: userPrompt
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/png;base64,${base64Image}`
-              }
-            }
-          ]
-        }
-      ],
-      // Remove strict JSON validation - let's handle it ourselves
-      // response_format: { type: "json_object" },
-    })
-
-    const responseText = completion.choices[0]?.message?.content || '{}'
-    console.log('Raw LLM response:', responseText.substring(0, 500) + '...')
-
-    // Try to parse JSON with fallback handling
-    let rawData;
-    try {
-      rawData = JSON.parse(responseText);
-    } catch {
-      console.warn('JSON parse failed, attempting to extract JSON from response...');
-
-      // Try to extract JSON from markdown code blocks or other formatting
-      const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/) ||
-                       responseText.match(/(\{[\s\S]*\})/);
-
-      if (jsonMatch) {
-        try {
-          rawData = JSON.parse(jsonMatch[1]);
-        } catch {
-          console.error('Could not parse extracted JSON, using empty object');
-          rawData = {};
-        }
-      } else {
-        console.error('Could not find JSON in response, using empty object');
-        rawData = {};
-      }
-    }
-
-    // Clean and fix the data
-    const cleanedData = cleanAndFixJsonData(rawData);
-    console.log('Cleaned CV data:', cleanedData);
-
-    return cleanedData;
-
-  } catch (error) {
-    console.error('Error extracting CV data from image:', error)
-    // Instead of throwing, return empty data to allow processing to continue
-    console.warn('Returning empty CV data due to extraction error');
-    return {
-      lastName: '',
-      firstName: '',
-      professionalExperiences: [],
-      educations: [],
-      skills: [],
-      languages: [],
-      certifications: [],
-      other: {}
-    };
-  }
-}
-
-/**
- * Extract LinkedIn data from image using the same robust approach
- */
-export async function extractLinkedInDataFromImage(imagePath: string): Promise<Partial<CvData>> {
-  try {
-    const base64Image = encodeImageToBase64(imagePath)
-    const schema = getCvDataSchema()
-
-    const systemPrompt = `You are a LinkedIn profile parser. Extract information from the LinkedIn profile image and return it as valid JSON.
+      : `You are a LinkedIn profile parser. Extract information from the LinkedIn profile image and return it as valid JSON.
 
 CRITICAL: Your response must be valid JSON that can be parsed. Focus on this above all else.
 
@@ -519,7 +432,13 @@ Guidelines:
 
 Return only the JSON object, nothing else.`
 
-    const userPrompt = `Extract LinkedIn profile information from this image and return as JSON using this structure:
+    const userPrompt = documentType === 'cv'
+      ? `Extract CV information from this image and return as JSON. Here's the expected structure:
+
+${JSON.stringify(schema, null, 2)}
+
+Focus on extracting what you can see clearly. If information is missing or unclear, use empty values rather than guessing.`
+      : `Extract LinkedIn profile information from this image and return as JSON using this structure:
 
 ${JSON.stringify(schema, null, 2)}
 
@@ -547,18 +466,22 @@ Focus on what you can clearly see. Map LinkedIn sections to CV format as best as
             }
           ]
         }
-      ]
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.0,
     })
 
     const responseText = completion.choices[0]?.message?.content || '{}'
-    console.log('Raw LinkedIn LLM response:', responseText.substring(0, 500) + '...')
+    console.log(`Raw ${documentType.toUpperCase()} LLM response:`, responseText.substring(0, 500) + '...')
 
-    // Same robust parsing as CV
+    // Try to parse JSON with fallback handling
     let rawData;
     try {
       rawData = JSON.parse(responseText);
     } catch {
-      console.warn('LinkedIn JSON parse failed, attempting to extract...');
+      console.warn(`${documentType.toUpperCase()} JSON parse failed, attempting to extract JSON from response...`);
+
+      // Try to extract JSON from markdown code blocks or other formatting
       const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/) ||
                        responseText.match(/(\{[\s\S]*\})/);
 
@@ -566,21 +489,25 @@ Focus on what you can clearly see. Map LinkedIn sections to CV format as best as
         try {
           rawData = JSON.parse(jsonMatch[1]);
         } catch {
+          console.error('Could not parse extracted JSON, using empty object');
           rawData = {};
         }
       } else {
+        console.error('Could not find JSON in response, using empty object');
         rawData = {};
       }
     }
 
+    // Clean and fix the data
     const cleanedData = cleanAndFixJsonData(rawData);
-    console.log('Cleaned LinkedIn data:', cleanedData);
+    console.log(`Cleaned ${documentType.toUpperCase()} data:`, cleanedData);
 
     return cleanedData;
 
   } catch (error) {
-    console.error('Error extracting LinkedIn data from image:', error)
-    console.warn('Returning empty LinkedIn data due to extraction error');
+    console.error(`Error extracting ${documentType.toUpperCase()} data from image:`, error)
+    // Instead of throwing, return empty data to allow processing to continue
+    console.warn(`Returning empty ${documentType.toUpperCase()} data due to extraction error`);
     return {
       lastName: '',
       firstName: '',
@@ -595,12 +522,28 @@ Focus on what you can clearly see. Map LinkedIn sections to CV format as best as
 }
 
 /**
+ * Extract CV data from image using Groq Vision API with robust error handling
+ * @param imagePath - Path to the CV image
+ * @returns Extracted CV data
+ */
+export async function extractCvDataFromImage(imagePath: string): Promise<Partial<CvData>> {
+  return extractDataFromImage(imagePath, 'cv');
+}
+
+/**
+ * Extract LinkedIn data from image using the same robust approach
+ */
+export async function extractLinkedInDataFromImage(imagePath: string): Promise<Partial<CvData>> {
+  return extractDataFromImage(imagePath, 'linkedin');
+}
+
+/**
  * Process multiple LinkedIn images and merge the extracted data
  * @param imagePaths - Array of image paths
  * @returns Merged LinkedIn data
  */
 export async function processLinkedInImages(imagePaths: string[]): Promise<CvData> {
-  return processCvImages(imagePaths);
+  return processImages(imagePaths, 'linkedin');
 }
 
 /**
@@ -608,14 +551,23 @@ export async function processLinkedInImages(imagePaths: string[]): Promise<CvDat
  * @param imagePaths - Array of image paths
  * @returns Merged CV data
  */
-export async function processCvImages(imagePaths: string[]): Promise<CvData> {
+/**
+ * Process multiple document images and merge the extracted data
+ * @param imagePaths - Array of image paths
+ * @param documentType - Type of document ('cv' or 'linkedin')
+ * @returns Merged document data
+ */
+export async function processImages(
+  imagePaths: string[],
+  documentType: 'cv' | 'linkedin'
+): Promise<CvData> {
   const extractedDataArray: Partial<CvData>[] = []
   const optimizedPaths: string[] = []
 
   try {
     // Process each image
     for (const imagePath of imagePaths) {
-      console.log(`Processing image: ${imagePath}`)
+      console.log(`Processing ${documentType.toUpperCase()} image: ${imagePath}`)
 
       // Optimize image for better OCR
       const optimizedPath = await optimizeImageForOCR(imagePath)
@@ -626,7 +578,7 @@ export async function processCvImages(imagePaths: string[]): Promise<CvData> {
       }
 
       // Extract data from image
-      const data = await extractCvDataFromImage(optimizedPath)
+      const data = await extractDataFromImage(optimizedPath, documentType)
       extractedDataArray.push(data)
     }
 
@@ -635,8 +587,8 @@ export async function processCvImages(imagePaths: string[]): Promise<CvData> {
 
     return mergedData
   } catch (error) {
-    console.error('Error processing CV images:', error)
-    throw new Error(`Failed to process CV images: ${error}`)
+    console.error(`Error processing ${documentType.toUpperCase()} images:`, error)
+    throw new Error(`Failed to process ${documentType.toUpperCase()} images: ${error}`)
   } finally {
     // Always clean up optimized images
     for (const optimizedPath of optimizedPaths) {
@@ -647,6 +599,15 @@ export async function processCvImages(imagePaths: string[]): Promise<CvData> {
       }
     }
   }
+}
+
+/**
+ * Process multiple CV images and merge the extracted data
+ * @param imagePaths - Array of image paths
+ * @returns Merged CV data
+ */
+export async function processCvImages(imagePaths: string[]): Promise<CvData> {
+  return processImages(imagePaths, 'cv');
 }
 
 /**
@@ -733,29 +694,31 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
 }
 
 /**
- * Main function to process a LinkedIn PDF file
+ * Main function to process a PDF file
  * @param pdfPath - Path to the PDF file
+ * @param documentType - Type of document ('cv' or 'linkedin')
  * @param cleanupImages - Whether to delete temporary images after processing
  * @param tempDirSuffix - Unique suffix for temp directory to prevent race conditions
- * @returns Extracted LinkedIn data
+ * @returns Extracted document data
  */
-export async function processLinkedInPdf(
+export async function processPdf(
   pdfPath: string,
+  documentType: 'cv' | 'linkedin',
   cleanupImages: boolean = true,
   tempDirSuffix?: string
 ): Promise<CvData> {
   let imagePaths: string[] = []
 
   try {
-    console.log(`Processing LinkedIn PDF: ${pdfPath}`)
+    console.log(`Processing ${documentType.toUpperCase()} PDF: ${pdfPath}`)
     imagePaths = await convertPdfToImages(pdfPath, './temp_images', tempDirSuffix)
-    console.log(`Converted LinkedIn PDF to ${imagePaths.length} images`)
-    const linkedinData = await processLinkedInImages(imagePaths)
-    console.log('LinkedIn processing completed successfully')
-    return linkedinData
+    console.log(`Converted ${documentType.toUpperCase()} PDF to ${imagePaths.length} images`)
+    const documentData = await processImages(imagePaths, documentType)
+    console.log(`${documentType.toUpperCase()} processing completed successfully`)
+    return documentData
   } catch (error) {
-    console.error('Error processing LinkedIn PDF:', error)
-    throw new Error(`Failed to process LinkedIn PDF: ${error}`)
+    console.error(`Error processing ${documentType.toUpperCase()} PDF:`, error)
+    throw new Error(`Failed to process ${documentType.toUpperCase()} PDF: ${error}`)
   } finally {
     // Always attempt cleanup if enabled and we have image paths
     if (cleanupImages && imagePaths.length > 0) {
@@ -779,6 +742,21 @@ export async function processLinkedInPdf(
 }
 
 /**
+ * Main function to process a LinkedIn PDF file
+ * @param pdfPath - Path to the PDF file
+ * @param cleanupImages - Whether to delete temporary images after processing
+ * @param tempDirSuffix - Unique suffix for temp directory to prevent race conditions
+ * @returns Extracted LinkedIn data
+ */
+export async function processLinkedInPdf(
+  pdfPath: string,
+  cleanupImages: boolean = true,
+  tempDirSuffix?: string
+): Promise<CvData> {
+  return processPdf(pdfPath, 'linkedin', cleanupImages, tempDirSuffix);
+}
+
+/**
  * Main function to process a CV PDF file
  * @param pdfPath - Path to the PDF file
  * @param cleanupImages - Whether to delete temporary images after processing
@@ -790,46 +768,7 @@ export async function processCvPdf(
   cleanupImages: boolean = true,
   tempDirSuffix?: string
 ): Promise<CvData> {
-  let imagePaths: string[] = []
-
-  try {
-    console.log(`Processing CV PDF: ${pdfPath}`)
-
-    // Convert PDF to images with unique temp directory
-    imagePaths = await convertPdfToImages(pdfPath, './temp_images', tempDirSuffix)
-    console.log(`Converted PDF to ${imagePaths.length} images`)
-
-    // Process images to extract CV data
-    const cvData = await processCvImages(imagePaths)
-
-    console.log('CV processing completed successfully')
-    return cvData
-
-  } catch (error) {
-    console.error('Error processing CV PDF:', error)
-    throw new Error(`Failed to process CV PDF: ${error}`)
-  } finally {
-    // Always attempt cleanup if enabled and we have image paths
-    if (cleanupImages && imagePaths.length > 0) {
-      for (const imagePath of imagePaths) {
-        try {
-          fs.unlinkSync(imagePath)
-        } catch {
-          console.warn(`Failed to delete temporary image: ${imagePath}`)
-        }
-      }
-
-      // Remove temp directory if empty
-      try {
-        const tempDir = path.dirname(imagePaths[0])
-        if (fs.readdirSync(tempDir).length === 0) {
-          fs.rmdirSync(tempDir)
-        }
-      } catch {
-        console.warn('Failed to remove temporary directory')
-      }
-    }
-  }
+  return processPdf(pdfPath, 'cv', cleanupImages, tempDirSuffix);
 }
 
 /**
