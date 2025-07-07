@@ -99,8 +99,8 @@ export default function BoardPage() {
     selectedId === 'new' ? null : mockCandidates.find(c => c.id === selectedId);
 
   const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: number]: Reference[] }>({});
-  const [showReferenceModal, setShowReferenceModal] = useState(false);
-  const [referenceForm, setReferenceForm] = useState<ReferenceFormData>({
+  const [addingReference, setAddingReference] = useState(false);
+  const [newReferenceForm, setNewReferenceForm] = useState<ReferenceFormData>({
     name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: ''
   });
   const [openReferenceId, setOpenReferenceId] = useState<string | null>(null);
@@ -114,32 +114,36 @@ export default function BoardPage() {
   const selectedCandidateId = selectedCandidate ? selectedCandidate.id : null;
   const candidateReferences = selectedCandidateId ? referencesByCandidate[selectedCandidateId] || [] : [];
 
-  const handleOpenReferenceModal = () => setShowReferenceModal(true);
-  const handleCloseReferenceModal = () => {
-    setShowReferenceModal(false);
-    setReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
+  const handleStartAddReference = () => {
+    setAddingReference(true);
+    setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
   };
-  const handleReferenceFormChange = (field: keyof ReferenceFormData, value: string) => {
-    setReferenceForm(prev => ({ ...prev, [field]: value }));
+  const handleCancelAddReference = () => {
+    setAddingReference(false);
+    setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
   };
-  const handleAddReference = () => {
+  const handleNewReferenceFormChange = (field: keyof ReferenceFormData, value: string) => {
+    setNewReferenceForm(prev => ({ ...prev, [field]: value }));
+  };
+  const handleConfirmAddReference = () => {
     if (!selectedCandidateId) return;
-    if (referenceForm.name.trim() && referenceForm.phoneNumber.trim()) {
+    if (newReferenceForm.name.trim() && newReferenceForm.phoneNumber.trim()) {
       const reference: Reference = {
         id: Date.now().toString(),
-        name: referenceForm.name.trim(),
-        phoneNumber: referenceForm.phoneNumber.trim(),
-        companyName: referenceForm.companyName.trim(),
-        roleTitle: referenceForm.roleTitle.trim(),
-        workDuration: referenceForm.workDuration.trim(),
+        name: newReferenceForm.name.trim(),
+        phoneNumber: newReferenceForm.phoneNumber.trim(),
+        companyName: newReferenceForm.companyName.trim(),
+        roleTitle: newReferenceForm.roleTitle.trim(),
+        workDuration: newReferenceForm.workDuration.trim(),
         dateAdded: new Date().toLocaleDateString(),
         callStatus: 'idle'
       };
       setReferencesByCandidate(prev => ({
         ...prev,
-        [selectedCandidateId]: [...(prev[selectedCandidateId] || []), reference]
+        [selectedCandidateId]: [reference, ...(prev[selectedCandidateId] || [])]
       }));
-      handleCloseReferenceModal();
+      setAddingReference(false);
+      setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
     }
   };
   const handleCallReference = async (reference: Reference) => {
@@ -337,9 +341,51 @@ export default function BoardPage() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-semibold text-gray-900">Reference Calls</h3>
-                  <Button size="sm" onClick={handleOpenReferenceModal} className="bg-emerald-500 hover:bg-emerald-600 text-white">+ Add Reference</Button>
+                  <Button size="sm" onClick={handleStartAddReference} className="bg-emerald-500 hover:bg-emerald-600 text-white" disabled={addingReference}>+ Add Reference</Button>
                 </div>
                 <div className="space-y-4">
+                  {addingReference && (
+                    <div className="border border-gray-200 rounded-xl bg-slate-50 p-6 flex flex-col gap-4">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <input
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Reference Name*"
+                          value={newReferenceForm.name}
+                          onChange={e => handleNewReferenceFormChange('name', e.target.value)}
+                        />
+                        <input
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Phone Number*"
+                          value={newReferenceForm.phoneNumber}
+                          onChange={e => handleNewReferenceFormChange('phoneNumber', e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <input
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Company Name"
+                          value={newReferenceForm.companyName}
+                          onChange={e => handleNewReferenceFormChange('companyName', e.target.value)}
+                        />
+                        <input
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Role Title"
+                          value={newReferenceForm.roleTitle}
+                          onChange={e => handleNewReferenceFormChange('roleTitle', e.target.value)}
+                        />
+                      </div>
+                      <input
+                        className="border rounded-md px-3 py-2 text-gray-800 w-full"
+                        placeholder="Work Duration"
+                        value={newReferenceForm.workDuration}
+                        onChange={e => handleNewReferenceFormChange('workDuration', e.target.value)}
+                      />
+                      <div className="flex gap-3 mt-2">
+                        <Button variant="outline" onClick={handleCancelAddReference} size="sm">Cancel</Button>
+                        <Button onClick={handleConfirmAddReference} disabled={!newReferenceForm.name.trim() || !newReferenceForm.phoneNumber.trim()} size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">Confirm</Button>
+                      </div>
+                    </div>
+                  )}
                   {candidateReferences.map((reference) => (
                     <div key={reference.id} className="border border-gray-200 rounded-xl">
                       <button
@@ -385,45 +431,6 @@ export default function BoardPage() {
                     <div className="text-gray-400 text-center py-6">No references added yet.</div>
                   )}
                 </div>
-                {/* Reference Modal */}
-                {showReferenceModal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-                    <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-lg">
-                      <h2 className="text-xl font-semibold mb-4">Add New Reference</h2>
-                      <div className="space-y-4">
-                        <input
-                          placeholder="Reference Name*"
-                          value={referenceForm.name}
-                          onChange={e => handleReferenceFormChange('name', e.target.value)}
-                        />
-                        <input
-                          placeholder="Phone Number*"
-                          value={referenceForm.phoneNumber}
-                          onChange={e => handleReferenceFormChange('phoneNumber', e.target.value)}
-                        />
-                        <input
-                          placeholder="Company Name"
-                          value={referenceForm.companyName}
-                          onChange={e => handleReferenceFormChange('companyName', e.target.value)}
-                        />
-                        <input
-                          placeholder="Role Title"
-                          value={referenceForm.roleTitle}
-                          onChange={e => handleReferenceFormChange('roleTitle', e.target.value)}
-                        />
-                        <input
-                          placeholder="Work Duration"
-                          value={referenceForm.workDuration}
-                          onChange={e => handleReferenceFormChange('workDuration', e.target.value)}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-3 mt-6">
-                        <Button variant="outline" onClick={handleCloseReferenceModal} size="sm">Cancel</Button>
-                        <Button onClick={handleAddReference} disabled={!referenceForm.name.trim() || !referenceForm.phoneNumber.trim()} size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">Add Reference</Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 {/* Transcript Modal */}
                 <TranscriptModal
                   isOpen={transcriptModal.isOpen}
