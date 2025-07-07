@@ -49,7 +49,11 @@ export default function TranscriptModal({
       const data = await response.json();
       
       if (data.success) {
-        setTranscript(data.transcript);
+        if (data.hasTranscript && data.transcript) {
+          setTranscript(data.transcript);
+        } else {
+          setError(data.transcriptError || 'Transcript not yet available. Please try again later.');
+        }
       } else {
         setError(data.error || 'Failed to fetch transcript');
       }
@@ -70,8 +74,8 @@ export default function TranscriptModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-white bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-4xl max-h-[90vh] overflow-hidden transform transition-all duration-200 scale-100">
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div>
@@ -104,38 +108,52 @@ export default function TranscriptModal({
 
           {error && (
             <div className="flex items-center justify-center h-64">
-              <div className="text-red-500">Error: {error}</div>
+              <div className="text-center">
+                <div className="text-gray-500 mb-2">📄</div>
+                <div className="text-gray-700 font-medium mb-1">Transcript Not Available</div>
+                <div className="text-gray-500 text-sm">{error}</div>
+              </div>
             </div>
           )}
 
           {transcript && !loading && (
             <div className="space-y-4">
-              {transcript.transcript.map((entry, index) => (
-                <div 
-                  key={index} 
-                  className={`flex gap-4 p-4 rounded-lg ${
-                    entry.speaker === 'AI Agent' 
-                      ? 'bg-blue-50 border-l-4 border-blue-400' 
-                      : 'bg-green-50 border-l-4 border-green-400'
-                  }`}
-                >
-                  <div className="flex-shrink-0 w-20 text-sm font-medium text-gray-500">
-                    {entry.timestamp}
+              {transcript.transcript && transcript.transcript.length > 0 ? (
+                transcript.transcript.map((entry, index) => (
+                  <div 
+                    key={index} 
+                    className={`flex gap-4 p-4 rounded-lg ${
+                      entry.speaker === 'AI Agent' 
+                        ? 'bg-blue-50 border-l-4 border-blue-400' 
+                        : 'bg-green-50 border-l-4 border-green-400'
+                    }`}
+                  >
+                    <div className="flex-shrink-0 w-20 text-sm font-medium text-gray-500">
+                      {entry.timestamp}
+                    </div>
+                    <div className="flex-shrink-0 w-24">
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
+                        entry.speaker === 'AI Agent'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {entry.speaker}
+                      </span>
+                    </div>
+                    <div className="flex-1 text-gray-800">
+                      {entry.text}
+                    </div>
                   </div>
-                  <div className="flex-shrink-0 w-24">
-                    <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                      entry.speaker === 'AI Agent'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {entry.speaker}
-                    </span>
-                  </div>
-                  <div className="flex-1 text-gray-800">
-                    {entry.text}
+                ))
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="text-gray-500 mb-2">📄</div>
+                    <div className="text-gray-700 font-medium mb-1">No Messages</div>
+                    <div className="text-gray-500 text-sm">This conversation doesn't have any transcript messages yet.</div>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
