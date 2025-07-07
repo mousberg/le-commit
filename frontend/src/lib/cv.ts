@@ -434,8 +434,9 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
 
     // Merge simple fields (take first non-empty value)
     Object.keys(merged).forEach(key => {
-      if (typeof merged[key as keyof CvData] === 'string' && !merged[key as keyof CvData] && data[key as keyof CvData]) {
-        (merged as any)[key] = data[key as keyof CvData]
+      const typedKey = key as keyof CvData
+      if (typeof merged[typedKey] === 'string' && !merged[typedKey] && data[typedKey]) {
+        (merged as unknown as Record<string, unknown>)[key] = data[typedKey]
       }
     })
 
@@ -505,7 +506,7 @@ export async function processCvPdf(
       for (const imagePath of imagePaths) {
         try {
           fs.unlinkSync(imagePath)
-        } catch (error) {
+        } catch {
           console.warn(`Failed to delete temporary image: ${imagePath}`)
         }
       }
@@ -516,7 +517,7 @@ export async function processCvPdf(
         if (fs.readdirSync(tempDir).length === 0) {
           fs.rmdirSync(tempDir)
         }
-      } catch (error) {
+      } catch {
         console.warn('Failed to remove temporary directory')
       }
     }

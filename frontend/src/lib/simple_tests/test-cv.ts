@@ -1,4 +1,4 @@
-import { processCvPdf, saveCvDataToJson } from '../cv.js'
+import { processCvPdf } from '../cv.js'
 import { Experience } from '../interfaces/cv'
 import * as path from 'path'
 

@@ -19,7 +19,7 @@ export interface CvData {
   hobbies: string[]
   references: string[]
   certifications: Certification[]
-  other: Record<string, any> // Flexible field for any additional data
+  other: Record<string, unknown> // Flexible field for any additional data
 }
 
 export interface Certification {
