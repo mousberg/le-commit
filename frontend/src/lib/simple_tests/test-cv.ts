@@ -1,5 +1,5 @@
 import { processCvPdf, saveCvDataToJson } from '../cv.js'
-import { Experience } from '../interfaces.js'
+import { Experience } from '../interfaces/cv'
 import * as path from 'path'
 
 /**
@@ -43,7 +43,6 @@ async function exampleUsage() {
     }
 
     console.log('\n=== Processing Complete ===')
-    console.log(`Full CV data saved to: ${outputPath}`)
 
   } catch (error) {
     console.error('Error processing CV:', error)
