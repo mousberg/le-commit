@@ -456,6 +456,72 @@ export default function BoardPage() {
                 </div>
               )}
 
+              {/* LinkedIn Data Summary */}
+              {selectedCandidate.linkedinData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
+                  <div className="col-span-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">LinkedIn Profile</h3>
+                  </div>
+
+                  {selectedCandidate.linkedinData.headline && (
+                    <div className="col-span-2">
+                      <h4 className="text-md font-medium text-gray-800 mb-1">Headline</h4>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.headline}</p>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.connections > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-1">Network</h4>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.connections} connections</p>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.experience && selectedCandidate.linkedinData.experience.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Experience</h4>
+                      <div className="space-y-2">
+                        {selectedCandidate.linkedinData.experience.slice(0, 3).map((exp, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="font-medium">{exp.title} at {exp.company}</div>
+                            <div className="text-gray-600">{exp.duration}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.skills && selectedCandidate.linkedinData.skills.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCandidate.linkedinData.skills.slice(0, 8).map((skill, i) => (
+                          <span key={i} className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs border border-blue-200">
+                            {skill}
+                          </span>
+                        ))}
+                        {selectedCandidate.linkedinData.skills.length > 8 && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                            +{selectedCandidate.linkedinData.skills.length - 8} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.activity && (
+                    <div className="col-span-2">
+                      <h4 className="text-md font-medium text-gray-800 mb-2">Activity</h4>
+                      <div className="flex gap-4 text-sm text-gray-600">
+                        <span>{selectedCandidate.linkedinData.activity.posts} posts</span>
+                        <span>{selectedCandidate.linkedinData.activity.likes} likes</span>
+                        <span>{selectedCandidate.linkedinData.activity.comments} comments</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Processing status message */}
               {selectedCandidate.status === 'failed' && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
