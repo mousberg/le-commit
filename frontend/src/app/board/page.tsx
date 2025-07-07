@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '../../components/ui/button';
+import TranscriptModal from '../../components/TranscriptModal';
 
 const mockCandidates = [
   {
@@ -53,25 +54,35 @@ const mockCandidates = [
   },
 ];
 
-const mockReferenceFlags = [
-  [{ type: 'positive', label: 'Responsive' }],
-  [{ type: 'caution', label: 'Needs follow-up' }],
-  [{ type: 'verify', label: 'Unverified' }],
-];
-const mockReferenceQuestions = [
-  ['How was their teamwork?', 'Would you rehire?'],
-  ['How did they handle deadlines?'],
-  ['Any concerns to share?'],
-];
+// Add Reference and Transcript types from /reference
+interface Reference {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  companyName: string;
+  roleTitle: string;
+  workDuration: string;
+  dateAdded: string;
+  callStatus?: 'idle' | 'calling' | 'completed' | 'failed';
+  conversationId?: string;
+}
+
+interface ReferenceFormData {
+  name: string;
+  phoneNumber: string;
+  companyName: string;
+  roleTitle: string;
+  workDuration: string;
+}
 
 export default function BoardPage() {
   const [selectedId, setSelectedId] = useState<number | 'new'>(mockCandidates[0].id);
   const [showNotes, setShowNotes] = useState(false);
   // Dynamic references for the selected candidate
-  const [dynamicReferences, setDynamicReferences] = useState([
-    { name: 'Jane Smith', phone: '+1 (555) 123-4567', notes: '', flags: mockReferenceFlags[0], questions: mockReferenceQuestions[0] },
-    { name: 'Bob Lee', phone: '+1 (555) 987-6543', notes: '', flags: mockReferenceFlags[1], questions: mockReferenceQuestions[1] },
-  ]);
+  // const [dynamicReferences, setDynamicReferences] = useState([
+  //   { name: 'Jane Smith', phone: '+1 (555) 123-4567', notes: '', flags: mockReferenceFlags[0], questions: mockReferenceQuestions[0] },
+  //   { name: 'Bob Lee', phone: '+1 (555) 987-6543', notes: '', flags: mockReferenceFlags[1], questions: mockReferenceQuestions[1] },
+  // ]);
 
   // Upload refs for new candidate
   // const [cv, setCV] = useState<File | null>(null);
@@ -84,19 +95,131 @@ export default function BoardPage() {
     setSelectedId(mockCandidates[0].id); // Go back to first candidate for now
   };
 
-  const handleAddReference = () => {
-    setDynamicReferences([
-      ...dynamicReferences,
-      { name: '', phone: '', notes: '', flags: mockReferenceFlags[2], questions: mockReferenceQuestions[2] },
-    ]);
-  };
-
-  const handleReferenceChange = (idx: number, field: string, value: string) => {
-    setDynamicReferences(refs => refs.map((ref, i) => i === idx ? { ...ref, [field]: value } : ref));
-  };
-
   const selectedCandidate =
     selectedId === 'new' ? null : mockCandidates.find(c => c.id === selectedId);
+
+  const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: number]: Reference[] }>({});
+  const [addingReference, setAddingReference] = useState(false);
+  const [newReferenceForm, setNewReferenceForm] = useState<ReferenceFormData>({
+    name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: ''
+  });
+  const [openReferenceId, setOpenReferenceId] = useState<string | null>(null);
+  const [callInProgress, setCallInProgress] = useState(false);
+  const [transcriptModal, setTranscriptModal] = useState<{
+    isOpen: boolean;
+    conversationId: string;
+    referenceName: string;
+  }>({ isOpen: false, conversationId: '', referenceName: '' });
+
+  const selectedCandidateId = selectedCandidate ? selectedCandidate.id : null;
+  const candidateReferences = selectedCandidateId ? referencesByCandidate[selectedCandidateId] || [] : [];
+
+  const handleStartAddReference = () => {
+    setAddingReference(true);
+    setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
+  };
+  const handleCancelAddReference = () => {
+    setAddingReference(false);
+    setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
+  };
+  const handleNewReferenceFormChange = (field: keyof ReferenceFormData, value: string) => {
+    setNewReferenceForm(prev => ({ ...prev, [field]: value }));
+  };
+  const handleConfirmAddReference = () => {
+    if (!selectedCandidateId) return;
+    if (newReferenceForm.name.trim() && newReferenceForm.phoneNumber.trim()) {
+      const reference: Reference = {
+        id: Date.now().toString(),
+        name: newReferenceForm.name.trim(),
+        phoneNumber: newReferenceForm.phoneNumber.trim(),
+        companyName: newReferenceForm.companyName.trim(),
+        roleTitle: newReferenceForm.roleTitle.trim(),
+        workDuration: newReferenceForm.workDuration.trim(),
+        dateAdded: new Date().toLocaleDateString(),
+        callStatus: 'idle'
+      };
+      setReferencesByCandidate(prev => ({
+        ...prev,
+        [selectedCandidateId]: [reference, ...(prev[selectedCandidateId] || [])]
+      }));
+      setAddingReference(false);
+      setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
+    }
+  };
+  const handleCallReference = async (reference: Reference) => {
+    if (callInProgress || !selectedCandidateId || !selectedCandidate) return;
+    setCallInProgress(true);
+    setReferencesByCandidate(prev => ({
+      ...prev,
+      [selectedCandidateId]: prev[selectedCandidateId].map(ref =>
+        ref.id === reference.id ? { ...ref, callStatus: 'calling' as const } : ref
+      )
+    }));
+    try {
+      const response = await fetch('/api/reference-call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: reference.phoneNumber,
+          candidateName: selectedCandidate.name,
+          referenceName: reference.name,
+          companyName: reference.companyName || 'Previous Company',
+          roleTitle: reference.roleTitle || selectedCandidate.role,
+          workDuration: reference.workDuration || ''
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReferencesByCandidate(prev => ({
+          ...prev,
+          [selectedCandidateId]: prev[selectedCandidateId].map(ref =>
+            ref.id === reference.id ? { ...ref, callStatus: 'completed' as const, conversationId: data.conversationId } : ref
+          )
+        }));
+        alert(`Call initiated successfully! Conversation ID: ${data.conversationId}`);
+      } else {
+        throw new Error(data.error || 'Failed to initiate call');
+      }
+    } catch (error) {
+      setReferencesByCandidate(prev => ({
+        ...prev,
+        [selectedCandidateId]: prev[selectedCandidateId].map(ref =>
+          ref.id === reference.id ? { ...ref, callStatus: 'failed' as const } : ref
+        )
+      }));
+      alert(`Failed to initiate call: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setCallInProgress(false);
+    }
+  };
+  const handleViewTranscript = (reference: Reference) => {
+    if (reference.conversationId) {
+      setTranscriptModal({
+        isOpen: true,
+        conversationId: reference.conversationId,
+        referenceName: reference.name
+      });
+    }
+  };
+  const closeTranscriptModal = () => {
+    setTranscriptModal({ isOpen: false, conversationId: '', referenceName: '' });
+  };
+  const getCallButtonText = (status?: Reference['callStatus']) => {
+    switch (status) {
+      case 'calling': return 'Calling...';
+      case 'completed': return 'Called ✓';
+      case 'failed': return 'Failed - Retry';
+      default: return 'Call Reference';
+    }
+  };
+  const getCallButtonVariant = (status?: Reference['callStatus']) => {
+    switch (status) {
+      case 'calling': return 'secondary';
+      case 'completed': return 'outline';
+      case 'failed': return 'destructive';
+      default: return 'default';
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white via-slate-50 to-white">
@@ -216,66 +339,105 @@ export default function BoardPage() {
               </div>
               {/* Reference Calls */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Reference Calls</h3>
-                <ul className="text-gray-700 space-y-6">
-                  {dynamicReferences.map((ref, i) => (
-                    <li key={i} className="flex flex-col gap-2 bg-slate-50 rounded-xl p-4">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900">Reference Calls</h3>
+                  <Button size="sm" onClick={handleStartAddReference} className="bg-emerald-500 hover:bg-emerald-600 text-white" disabled={addingReference}>+ Add Reference</Button>
+                </div>
+                <div className="space-y-4">
+                  {addingReference && (
+                    <div className="border border-gray-200 rounded-xl bg-slate-50 p-6 flex flex-col gap-4">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
                         <input
-                          type="text"
-                          value={ref.name}
-                          onChange={e => handleReferenceChange(i, 'name', e.target.value)}
-                          placeholder="Referee Name"
-                          className="border rounded-md px-3 py-1 text-gray-800 w-full md:w-1/2"
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Reference Name*"
+                          value={newReferenceForm.name}
+                          onChange={e => handleNewReferenceFormChange('name', e.target.value)}
                         />
                         <input
-                          type="text"
-                          value={ref.phone}
-                          onChange={e => handleReferenceChange(i, 'phone', e.target.value)}
-                          placeholder="Phone Number"
-                          className="border rounded-md px-3 py-1 text-gray-800 w-full md:w-1/2"
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Phone Number*"
+                          value={newReferenceForm.phoneNumber}
+                          onChange={e => handleNewReferenceFormChange('phoneNumber', e.target.value)}
                         />
                       </div>
-                      {/* Reference Notes (auto-generated, read-only) */}
-                      <div className="bg-white border border-dashed border-emerald-200 rounded-md px-3 py-2 text-gray-700 text-sm mt-2">
-                        <span className="font-semibold text-emerald-600">Summary:</span> Positive feedback, recommended for rehire.
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <input
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Company Name"
+                          value={newReferenceForm.companyName}
+                          onChange={e => handleNewReferenceFormChange('companyName', e.target.value)}
+                        />
+                        <input
+                          className="border rounded-md px-3 py-2 text-gray-800 w-full md:w-1/2"
+                          placeholder="Role Title"
+                          value={newReferenceForm.roleTitle}
+                          onChange={e => handleNewReferenceFormChange('roleTitle', e.target.value)}
+                        />
                       </div>
-                      {/* Reference Flags */}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {ref.flags.map((flag, j) => (
-                          <span
-                            key={j}
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              flag.type === 'positive'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : flag.type === 'caution'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-blue-100 text-blue-700'
-                            }`}
-                          >
-                            {flag.label}
-                          </span>
-                        ))}
+                      <input
+                        className="border rounded-md px-3 py-2 text-gray-800 w-full"
+                        placeholder="Work Duration"
+                        value={newReferenceForm.workDuration}
+                        onChange={e => handleNewReferenceFormChange('workDuration', e.target.value)}
+                      />
+                      <div className="flex gap-3 mt-2">
+                        <Button variant="outline" onClick={handleCancelAddReference} size="sm">Cancel</Button>
+                        <Button onClick={handleConfirmAddReference} disabled={!newReferenceForm.name.trim() || !newReferenceForm.phoneNumber.trim()} size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">Confirm</Button>
                       </div>
-                      {/* Reference Questions */}
-                      <div className="mt-2">
-                        <div className="font-semibold text-sm text-gray-700 mb-1">Questions to Validate:</div>
-                        <ul className="list-disc list-inside text-gray-600 text-sm">
-                          {ref.questions.map((q, k) => (
-                            <li key={k}>{q}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </li>
+                    </div>
+                  )}
+                  {candidateReferences.map((reference) => (
+                    <div key={reference.id} className="border border-gray-200 rounded-xl">
+                      <button
+                        className="w-full flex justify-between items-center px-6 py-4 bg-slate-50 rounded-t-xl focus:outline-none"
+                        onClick={() => setOpenReferenceId(openReferenceId === reference.id ? null : reference.id)}
+                      >
+                        <span className="font-semibold text-gray-800">{reference.name}</span>
+                        <span className="text-gray-500 text-sm">{reference.phoneNumber}</span>
+                        <span className="ml-2 text-xs text-gray-400">{openReferenceId === reference.id ? '▲' : '▼'}</span>
+                      </button>
+                      {openReferenceId === reference.id && (
+                        <div className="px-6 pb-6 pt-2">
+                          <div className="mb-2 text-sm text-gray-600">{reference.companyName} {reference.roleTitle && `| ${reference.roleTitle}`} {reference.workDuration && `| ${reference.workDuration}`}</div>
+                          <div className="mb-2 text-xs text-gray-400">Added: {reference.dateAdded}</div>
+                          <div className="flex gap-2 mb-2">
+                            <Button
+                              onClick={() => handleCallReference(reference)}
+                              disabled={reference.callStatus === 'calling' || callInProgress}
+                              variant={getCallButtonVariant(reference.callStatus)}
+                              size="sm"
+                            >
+                              {getCallButtonText(reference.callStatus)}
+                            </Button>
+                            {reference.callStatus === 'completed' && reference.conversationId && (
+                              <Button
+                                onClick={() => handleViewTranscript(reference)}
+                                variant="outline"
+                                size="sm"
+                              >
+                                📄 View Transcript
+                              </Button>
+                            )}
+                          </div>
+                          {/* Automated notes summary */}
+                          <div className="bg-white border border-dashed border-emerald-200 rounded-md px-3 py-2 text-gray-700 text-sm mt-2">
+                            <span className="font-semibold text-emerald-600">Summary:</span> Positive feedback, recommended for rehire.
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
-                </ul>
-                <Button
-                  onClick={handleAddReference}
-                  size="sm"
-                  className="mt-4 rounded-lg bg-gradient-to-r from-emerald-400 to-blue-400 text-white font-semibold shadow-sm"
-                >
-                  + Add Reference
-                </Button>
+                  {candidateReferences.length === 0 && (
+                    <div className="text-gray-400 text-center py-6">No references added yet.</div>
+                  )}
+                </div>
+                {/* Transcript Modal */}
+                <TranscriptModal
+                  isOpen={transcriptModal.isOpen}
+                  onClose={closeTranscriptModal}
+                  conversationId={transcriptModal.conversationId}
+                  referenceName={transcriptModal.referenceName}
+                />
               </div>
               {/* Notes Toggle */}
               <div>
