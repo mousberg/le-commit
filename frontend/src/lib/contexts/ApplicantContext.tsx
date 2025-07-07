@@ -82,8 +82,9 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
         formData.append('linkedinFile', request.linkedinFile);
       }
 
-      if (request.githubFile) {
-        formData.append('githubFile', request.githubFile);
+      if (request.githubUrl) {
+        // Send GitHub URL as a string
+        formData.append('githubUrl', request.githubUrl);
       }
 
       const response = await fetch('/api/applicants', {
@@ -95,13 +96,14 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
 
       if (data.success) {
         await fetchApplicants(); // Refresh the list
-        return data.applicant.id;
+        return data.applicantId;
       } else {
         setError(data.error || 'Failed to create applicant');
         return null;
       }
-    } catch {
-      setError('Network error');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
