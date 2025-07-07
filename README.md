@@ -1,8 +1,8 @@
 <div align="center">
-  <img src="frontend/public/logo.svg" alt="Le Commit" width="400" />
+  <img src="frontend/public/le-commit.svg" alt="Le Commit" width="400" />
 </div>
 
-# Le Commit - NerdBuster
+# le commit \ unmask
 
 A web application that features anti-cheating interview agent with real-time lie detection and AI-powered reference calling using ElevenLabs Conversational AI and Twilio.
 
