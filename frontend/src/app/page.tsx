@@ -14,7 +14,7 @@ export default function Home() {
           <h1 className="text-6xl font-bold mb-6 text-gray-900">Trust your hiring process again.</h1>
           <p className="text-xl text-gray-700 mb-8">ShadowCheck helps you verify candidate skills with real-world validation, so you can hire with confidence and speed.</p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
           <Link href="/setup">
             <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold">
@@ -43,7 +43,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-gray-900 mb-2">NerdBuster</h2>
               <p className="text-lg text-gray-600">Real-time anti-cheating for live interviews</p>
             </div>
-            
+
             <div className="space-y-4 mb-6">
               <div className="flex items-start gap-3">
                 <Zap className="h-5 w-5 text-red-500 mt-1 flex-shrink-0" />
@@ -67,7 +67,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            
+
             <Link href="/setup">
               <Button className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white py-3 rounded-xl font-semibold">
                 Start Live Interview
@@ -84,7 +84,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-gray-900 mb-2">ShadowCheck</h2>
               <p className="text-lg text-gray-600">AI-powered reference verification</p>
             </div>
-            
+
             <div className="space-y-4 mb-6">
               <div className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-emerald-500 mt-1 flex-shrink-0" />
@@ -108,7 +108,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            
+
             <Link href="/upload">
               <Button className="w-full bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white py-3 rounded-xl font-semibold">
                 Check References

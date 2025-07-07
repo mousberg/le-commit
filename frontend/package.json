@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:cv": "npx tsx src/lib/simple_tests/test-cv.ts",
+    "test:evaluation": "npx tsx src/lib/simple_tests/test-evaluation.ts"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.5.0",
@@ -25,8 +27,11 @@
     "groq-sdk": "^0.26.0",
     "lucide-react": "^0.525.0",
     "next": "15.3.5",
+    "pdf-lib": "^1.17.1",
+    "pdf2pic": "^3.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.33.2",
     "tailwind-merge": "^3.3.1",
     "twilio": "^5.7.2",
     "ws": "^8.18.3"
@@ -40,6 +45,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   }

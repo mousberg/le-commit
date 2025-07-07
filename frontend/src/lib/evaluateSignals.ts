@@ -5,7 +5,9 @@
   */
 
 import Groq from 'groq-sdk';
-import { Signal, SignalEvaluation, CvData, LinkedInData } from '../interfaces';
+import { Signal, SignalEvaluation } from './interfaces/signals';
+import { CvData, ContractType, LanguageLevel } from './interfaces/cv';
+import { LinkedInData } from './interfaces/linkedin';
 import { ALL_SIGNALS } from './signals';
 
 // Initialize Groq client
@@ -16,7 +18,7 @@ const groq = new Groq({
 export interface EvaluationContext {
   cvData?: CvData;
   linkedinData?: LinkedInData;
-  additionalContext?: Record<string, any>;
+  additionalContext?: Record<string, unknown>;
 }
 
 export interface SignalEvaluationResult {
@@ -251,7 +253,7 @@ export async function exampleEvaluation() {
         companyName: 'Tech Corp',
         title: 'Senior Software Engineer',
         location: 'San Francisco, CA',
-        type: 'PERMANENT_CONTRACT' as any,
+        type: 'PERMANENT_CONTRACT' as ContractType,
         startYear: 2020,
         startMonth: 1,
         endYear: 2024,
@@ -278,7 +280,7 @@ export async function exampleEvaluation() {
     languages: [
       {
         language: 'English',
-        level: 'NATIVE_BILINGUAL' as any
+        level: 'NATIVE_BILINGUAL' as LanguageLevel
       }
     ],
     publications: [],

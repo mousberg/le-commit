@@ -35,7 +35,7 @@ export default function CallPage() {
                 📞 How It Works
               </h2>
               <p className="text-gray-600 mb-4">
-                Our AI-powered system automatically calls candidate references and conducts 
+                Our AI-powered system automatically calls candidate references and conducts
                 professional interviews to validate their background and experience.
               </p>
               <ul className="space-y-3 text-gray-600">
@@ -95,7 +95,7 @@ export default function CallPage() {
                 🔒 Privacy & Compliance
               </h3>
               <p className="text-blue-700 text-sm">
-                All calls are recorded with consent and stored securely. 
+                All calls are recorded with consent and stored securely.
                 We comply with GDPR and employment verification regulations.
               </p>
             </div>
@@ -103,7 +103,7 @@ export default function CallPage() {
 
           {/* Right Column - Reference Call Form */}
           <div>
-            <ReferenceCallForm 
+            <ReferenceCallForm
               onCallInitiated={(callSid) => {
                 console.log('Reference call initiated:', callSid);
                 // You could add a toast notification here
@@ -115,8 +115,8 @@ export default function CallPage() {
 
       {/* Navigation */}
       <div className="text-center py-8">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="text-blue-600 hover:text-blue-800 transition-colors"
         >
           ← Back to Home
@@ -124,4 +124,4 @@ export default function CallPage() {
       </div>
     </div>
   );
-} 
+}
