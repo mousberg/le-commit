@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Applicant } from '@/lib/interfaces/applicant';
 import { CvData } from '@/lib/interfaces/cv';
-import { processCvPdf, validateAndCleanCvData } from '@/lib/cv';
+import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
+import * as fs from 'fs';
 import {
   loadAllApplicants,
   loadApplicant,
@@ -106,16 +107,70 @@ async function processApplicantAsync(applicantId: string) {
     applicant.status = 'processing';
     saveApplicant(applicant);
 
-    // Process CV
-    console.log(`Processing CV for applicant ${applicantId}`);
-    const rawCvData = await processCvPdf(paths.cvPdf, false); // Don't cleanup
-    const cvData = validateAndCleanCvData(rawCvData);
+    // Generate unique temp directory suffixes to prevent race conditions
+    const cvTempSuffix = `cv_${applicantId}_${Date.now()}`;
+    const linkedinTempSuffix = `linkedin_${applicantId}_${Date.now()}`;
+
+    // Process CV and LinkedIn in parallel
+    console.log(`Processing files for applicant ${applicantId}`);
+
+    const processingPromises = [];
+
+    // Always process CV (required)
+    processingPromises.push(
+      processCvPdf(paths.cvPdf, true, cvTempSuffix).then(rawCvData => ({
+        type: 'cv',
+        data: validateAndCleanCvData(rawCvData)
+      }))
+    );
+
+    // Process LinkedIn if file exists
+    if (paths.linkedinFile && fs.existsSync(paths.linkedinFile)) {
+      processingPromises.push(
+        processLinkedInPdf(paths.linkedinFile, true, linkedinTempSuffix).then(rawLinkedinData => ({
+          type: 'linkedin',
+          data: validateAndCleanCvData(rawLinkedinData)
+        })).catch(error => {
+          console.warn(`LinkedIn processing failed for ${applicantId}:`, error);
+          return { type: 'linkedin', data: null, error: error.message };
+        })
+      );
+    }
+
+    // Wait for all processing to complete
+    const results = await Promise.allSettled(processingPromises);
+
+    // Process results
+    let cvData: CvData | null = null;
+    let linkedinData: CvData | null = null;
+    let hasErrors = false;
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        if (result.value.type === 'cv') {
+          cvData = result.value.data as CvData;
+        } else if (result.value.type === 'linkedin') {
+          linkedinData = result.value.data as CvData;
+        }
+      } else {
+        console.error(`Processing failed for ${applicantId}:`, result.reason);
+        if (result.reason?.message?.includes('CV')) {
+          hasErrors = true; // CV processing failure is critical
+        }
+      }
+    }
+
+    // CV processing is required for successful completion
+    if (!cvData || hasErrors) {
+      throw new Error('CV processing failed');
+    }
 
     // Calculate a simple score based on available data
     const score = calculateScore(cvData);
 
-    // Update applicant with CV data - everything goes in applicant.json
+    // Update applicant with processed data
     applicant.cvData = cvData;
+    applicant.linkedinData = linkedinData || undefined;
     applicant.name = `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown';
     applicant.email = cvData.email || '';
     applicant.role = cvData.jobTitle || '';
@@ -124,9 +179,9 @@ async function processApplicantAsync(applicantId: string) {
 
     saveApplicant(applicant);
 
-    console.log(`Successfully processed applicant ${applicantId}`);
+    console.log(`Successfully processed applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}`);
 
-    } catch (error) {
+  } catch (error) {
     console.error(`Error processing applicant ${applicantId}:`, error);
 
     const applicant = loadApplicant(applicantId);

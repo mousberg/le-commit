@@ -1,11 +1,11 @@
-import { CvData, LinkedInData } from './index';
+import { CvData } from './index';
 
 export interface Applicant {
   id: string;
   name: string;
   email: string;
   cvData?: CvData;
-  linkedinData?: LinkedInData;
+  linkedinData?: CvData;
   status: 'uploading' | 'processing' | 'completed' | 'failed';
   createdAt: string;
   originalFileName?: string;

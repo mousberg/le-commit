@@ -4,10 +4,9 @@
   * Combined signals
   */
 
-import Groq from 'groq-sdk';
+import { Groq } from 'groq-sdk';
 import { Signal, SignalEvaluation } from './interfaces/signals';
 import { CvData, ContractType, LanguageLevel } from './interfaces/cv';
-import { LinkedInData } from './interfaces/linkedin';
 import { ALL_SIGNALS } from './signals';
 
 // Initialize Groq client
@@ -17,7 +16,7 @@ const groq = new Groq({
 
 export interface EvaluationContext {
   cvData?: CvData;
-  linkedinData?: LinkedInData;
+  linkedinData?: CvData;
   additionalContext?: Record<string, unknown>;
 }
 
@@ -292,33 +291,58 @@ export async function exampleEvaluation() {
   };
 
   // Example LinkedIn data (this would come from LinkedIn scraping/API)
-  const exampleLinkedinData: LinkedInData = {
-    name: 'John Doe',
-    headline: 'Senior Software Engineer at Tech Corp',
-    location: 'San Francisco, CA',
-    connections: 500,
-    profileUrl: 'https://linkedin.com/in/johndoe',
-    experience: [
+  const exampleLinkedinData: CvData = {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '+1234567890',
+    address: 'San Francisco, CA',
+    linkedin: 'https://linkedin.com/in/johndoe',
+    github: 'https://github.com/johndoe',
+    personalWebsite: 'https://johndoe.dev',
+    professionalSummary: 'Senior Software Engineer at Tech Corp',
+    jobTitle: 'Senior Software Engineer',
+    professionalExperiences: [
       {
-        company: 'Tech Corp',
+        companyName: 'Tech Corp',
         title: 'Senior Software Engineer',
-        duration: '2020 - Present',
-        description: 'Leading microservices development'
+        location: 'San Francisco, CA',
+        type: 'PERMANENT_CONTRACT' as ContractType,
+        startYear: 2020,
+        startMonth: 1,
+        endYear: 2024,
+        endMonth: 12,
+        ongoing: false,
+        description: 'Leading microservices development',
+        associatedSkills: ['JavaScript', 'React', 'Node.js', 'AWS']
       }
     ],
-    education: [
+    otherExperiences: [],
+    educations: [
       {
-        school: 'Stanford University',
         degree: 'Bachelor of Science, Computer Science',
-        years: '2016 - 2020'
+        institution: 'Stanford University',
+        location: 'Stanford, CA',
+        startYear: 2016,
+        endYear: 2020,
+        ongoing: false,
+        description: 'Focus on software engineering and algorithms',
+        associatedSkills: ['Java', 'Python', 'Data Structures']
       }
     ],
     skills: ['JavaScript', 'React', 'Node.js', 'AWS'],
-    activity: {
-      posts: 15,
-      likes: 50,
-      comments: 25
-    }
+    languages: [
+      {
+        language: 'English',
+        level: 'NATIVE_BILINGUAL' as LanguageLevel
+      }
+    ],
+    publications: [],
+    distinctions: [],
+    hobbies: ['Programming', 'Rock Climbing'],
+    references: [],
+    certifications: [],
+    other: {}
   };
 
   const context: EvaluationContext = {
