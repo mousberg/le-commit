@@ -2,64 +2,96 @@
 
 Complete guide to deploy your LeCommit reference calling app on a Vultr VPS.
 
-## Architecture Overview
+## Deployment Strategy: Container Registry (Recommended)
+
+Using Vultr Container Registry is the **preferred method** because:
+- ✅ Faster VPS deployment (no building on server)
+- ✅ Consistent environments (build once, deploy anywhere)
+- ✅ Easier rollbacks and version management
+- ✅ Better for CI/CD pipelines
+
+## Updated Architecture with Container Registry
 
 ```mermaid
 graph TB
-    A[Your Local Machine] -->|git push| B[GitHub Repository]
-    A -->|SSH Connection| C[Vultr VPS]
-    C -->|git clone| B
-    C -->|Docker Build & Run| D[LeCommit Container]
-    D -->|Port 3000| E[Next.js App]
-    F[Internet Users] -->|HTTP Port 80| C
-    C -->|Proxy to| E
-    E -->|API Calls| G[Twilio]
-    E -->|API Calls| H[ElevenLabs]
+    A[Your Local Machine] -->|docker build| B[Local Docker Image]
+    B -->|docker push| C[Vultr Container Registry]
+    A -->|SSH Connection| D[Vultr VPS]
+    D -->|docker pull| C
+    D -->|docker run| E[LeCommit Container]
+    E -->|Port 3000| F[Next.js App]
+    G[Internet Users] -->|HTTP Port 80| D
+    D -->|Proxy to| F
+    F -->|API Calls| H[Twilio]
+    F -->|API Calls| I[ElevenLabs]
     
-    style C fill:#00d4aa
-    style D fill:#0066cc
-    style E fill:#000000,color:#ffffff
+    style C fill:#ff6b35
+    style D fill:#00d4aa
+    style E fill:#0066cc
+    style F fill:#000000,color:#ffffff
 ```
 
-## Deployment Process Flow
+## Updated Process Flow
 
 ```mermaid
 flowchart TD
-    A[Start: You have Vultr account + env vars] --> B[Create VPS Instance]
-    B --> C[Get IP Address & SSH Key]
-    C --> D[SSH into VPS]
-    D --> E[Update System]
+    A[Start: You have Vultr account + env vars] --> B[Create Container Registry]
+    B --> C[Build & Push Container Locally]
+    C --> D[Create VPS Instance]
+    D --> E[SSH into VPS]
     E --> F[Install Docker]
-    F --> G[Clone Your Repository]
-    G --> H[Create Environment File]
-    H --> I[Build Docker Image]
-    I --> J[Run Container]
-    J --> K[Configure Firewall]
-    K --> L[Setup Domain/DNS Optional]
-    L --> M[✅ App Live on Internet]
+    F --> G[Login to Container Registry]
+    G --> H[Pull Your Container]
+    H --> I[Run Container with Env Vars]
+    I --> J[Configure Firewall]
+    J --> K[✅ App Live on Internet]
     
     style A fill:#e1f5fe
-    style M fill:#c8e6c9
-    style I fill:#fff3e0
-    style J fill:#fff3e0
+    style B fill:#fff3e0
+    style C fill:#fff3e0
+    style K fill:#c8e6c9
 ```
 
 ## Prerequisites Checklist
 
 - ✅ Vultr account created
 - ✅ Environment variables ready
-- ✅ GitHub repository with your code
-- ✅ SSH client (Terminal on Mac/Linux, PuTTY on Windows)
+- ✅ Docker installed locally
+- ✅ Vultr Container Registry created (you have this!)
 
-## Step 1: Create Your Vultr VPS
+## Step 1: Build and Push Container (Local Machine)
 
-### 1.1 Deploy New Instance
+### 1.1 Login to Vultr Container Registry
+
+```bash
+# Login to your Vultr Container Registry
+docker login https://lhr.vultrcr.com/lecommit1 \
+  -u 02a85eb8-61b3-4916-b8c4-d4b8d879244c \
+  -p gZ4DubSBGb4d9Qwskyi6mHe2GbEfzanJmQey
+```
+
+### 1.2 Build and Push Your Container
+
+```bash
+# Make sure you're in your le-commit directory
+cd /Users/henryallen/le-commit
+
+# Build the Docker image
+docker build -t lhr.vultrcr.com/lecommit1/lecommit:latest .
+
+# Push to Vultr Container Registry
+docker push lhr.vultrcr.com/lecommit1/lecommit:latest
+```
+
+## Step 2: Create Your Vultr VPS
+
+### 2.1 Deploy New Instance
 
 1. Log into [Vultr Dashboard](https://my.vultr.com/)
 2. Click **"Deploy New Instance"**
 3. Choose **"Cloud Compute - Shared CPU"**
 
-### 1.2 Configuration Settings
+### 2.2 Configuration Settings
 
 ```mermaid
 graph LR
@@ -82,15 +114,15 @@ graph LR
 - **Server Size**: $6/month (25 GB SSD, 1 vCPU, 1024 MB Memory)
 - **SSH Keys**: Add your public key (recommended) or use password
 
-### 1.3 Deploy and Wait
+### 2.3 Deploy and Wait
 
 - Click **"Deploy Now"**
 - Wait 2-3 minutes for provisioning
 - Note the **IP address** when ready
 
-## Step 2: Connect to Your VPS
+## Step 3: Connect to Your VPS
 
-### 2.1 SSH Connection
+### 3.1 SSH Connection
 
 ```bash
 # Replace YOUR_IP with your actual VPS IP address
@@ -100,7 +132,7 @@ ssh root@YOUR_IP
 # If using password, enter the password from Vultr dashboard
 ```
 
-### 2.2 First Login Setup
+### 3.2 First Login Setup
 
 ```bash
 # Update the system
@@ -110,7 +142,7 @@ apt update && apt upgrade -y
 apt install -y curl wget git ufw
 ```
 
-## Step 3: Install Docker
+## Step 4: Install Docker on VPS
 
 ```bash
 # Install Docker using the official script
@@ -125,24 +157,25 @@ systemctl enable docker
 docker --version
 ```
 
-## Step 4: Deploy Your Application
+## Step 5: Deploy from Container Registry
 
-### 4.1 Clone Repository
+### 5.1 Login to Registry on VPS
 
 ```bash
-# Clone your repository (replace with your GitHub username/repo)
-git clone https://github.com/YOUR_USERNAME/le-commit.git
-cd le-commit
-
-# Switch to your cleanup branch if needed
-git checkout cleanup-for-deployment
+# Login to Vultr Container Registry from the VPS
+docker login https://lhr.vultrcr.com/lecommit1 \
+  -u 02a85eb8-61b3-4916-b8c4-d4b8d879244c \
+  -p gZ4DubSBGb4d9Qwskyi6mHe2GbEfzanJmQey
 ```
 
-### 4.2 Create Environment File
+### 5.2 Create Environment File
 
 ```bash
+# Create directory for app config
+mkdir -p /opt/lecommit
+
 # Create the environment file
-nano frontend/.env.local
+nano /opt/lecommit/.env.local
 ```
 
 **Add your environment variables:**
@@ -160,25 +193,25 @@ ELEVENLABS_AGENT_PHONE_ID=your_actual_phone_id
 
 **Save and exit:** `Ctrl+X`, then `Y`, then `Enter`
 
-### 4.3 Build and Run
+### 5.3 Pull and Run Container
 
 ```bash
-# Build the Docker image
-docker build -t lecommit .
+# Pull your container from the registry
+docker pull lhr.vultrcr.com/lecommit1/lecommit:latest
 
 # Run the container
 docker run -d \
   --name lecommit-app \
   --restart unless-stopped \
   -p 80:3000 \
-  --env-file frontend/.env.local \
-  lecommit
+  --env-file /opt/lecommit/.env.local \
+  lhr.vultrcr.com/lecommit1/lecommit:latest
 
 # Check if it's running
 docker ps
 ```
 
-## Step 5: Configure Firewall
+## Step 6: Configure Firewall
 
 ```bash
 # Enable UFW firewall
@@ -197,9 +230,9 @@ ufw allow 443
 ufw status
 ```
 
-## Step 6: Verify Deployment
+## Step 7: Verify Deployment
 
-### 6.1 Check Container Status
+### 7.1 Check Container Status
 
 ```bash
 # Check if container is running
@@ -212,7 +245,7 @@ docker logs lecommit-app
 docker restart lecommit-app
 ```
 
-### 6.2 Test Your App
+### 7.2 Test Your App
 
 ```bash
 # Test locally on the VPS
@@ -220,6 +253,39 @@ curl http://localhost
 
 # From your local machine, visit:
 # http://YOUR_VPS_IP
+```
+
+## Benefits of Container Registry Approach
+
+### Faster Updates
+```bash
+# To update your app (run locally):
+docker build -t lhr.vultrcr.com/lecommit1/lecommit:v2 .
+docker push lhr.vultrcr.com/lecommit1/lecommit:v2
+
+# Then on VPS:
+docker stop lecommit-app
+docker rm lecommit-app
+docker pull lhr.vultrcr.com/lecommit1/lecommit:v2
+docker run -d \
+  --name lecommit-app \
+  --restart unless-stopped \
+  -p 80:3000 \
+  --env-file /opt/lecommit/.env.local \
+  lhr.vultrcr.com/lecommit1/lecommit:v2
+```
+
+### Easy Rollbacks
+```bash
+# Rollback to previous version
+docker stop lecommit-app
+docker rm lecommit-app
+docker run -d \
+  --name lecommit-app \
+  --restart unless-stopped \
+  -p 80:3000 \
+  --env-file /opt/lecommit/.env.local \
+  lhr.vultrcr.com/lecommit1/lecommit:latest
 ```
 
 ## Application Flow Diagram
