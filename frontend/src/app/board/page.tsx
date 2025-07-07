@@ -253,9 +253,10 @@ function BoardPageContent() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-b from-white via-slate-50 to-white">
-      {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-gray-100 flex flex-col py-6 px-4 gap-4">
+    <>
+      <div className="min-h-screen flex bg-gradient-to-b from-white via-slate-50 to-white">
+        {/* Sidebar */}
+        <aside className="w-72 bg-white border-r border-gray-100 flex flex-col py-6 px-4 gap-4">
           <div className="mb-4">
             <div className="text-lg font-semibold mb-2">Applicants</div>
             <ul className="space-y-1">
@@ -779,7 +780,7 @@ function BoardPageContent() {
         conversationId={transcriptModal.conversationId}
         referenceName={transcriptModal.referenceName}
       />
-    </div>
+    </>
   );
 }
 
