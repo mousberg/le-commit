@@ -157,3 +157,83 @@ export interface LinkedInCertification {
   credentialId?: string;
   credentialUrl?: string;
 }
+
+export interface GitHubData {
+  username: string;
+  name: string;
+  bio: string;
+  location: string;
+  email: string;
+  blog: string;
+  company: string;
+  profileUrl: string;
+  avatarUrl: string;
+  followers: number;
+  following: number;
+  publicRepos: number;
+  publicGists: number;
+  accountCreationDate: string;
+  lastActivityDate?: string;
+  repositories: GitHubRepository[];
+  languages: GitHubLanguageStats[];
+  contributions: GitHubContributionStats;
+  starredRepos: number;
+  forkedRepos: number;
+  organizations: GitHubOrganization[];
+  other: Record<string, any>;
+}
+
+export interface GitHubRepository {
+  name: string;
+  fullName: string;
+  description: string;
+  language: string;
+  stars: number;
+  forks: number;
+  watchers: number;
+  size: number;
+  isPrivate: boolean;
+  isFork: boolean;
+  createdAt: string;
+  updatedAt: string;
+  topics: string[];
+  url: string;
+  cloneUrl: string;
+  license?: string;
+  hasIssues: boolean;
+  hasProjects: boolean;
+  hasWiki: boolean;
+  hasPages: boolean;
+  openIssues: number;
+  defaultBranch: string;
+}
+
+export interface GitHubLanguageStats {
+  language: string;
+  percentage: number;
+  bytes: number;
+}
+
+export interface GitHubContributionStats {
+  totalCommits: number;
+  totalPullRequests: number;
+  totalIssues: number;
+  totalRepositories: number;
+  streakDays: number;
+  contributionsLastYear: number;
+  mostActiveDay?: string;
+  mostUsedLanguage?: string;
+}
+
+export interface GitHubOrganization {
+  login: string;
+  name: string;
+  description: string;
+  url: string;
+  avatarUrl: string;
+  publicRepos: number;
+  location: string;
+  blog: string;
+  email: string;
+  createdAt: string;
+}
