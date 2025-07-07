@@ -260,7 +260,7 @@ export default function BoardPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white via-slate-50 to-white">
       {/* Header */}
       <header className="w-full h-16 flex items-center px-8 bg-white shadow-sm border-b border-gray-100 text-2xl font-bold tracking-tight text-gray-900">
-        ShadowCheck Board
+        Unmask Board
       </header>
       <div className="flex flex-1">
         {/* Sidebar */}
@@ -447,6 +447,82 @@ export default function BoardPage() {
                                 exp.ongoing ? 'Present' :
                                 (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
                               }
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* LinkedIn Data Summary */}
+              {selectedCandidate.linkedinData && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
+                  <div className="col-span-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">LinkedIn Profile Data</h3>
+                  </div>
+
+                  {selectedCandidate.linkedinData.professionalSummary && (
+                    <div className="col-span-2">
+                      <h4 className="text-md font-medium text-gray-800 mb-1">Professional Summary</h4>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.professionalSummary}</p>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.jobTitle && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-1">Current Role</h4>
+                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.jobTitle}</p>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.professionalExperiences && selectedCandidate.linkedinData.professionalExperiences.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Experience</h4>
+                      <div className="space-y-2">
+                        {selectedCandidate.linkedinData.professionalExperiences.slice(0, 3).map((exp, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="font-medium">{exp.title} at {exp.companyName}</div>
+                            <div className="text-gray-600">
+                              {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
+                                exp.ongoing ? 'Present' :
+                                (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
+                              }
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.skills && selectedCandidate.linkedinData.skills.length > 0 && (
+                    <div>
+                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCandidate.linkedinData.skills.slice(0, 8).map((skill, i) => (
+                          <span key={i} className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs border border-blue-200">
+                            {skill}
+                          </span>
+                        ))}
+                        {selectedCandidate.linkedinData.skills.length > 8 && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                            +{selectedCandidate.linkedinData.skills.length - 8} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCandidate.linkedinData.educations && selectedCandidate.linkedinData.educations.length > 0 && (
+                    <div className="col-span-2">
+                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Education</h4>
+                      <div className="space-y-2">
+                        {selectedCandidate.linkedinData.educations.slice(0, 2).map((edu, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="font-medium">{edu.degree} at {edu.institution}</div>
+                            <div className="text-gray-600">
+                              {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
                             </div>
                           </div>
                         ))}

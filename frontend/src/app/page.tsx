@@ -12,7 +12,7 @@ export default function Home() {
         <div className="mb-8">
           <Shield className="h-20 w-20 mx-auto mb-6 text-gray-800" />
           <h1 className="text-6xl font-bold mb-6 text-gray-900">Trust your hiring process again.</h1>
-          <p className="text-xl text-gray-700 mb-8">ShadowCheck helps you verify candidate skills with real-world validation, so you can hire with confidence and speed.</p>
+          <p className="text-xl text-gray-700 mb-8">Unmask helps you verify candidate skills with real-world validation, so you can hire with confidence and speed.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
@@ -75,13 +75,13 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* ShadowCheck - Reference Calling */}
+          {/* Unmask - Reference Calling */}
           <div className="bg-white rounded-3xl shadow-lg p-8 border border-gray-200">
             <div className="text-center mb-6">
               <div className="bg-gradient-to-br from-emerald-400 to-blue-400 p-4 rounded-full w-fit mx-auto mb-4">
                 <Phone className="h-8 w-8 text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">ShadowCheck</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Unmask</h2>
               <p className="text-lg text-gray-600">AI-powered reference verification</p>
             </div>
 
@@ -128,7 +128,7 @@ export default function Home() {
             </div>
           </div>
           <blockquote className="text-lg text-gray-700 italic mb-2 text-center">
-            &ldquo;ShadowCheck let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.&rdquo;
+            &ldquo;Unmask let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.&rdquo;
           </blockquote>
           <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
         </div>

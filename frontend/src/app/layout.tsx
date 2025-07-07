@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NerdBuster - Anti-Cheating Interview Agent",
-  description: "Real-time interview anti-cheating agent for detecting lies and inconsistencies",
+  title: "Unmask - Real time reference checking made easy",
+  description: "Real-time interview anti-cheating agent for detecting inconsistencies",
 };
 
 export default function RootLayout({
