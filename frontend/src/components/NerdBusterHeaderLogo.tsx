@@ -1,24 +1,52 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "./ui/button";
 
 export default function Navbar() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 100);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <nav className="w-full z-10 bg-white/60 backdrop-blur-md shadow-sm rounded-b-2xl px-6 py-3 flex items-center justify-between fixed top-0 left-0 custom-scrollbar">
-      <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-        <Image src="/logo.svg" alt="Unmask Logo" width={40} height={40} className="rounded-xl" />
-        <span className="font-bold text-xl tracking-tight text-gray-900">Unmask</span>
-      </Link>
-      <div className="hidden md:flex items-center gap-8 text-base font-medium text-gray-700">
-        <Link href="#how-it-works" className="hover:text-primary transition-colors">How it works</Link>
-        <Link href="#demo" className="hover:text-primary transition-colors">Demo</Link>
-        <Link href="#testimonials" className="hover:text-primary transition-colors">Testimonials</Link>
-      </div>
-      <div className="ml-4">
-        <Link href="/upload" target="_blank" rel="noopener noreferrer">
-          <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-6 py-2 text-base font-semibold">Try Unmask</Button>
+    <div className={`w-full z-50 fixed top-0 left-0 transition-all duration-700 ease-out ${
+      isScrolled ? 'px-6 py-4' : 'px-0 py-0'
+    }`}>
+      <nav className={`mx-auto flex items-center justify-between transition-all duration-700 ease-out will-change-transform ${
+        isScrolled 
+          ? 'max-w-6xl bg-white/90 backdrop-blur-md shadow-xl rounded-3xl px-8 py-4 border border-gray-200/20' 
+          : 'w-full bg-white/95 backdrop-blur-sm shadow-sm rounded-none px-8 py-6 border-0'
+      }`}>
+        <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+          <Image 
+            src="/unmasklogo.svg?v=2" 
+            alt="Unmask" 
+            width={isScrolled ? 120 : 140} 
+            height={isScrolled ? 41 : 48} 
+            className="transition-all duration-700 ease-out" 
+            priority
+          />
         </Link>
-      </div>
-    </nav>
+        <div className="hidden md:flex items-center gap-8 text-base font-medium text-gray-700">
+          <Link href="#how-it-works" className="hover:text-gray-900 transition-colors">How it works</Link>
+          <Link href="#demo" className="hover:text-gray-900 transition-colors">Demo</Link>
+          <Link href="#testimonials" className="hover:text-gray-900 transition-colors">Testimonials</Link>
+        </div>
+        <div className="ml-4">
+          <Link href="/board" target="_blank" rel="noopener noreferrer">
+            <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-6 py-2 text-base font-semibold hover:shadow-md transition-all">Try Unmask</Button>
+          </Link>
+        </div>
+      </nav>
+    </div>
   );
-} 
+}

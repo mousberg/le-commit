@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '../../components/ui/button';
 import TranscriptModal from '../../components/TranscriptModal';
@@ -30,7 +30,7 @@ interface ReferenceFormData {
   workDuration: string;
 }
 
-export default function BoardPage() {
+function BoardPageContent() {
   const {
     applicants,
     fetchApplicants,
@@ -253,14 +253,9 @@ export default function BoardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white via-slate-50 to-white">
-      {/* Header */}
-      <header className="w-full h-16 flex items-center px-8 bg-white shadow-sm border-b border-gray-100 text-2xl font-bold tracking-tight text-gray-900">
-        Unmask Board
-      </header>
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-gray-100 flex flex-col py-6 px-4 gap-4">
+    <div className="min-h-screen flex bg-gradient-to-b from-white via-slate-50 to-white">
+      {/* Sidebar */}
+      <aside className="w-72 bg-white border-r border-gray-100 flex flex-col py-6 px-4 gap-4">
           <div className="mb-4">
             <div className="text-lg font-semibold mb-2">Applicants</div>
             <ul className="space-y-1">
@@ -295,14 +290,14 @@ export default function BoardPage() {
           </div>
           <Button
             onClick={navigateToNew}
-            className="w-full rounded-lg bg-gradient-to-r from-emerald-400 to-blue-400 text-white font-semibold shadow-sm"
+            className="w-full rounded-lg bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold shadow-sm"
           >
             + Add New Applicant
           </Button>
-        </aside>
-        {/* Main Content */}
-        <main className="flex-1 p-10">
-          {selectedId === 'new' ? (
+      </aside>
+      {/* Main Content */}
+      <main className="flex-1 p-10">
+        {selectedId === 'new' ? (
             <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
               <h2 className="text-2xl font-bold text-center mb-2 text-gray-900">Add New Applicant</h2>
               <div className="flex flex-col gap-6">
@@ -355,7 +350,7 @@ export default function BoardPage() {
                 onClick={handleCreateCandidate}
                 disabled={!cvFile || isLoading}
                 size="lg"
-                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-8 py-3 text-xl font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Processing...' : 'Analyse Profile'}
               </Button>
@@ -768,7 +763,7 @@ export default function BoardPage() {
               {/* Start Call Button */}
               <Button
                 size="lg"
-                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold mt-2"
+                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-8 py-3 text-xl font-semibold mt-2"
               >
                 Start Interview
               </Button>
@@ -785,5 +780,13 @@ export default function BoardPage() {
         referenceName={transcriptModal.referenceName}
       />
     </div>
+  );
+}
+
+export default function BoardPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BoardPageContent />
+    </Suspense>
   );
 }

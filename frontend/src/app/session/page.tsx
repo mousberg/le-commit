@@ -9,6 +9,7 @@ import { TranscriptBubble } from "@/components/transcript-bubble";
 import { FlagBubble } from "@/components/flag-bubble";
 import { SuggestedFollowUp } from "@/components/suggested-follow-up";
 import { CredibilityScore } from "@/components/credibility-score";
+import { mockTranscripts, mockFlags, mockFollowUps } from "@/lib/mockData";
 
 interface TranscriptItem {
   id: string;
@@ -19,7 +20,7 @@ interface TranscriptItem {
 
 interface FlagItem {
   id: string;
-  type: "warning" | "info";
+  type: "warning" | "info" | "error";
   message: string;
   relatedTranscriptId: string;
   timestamp: Date;
@@ -88,25 +89,6 @@ export default function SessionPage() {
 
   // Simulate real-time transcript updates
   useEffect(() => {
-    const mockTranscripts = [
-      { text: "I worked at Apple for 3 years as a senior engineer.", speaker: "candidate" as const },
-      { text: "That's interesting. What team were you on?", speaker: "interviewer" as const },
-      { text: "I was on the iOS team, working on Core ML.", speaker: "candidate" as const },
-      { text: "Can you tell me about a specific project?", speaker: "interviewer" as const },
-      { text: "I led the development of the neural engine optimization framework.", speaker: "candidate" as const },
-    ];
-
-    const mockFlags = [
-      { type: "warning" as const, message: "⚠️ CV shows only 6 months at Apple, not 3 years", relatedIndex: 0 },
-      { type: "warning" as const, message: "⚠️ No LinkedIn record of Apple employment", relatedIndex: 0 },
-      { type: "info" as const, message: "ℹ️ GitHub shows no ML-related repositories", relatedIndex: 4 },
-    ];
-
-    const mockFollowUps = [
-      { prompt: "Ask them who their manager was at Apple", relatedIndex: 0 },
-      { prompt: "Verify the specific dates of employment", relatedIndex: 0 },
-      { prompt: "Request details about the neural engine project", relatedIndex: 4 },
-    ];
 
     let transcriptIndex = 0;
     let flagIndex = 0;

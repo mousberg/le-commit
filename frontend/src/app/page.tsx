@@ -1,30 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Shield, ShieldAlert, Zap, Target, Phone, Eye } from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="flex flex-col items-center w-full pt-32 pb-12 px-4 bg-gradient-to-b from-white via-slate-50 to-white min-h-screen">
+    <main className="flex flex-col items-center w-full pt-12 pb-12 px-4 bg-gradient-to-b from-gray-50 via-white to-gray-50 min-h-screen">
       {/* Hero Section */}
-      <section className="w-full max-w-4xl text-center mb-24">
-        <div className="mb-8">
-          <Shield className="h-20 w-20 mx-auto mb-6 text-gray-800" />
-          <h1 className="text-6xl font-bold mb-6 text-gray-900">Trust your hiring process again.</h1>
-          <p className="text-xl text-gray-700 mb-8">Unmask helps you verify candidate skills with real-world validation, so you can hire with confidence and speed.</p>
+      <section className="w-full max-w-6xl text-center">
+        <div className="mb-16">
+          <h1 className="text-5xl md:text-6xl font-bold mb-10 text-gray-900 leading-tight">Trust your hiring process again.</h1>
+          <p className="text-xl md:text-2xl text-gray-600 mb-16 max-w-4xl mx-auto leading-relaxed">Unmask helps you verify candidate skills with real-world validation, so you can hire with confidence and speed.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row justify-center gap-8 mb-20">
           <Link href="/setup">
-            <Button size="lg" className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-400 to-blue-400 text-white px-8 py-3 text-xl font-semibold">
-              <Eye className="w-5 h-5 mr-2" />
+            <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
+              <Eye className="w-5 h-5 mr-3" />
               Live Interview Mode
             </Button>
           </Link>
-          <Link href="/upload">
-            <Button size="lg" variant="outline" className="rounded-2xl shadow-sm border-2 border-gray-300 text-gray-700 px-8 py-3 text-xl font-semibold hover:bg-gray-50">
-              <Phone className="w-5 h-5 mr-2" />
+          <Link href="/board">
+            <Button size="lg" variant="outline" className="rounded-2xl shadow-md border-2 border-gray-300 text-gray-700 px-10 py-4 text-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all hover:shadow-lg hover:scale-105">
+              <Phone className="w-5 h-5 mr-3" />
               Reference Checking
             </Button>
           </Link>
@@ -32,19 +32,19 @@ export default function Home() {
       </section>
 
       {/* Dual Features */}
-      <section className="w-full max-w-6xl mb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <section className="w-full max-w-7xl mb-40">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
           {/* NerdBuster - Live Interview */}
-          <div className="bg-white rounded-3xl shadow-lg p-8 border border-gray-200">
-            <div className="text-center mb-6">
-              <div className="bg-gradient-to-br from-red-400 to-orange-400 p-4 rounded-full w-fit mx-auto mb-4">
-                <Eye className="h-8 w-8 text-white" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-12 border border-gray-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <div className="text-center mb-10">
+              <div className="bg-gradient-to-br from-red-500 to-orange-500 p-5 rounded-2xl w-fit mx-auto mb-6 shadow-lg">
+                <Eye className="h-10 w-10 text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">NerdBuster</h2>
-              <p className="text-lg text-gray-600">Real-time anti-cheating for live interviews</p>
+              <h2 className="text-4xl font-bold text-gray-900 mb-3">NerdBuster</h2>
+              <p className="text-xl text-gray-600">Real-time anti-cheating for live interviews</p>
             </div>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-6 mb-8">
               <div className="flex items-start gap-3">
                 <Zap className="h-5 w-5 text-red-500 mt-1 flex-shrink-0" />
                 <div>
@@ -76,16 +76,16 @@ export default function Home() {
           </div>
 
           {/* Unmask - Reference Calling */}
-          <div className="bg-white rounded-3xl shadow-lg p-8 border border-gray-200">
-            <div className="text-center mb-6">
-              <div className="bg-gradient-to-br from-emerald-400 to-blue-400 p-4 rounded-full w-fit mx-auto mb-4">
-                <Phone className="h-8 w-8 text-white" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-12 border border-gray-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <div className="text-center mb-10">
+              <div className="bg-gradient-to-br from-emerald-500 to-blue-500 p-5 rounded-2xl w-fit mx-auto mb-6 shadow-lg">
+                <Phone className="h-10 w-10 text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Unmask</h2>
-              <p className="text-lg text-gray-600">AI-powered reference verification</p>
+              <h2 className="text-4xl font-bold text-gray-900 mb-3">Unmask</h2>
+              <p className="text-xl text-gray-600">AI-powered reference verification</p>
             </div>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-6 mb-8">
               <div className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-emerald-500 mt-1 flex-shrink-0" />
                 <div>
@@ -109,7 +109,7 @@ export default function Home() {
               </div>
             </div>
 
-            <Link href="/upload">
+            <Link href="/board">
               <Button className="w-full bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white py-3 rounded-xl font-semibold">
                 Check References
               </Button>
@@ -119,15 +119,15 @@ export default function Home() {
       </section>
 
       {/* Testimonial Section */}
-      <section className="w-full max-w-2xl mb-24 flex flex-col items-center">
-        <h2 className="text-2xl font-semibold text-center mb-6 text-gray-900">What our users say</h2>
-        <div className="bg-white rounded-2xl shadow-sm p-8 flex flex-col items-center border border-gray-200">
-          <div className="mb-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-blue-400 rounded-full flex items-center justify-center text-white text-lg font-bold">
+      <section className="w-full max-w-3xl mb-32 flex flex-col items-center">
+        <h2 className="text-3xl font-semibold text-center mb-8 text-gray-900">What our users say</h2>
+        <div className="bg-white rounded-2xl shadow-sm p-10 flex flex-col items-center border border-gray-200">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white text-lg font-bold">
               AP
             </div>
           </div>
-          <blockquote className="text-lg text-gray-700 italic mb-2 text-center">
+          <blockquote className="text-xl text-gray-700 italic mb-4 text-center">
             &ldquo;Unmask let us see real skills, not just resumes. We hired with confidence and saved hours on interviews.&rdquo;
           </blockquote>
           <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
