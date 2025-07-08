@@ -2,119 +2,323 @@
   <img src="frontend/public/le-commit-unmask.svg" alt="Le Commit" width="400" />
 </div>
 
-# le commit \ unmask
+# Unmask - AI-Powered Hiring Verification Platform
 
-A web application that features anti-cheating interview agent with real-time lie detection and AI-powered reference calling using ElevenLabs Conversational AI and Twilio.
+**Trust your hiring process again.**
 
-## 🚀 Features
+Unmask is an intelligent hiring verification platform that helps you verify candidate authenticity through comprehensive analysis of CVs, LinkedIn profiles, GitHub accounts, and automated reference calls. Built for **RAISE YOUR HACK 2025** • Vultr Track.
 
-- **AI-Powered Conversations**: Uses ElevenLabs Conversational AI for natural reference checking calls
-- **Automated Calling**: Integrates with Twilio for reliable phone call delivery
-- **Simple Setup**: Direct API integration without complex webhook configurations
-- **Professional UI**: Clean, modern interface built with Next.js and Tailwind CSS
+🌐 **Live Demo**: [unmask.click](http://unmask.click/)
 
-## 🏗️ Architecture
+---
 
-**ElevenLabs Conversational Agent Approach**:
-- ElevenLabs handles the entire conversation flow
-- No TwiML or complex webhooks required
-- Natural language processing for reference checking
-- Direct API integration for call initiation
+## ✨ Features
 
-## 📋 Prerequisites
+### 🔍 **Multi-Source Profile Analysis**
+- **CV Processing**: Extracts and analyzes professional experience, education, skills, and credentials
+- **LinkedIn Integration**: Cross-references LinkedIn data with CV information for consistency
+- **GitHub Analysis**: Evaluates coding activity, repository quality, and technical skills
+- **Credibility Scoring**: AI-powered authenticity assessment with detailed flags and recommendations
 
-1. **ElevenLabs Account**: Sign up at https://elevenlabs.io
-2. **Twilio Account**: Sign up at https://console.twilio.com
+### 📞 **Automated Reference Calling**
+- **AI-Powered Calls**: Automatically calls references using ElevenLabs Conversational AI
+- **Natural Conversations**: Professional, human-like interactions with references
+- **Transcript Analysis**: Real-time transcription and AI-powered summarization
+- **Reference Validation**: Cross-checks reference feedback with candidate claims
 
-## 🔧 Setup Instructions
+### 🎯 **Real-Time Interview Support**
+- **Live Feedback**: Get real-time prompts during candidate interviews
+- **Inconsistency Detection**: Flags discrepancies between sources on-the-fly
+- **Suggested Questions**: AI-generated follow-up questions based on analysis
+- **Interview Transcripts**: Live transcription with highlighted concerns
 
-### 1. ElevenLabs Setup
+### 📊 **Comprehensive Dashboard**
+- **Candidate Profiles**: Unified view of all candidate information
+- **Processing Pipeline**: Real-time status tracking from upload to analysis
+- **Flag Management**: Visual indicators for potential concerns
+- **Export Reports**: Detailed hiring decision support documents
 
-1. **Create a Conversational Agent**:
-   - Go to your ElevenLabs dashboard
-   - Navigate to "Conversational AI" section
-   - Create a new agent
-   - Configure it with prompts for reference checking
-   - Copy the **Agent ID** (format: `agent_xxxxxxxxxxxxxxxx`)
+---
 
-2. **Set up Twilio Integration**:
-   - In your ElevenLabs workspace, go to "Phone Numbers"
-   - Add your Twilio phone number
-   - Set the webhook URL to: `https://api.elevenlabs.io/twilio/inbound_call`
-   - Create a workspace secret with your Twilio Auth Token
-   - Copy the **Phone Number ID**
+## 🛠️ Technology Stack
 
-### 2. Environment Configuration
+### **Frontend**
+- **Next.js 15** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Modern styling framework
+- **Radix UI** - Accessible component primitives
+- **Framer Motion** - Smooth animations
 
-1. Copy `env.sample` to `frontend/.env.local`
-2. Fill in your credentials:
+### **AI & Analysis**
+- **Groq API** - Fast AI inference for document analysis
+- **OpenAI GPT-4** - Advanced reasoning and summarization
+- **ElevenLabs** - Natural voice AI for reference calls
+- **PDF Processing** - Automated document parsing and extraction
 
-```env
-# Twilio Configuration
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
+### **Infrastructure**
+- **Docker** - Containerized deployment
+- **Vultr** - Cloud hosting platform
+- **File Storage** - Local JSON-based data persistence
+- **Real-time Processing** - Async job processing
 
-# ElevenLabs Configuration
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-ELEVENLABS_VOICE_ID=your_elevenlabs_voice_id
+---
 
-# ElevenLabs Conversational Agent
-ELEVENLABS_AGENT_ID=agent_your_agent_id_here
-ELEVENLABS_AGENT_PHONE_NUMBER_ID=your_agent_phone_number_id
-```
+## 🚀 Quick Start
 
-### 3. Install Dependencies
+### **Prerequisites**
+- Node.js 18+
+- Docker (for production deployment)
+- API keys for external services
 
+### **Development Setup**
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/le-commit/unmask.git
+   cd unmask
+   ```
+
+2. **Install dependencies**
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+3. **Configure environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Required environment variables:
+   ```env
+   # AI Services
+   GROQ_API_KEY=your_groq_api_key
+   OPENAI_API_KEY=your_openai_api_key
+
+   # Reference Calling (ElevenLabs)
+   ELEVENLABS_API_KEY=your_elevenlabs_api_key
+   ELEVENLABS_AGENT_ID=your_agent_id
+   ELEVENLABS_AGENT_PHONE_ID=your_phone_id
+
+   # Twilio (via ElevenLabs)
+   TWILIO_ACCOUNT_SID=your_twilio_sid
+   TWILIO_AUTH_TOKEN=your_twilio_token
+   TWILIO_PHONE_NUMBER=your_twilio_number
+   ```
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open your browser**
+   ```
+   http://localhost:3000
+   ```
+
+---
+
+## 🌐 Production Deployment
+
+### **Vultr Deployment (Recommended)**
+
+We provide automated deployment scripts for seamless production deployment:
+
+1. **Make scripts executable**
+   ```bash
+   chmod +x deploy.sh rollback.sh check-status.sh
+   ```
+
+2. **Deploy to production**
+   ```bash
+   ./deploy.sh
+   ```
+
+3. **Check deployment status**
+   ```bash
+   ./check-status.sh
+   ```
+
+4. **Emergency rollback** (if needed)
+   ```bash
+   ./rollback.sh
+   ```
+
+### **Docker Deployment**
+
+1. **Build the Docker image**
+   ```bash
+   docker build -t unmask:latest .
+   ```
+
+2. **Run the container**
+   ```bash
+   docker run -d \
+     --name unmask-app \
+     -p 3000:3000 \
+     --env-file .env.local \
+     unmask:latest
+   ```
+
+### **Manual Deployment**
+
+1. **Build the application**
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Start production server**
+   ```bash
+   npm start
+   ```
+
+---
+
+## 🔌 API Endpoints
+
+### **Applicant Management**
+- `GET /api/applicants` - List all applicants
+- `POST /api/applicants` - Create new applicant with CV/LinkedIn/GitHub
+- `GET /api/applicants/[id]` - Get specific applicant
+- `PUT /api/applicants/[id]` - Update applicant information
+- `DELETE /api/applicants/[id]` - Delete applicant
+
+### **Reference Calling**
+- `POST /api/reference-call` - Initiate automated reference call
+- `GET /api/get-transcript?conversationId=` - Retrieve call transcript
+- `POST /api/summarize-transcript` - AI analysis of reference call
+
+### **Processing Pipeline**
+- File upload → CV/LinkedIn parsing → GitHub analysis → AI credibility assessment → Reference verification
+
+---
+
+## 📖 Usage Guide
+
+### **Adding a New Candidate**
+
+1. **Navigate to the dashboard**: `/board`
+2. **Click "Add New Applicant"**
+3. **Upload required documents**:
+   - CV (PDF, DOC, DOCX) - **Required**
+   - LinkedIn Profile (PDF, HTML, TXT) - *Optional*
+   - GitHub Profile URL - *Optional*
+4. **Submit and wait for processing**
+
+### **Automated Reference Calling**
+
+1. **Open the reference call interface**: `/call`
+2. **Fill in reference details**:
+   - Phone number (with country code)
+   - Candidate name
+   - Reference name
+   - Company context (optional)
+   - Role and duration (optional)
+3. **Initiate the call**
+4. **Review transcript and AI summary**
+
+### **Interview Support**
+
+1. **Navigate to candidate profile**
+2. **Click "Start Interview"**
+3. **Use real-time suggestions** during the call
+4. **Review flagged inconsistencies**
+
+---
+
+## 🔧 Configuration
+
+### **AI Model Configuration**
+- **Primary Analysis**: Groq Llama models for speed
+- **Summarization**: GPT-4o-mini for cost efficiency
+- **Voice AI**: ElevenLabs for natural conversations
+
+### **Processing Limits**
+- **GitHub Repositories**: 50 per analysis
+- **Content Analysis**: 3 repositories max
+- **File Size**: 10MB per document
+- **Concurrent Processing**: 3 applicants
+
+### **Security Features**
+- Environment variable validation
+- File type restrictions
+- Input sanitization
+- Rate limiting on API endpoints
+
+---
+
+## 🚨 Troubleshooting
+
+### **Common Issues**
+
+**"Permission denied" when running deployment scripts**
 ```bash
-cd frontend
-npm install
+chmod +x deploy.sh rollback.sh check-status.sh
 ```
 
-### 4. Run the Application
+**CV processing fails**
+- Ensure PDF is not password protected
+- Check file size is under 10MB
+- Verify GROQ_API_KEY is set correctly
 
+**Reference calls not working**
+- Verify ElevenLabs agent is configured
+- Check Twilio phone number permissions
+- Ensure all environment variables are set
+
+**Docker deployment issues**
 ```bash
-npm run dev
+# Check logs
+docker logs unmask-app
+
+# Restart container
+docker restart unmask-app
+
+# Check environment variables
+docker exec unmask-app env | sort
 ```
 
-The application will be available at `http://localhost:3000`
+---
 
-## 🎯 How It Works
+## 🤝 Contributing
 
-1. **User Input**: Enter candidate details and reference contact information
-2. **API Call**: Application calls ElevenLabs Conversational Agent API
-3. **Call Initiation**: ElevenLabs uses Twilio to place the call
-4. **AI Conversation**: ElevenLabs agent conducts the reference check
-5. **Call Recording**: Conversation is recorded and processed
+We welcome contributions! Please see our [development guide](docs/) for:
+- Code style guidelines
+- Testing procedures
+- Feature request process
+- Bug reporting
 
-## 🛠️ Development
+---
 
-Built with:
-- **Next.js 15**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Tailwind CSS**: Utility-first styling
-- **ElevenLabs API**: AI conversation handling
-- **Twilio**: Phone call infrastructure
+## 📚 Documentation
 
-## 📱 Usage
+- [Deployment Scripts Guide](docs/DEPLOYMENT_SCRIPTS.md)
+- [Reference Calling Setup](docs/REFERENCE_CALLING_FEATURE.md)
+- [Vultr Deployment Guide](docs/VULTR_DEPLOYMENT.md)
+- [API Documentation](docs/SETUP_GUIDE_CALLING.md)
 
-1. Navigate to `/call` in your browser
-2. Fill in the reference checking form:
-   - Candidate's name
-   - Reference contact's name and phone number
-   - Company name (optional)
-   - Role title (optional)
-   - Work duration (optional)
-3. Click "Start Reference Call"
-4. The AI will automatically call and conduct the reference check
+---
 
-## 🔒 Security Notes
+## 📄 License
 
-- Never commit `.env` files to version control
-- Use environment variables for all sensitive data
-- Ensure compliance with local calling regulations
-- Always get consent before recording calls
+This project is built for **RAISE YOUR HACK 2025** hackathon submission.
 
-## 🎮 Hackathon Project
+---
 
-This project was built for the Raise Summit Hackathon, demonstrating the power of AI-driven automation in HR processes.
+## 🏆 Hackathon Details
+
+**Event**: RAISE YOUR HACK 2025
+**Track**: Vultr Infrastructure Challenge
+**Team**: le-commit
+**Live Demo**: [unmask.click](http://unmask.click/)
+
+---
+
+<div align="center">
+  <p>Built with ❤️ by the le-commit team</p>
+  <p>
+    <a href="https://github.com/le-commit" target="_blank">GitHub</a> •
+    <a href="http://unmask.click/" target="_blank">Live Demo</a>
+  </p>
+</div>
