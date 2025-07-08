@@ -11,7 +11,7 @@ export default function CallPage() {
       <div className="flex flex-col items-center justify-center py-12">
         <Link href="/" className="mb-8 hover:opacity-80 transition-opacity">
           <Image
-            src="/logo.svg"
+            src="/icon.png"
             alt="le-commit"
             width={100}
             height={100}
