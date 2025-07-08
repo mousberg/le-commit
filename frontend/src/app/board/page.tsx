@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import TranscriptModal from '../../components/TranscriptModal';
 import ProcessingLoader from '../../components/ProcessingLoader';
@@ -36,6 +37,7 @@ function BoardPageContent() {
     fetchApplicants,
     createApplicant,
     refreshApplicant,
+    deleteApplicant,
     isLoading
   } = useApplicants();
 
@@ -127,6 +129,43 @@ function BoardPageContent() {
     }
   };
 
+  const handleDeleteApplicant = async (applicantId: string, applicantName: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering the navigate click
+    
+    setDeleteConfirmModal({
+      isOpen: true,
+      applicantId,
+      applicantName
+    });
+  };
+
+  const confirmDeleteApplicant = async () => {
+    const { applicantId } = deleteConfirmModal;
+    
+    await deleteApplicant(applicantId);
+    
+    // If we just deleted the currently selected applicant, navigate appropriately
+    if (selectedId === applicantId) {
+      if (applicants.length > 1) {
+        // Navigate to the first remaining applicant (that's not the one we just deleted)
+        const remainingApplicant = applicants.find(a => a.id !== applicantId);
+        if (remainingApplicant) {
+          navigateToApplicant(remainingApplicant.id);
+        } else {
+          navigateToNew();
+        }
+      } else {
+        navigateToNew();
+      }
+    }
+
+    setDeleteConfirmModal({ isOpen: false, applicantId: '', applicantName: '' });
+  };
+
+  const cancelDeleteApplicant = () => {
+    setDeleteConfirmModal({ isOpen: false, applicantId: '', applicantName: '' });
+  };
+
   const selectedCandidate = selectedId === 'new' ? null : applicants.find(a => a.id === selectedId);
 
   const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: string]: Reference[] }>({});
@@ -140,6 +179,12 @@ function BoardPageContent() {
     isOpen: false,
     conversationId: '',
     referenceName: ''
+  });
+
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({
+    isOpen: false,
+    applicantId: '',
+    applicantName: ''
   });
 
   const selectedCandidateId = selectedCandidate ? selectedCandidate.id : null;
@@ -261,29 +306,38 @@ function BoardPageContent() {
             <div className="text-lg font-semibold mb-2">Applicants</div>
             <ul className="space-y-1">
               {applicants.map(applicant => (
-                <li key={applicant.id}>
+                <li key={applicant.id} className="group relative">
                   <button
                     className={`w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${selectedId === applicant.id ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-100 text-gray-800'}`}
                     onClick={() => navigateToApplicant(applicant.id)}
                   >
                     <div className="flex items-center justify-between">
-                      <span>{applicant.name}</span>
-                      {applicant.status === 'processing' && (
-                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-                          Processing...
-                        </span>
-                      )}
-                      {applicant.status === 'uploading' && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                          Uploading...
-                        </span>
-                      )}
-                      {applicant.status === 'failed' && (
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                          Failed
-                        </span>
-                      )}
+                      <span className="flex-1">{applicant.name}</span>
+                      <div className="flex items-center gap-2 pr-8">
+                        {applicant.status === 'processing' && (
+                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                            Processing...
+                          </span>
+                        )}
+                        {applicant.status === 'uploading' && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                            Uploading...
+                          </span>
+                        )}
+                        {applicant.status === 'failed' && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            Failed
+                          </span>
+                        )}
+                      </div>
                     </div>
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteApplicant(applicant.id, applicant.name, e)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 z-10"
+                    title={`Delete ${applicant.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -780,6 +834,40 @@ function BoardPageContent() {
         conversationId={transcriptModal.conversationId}
         referenceName={transcriptModal.referenceName}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Delete Applicant
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete <strong>{deleteConfirmModal.applicantName}</strong>? This action cannot be undone.
+              </p>
+                             <div className="flex gap-3 justify-center">
+                 <Button
+                   variant="outline"
+                   onClick={cancelDeleteApplicant}
+                   className="px-6"
+                 >
+                   Cancel
+                 </Button>
+                 <Button
+                   onClick={confirmDeleteApplicant}
+                   className="px-6 bg-red-600 hover:bg-red-700 text-white"
+                 >
+                   Delete
+                 </Button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
