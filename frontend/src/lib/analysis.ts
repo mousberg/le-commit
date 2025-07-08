@@ -128,7 +128,7 @@ Return a JSON object with:
 {
   "credibilityScore": 0-100,
   "summary": "1-2 sentence judgment",
-  "flags": [{"type": "red"|"yellow", "category": "consistency"|"verification"|"completeness"|"authenticity"|"activity", "message": "specific concern", "severity": 1-10}],
+  "flags": [{"type": "red"|"yellow", "category": "consistency"|"verification"|"authenticity"|"activity", "message": "specific concern", "severity": 1-10}],
   "suggestedQuestions": ["array of clarifying questions to ask the candidate"],
   "sources": [{"type": "cv"|"linkedin"|"github", "available": boolean, "score": 0-100, "flags": [], "analysisDetails": {}}]
 }
