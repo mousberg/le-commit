@@ -141,7 +141,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
           maxRepos: 50,
           includeOrganizations: true,
           analyzeContent: true,
-          maxContentAnalysis: 10,
+          maxContentAnalysis: 3,  // Reduced from 10 to 3 for API efficiency
           includeActivity: true
         }).then(githubData => ({
           type: 'github',
