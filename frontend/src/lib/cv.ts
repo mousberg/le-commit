@@ -219,8 +219,8 @@ export async function convertPdfToImages(
   tempDirSuffix?: string
 ): Promise<string[]> {
   try {
-    // Create unique output directory if suffix provided
-    const actualOutputDir = tempDirSuffix ? `${outputDir}_${tempDirSuffix}` : outputDir;
+    // Create unique output directory if suffix provided (as subdirectory for better permissions)
+    const actualOutputDir = tempDirSuffix ? `${outputDir}/${tempDirSuffix}` : outputDir;
 
     // Ensure output directory exists
     if (!fs.existsSync(actualOutputDir)) {
