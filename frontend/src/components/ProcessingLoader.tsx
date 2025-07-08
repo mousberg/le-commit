@@ -11,110 +11,93 @@ export default function ProcessingLoader({ applicantName, status, fileName, appl
   const getStatusText = () => {
     switch (status) {
       case 'uploading':
-        return 'Uploading files...';
+        return 'Processing...';
       case 'processing':
         return 'Extracting information...';
       case 'analyzing':
         return 'Analyzing profile...';
       default:
-        return 'Gathering data...';
+        return 'Processing...';
     }
   };
 
+  const getCompletedSteps = () => {
+    let completed = 0;
+    if (applicant?.cvData) completed++;
+    if (applicant?.linkedinData) completed++;
+    if (applicant?.githubData) completed++;
+    return completed;
+  };
+
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col items-center gap-8">
-      {/* Simple Loading Animation */}
+    <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-sm p-12 flex flex-col items-center gap-8">
+      {/* Elegant Loading Animation */}
       <div className="relative">
-        <div className="w-20 h-20 border-4 border-emerald-100 border-t-emerald-500 rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-2 border-emerald-100 rounded-full"></div>
+        <div className="absolute inset-0 w-16 h-16 border-2 border-transparent border-t-emerald-500 rounded-full animate-spin"></div>
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center">
-            <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
+          <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
         </div>
       </div>
 
       {/* Clean Status Text */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-3">
-          Gathering Data
+      <div className="text-center space-y-3">
+        <h2 className="text-2xl font-bold text-gray-900">
+          Unmasking Profile
         </h2>
-        <p className="text-lg text-gray-600 mb-2">{applicantName}</p>
         <p className="text-emerald-600 font-medium">{getStatusText()}</p>
         {fileName && (
-          <p className="text-sm text-gray-400 mt-2">Processing {fileName}</p>
+          <p className="text-sm text-gray-500">Processing {fileName}</p>
         )}
       </div>
 
-      {/* Progressive Data Display */}
+      {/* Simple Progress Steps */}
       {applicant && (
-        <div className="w-full max-w-lg space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Extracted Information</h3>
+        <div className="w-full space-y-4">
+          <h3 className="text-center text-sm font-medium text-gray-700 mb-4">Analysis Progress</h3>
 
-          {/* CV Data */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-2 h-2 rounded-full ${applicant.cvData ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-              <span className="font-medium text-gray-700">CV Analysis</span>
-              {applicant.cvData && <span className="text-green-600 text-sm">✓ Complete</span>}
+          <div className="space-y-3">
+            {/* CV Analysis */}
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.cvData ? 'bg-emerald-500' : 'bg-gray-200'}`}></div>
+              <span className={`text-sm ${applicant.cvData ? 'text-gray-700' : 'text-gray-400'}`}>CV Analysis</span>
+              {applicant.cvData && (
+                <div className="ml-auto">
+                  <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
             </div>
-            {applicant.cvData && (
-              <div className="text-sm text-gray-600 space-y-1">
-                {applicant.cvData.firstName && applicant.cvData.lastName && (
-                  <p><span className="font-medium">Name:</span> {applicant.cvData.firstName} {applicant.cvData.lastName}</p>
-                )}
-                {applicant.cvData.email && (
-                  <p><span className="font-medium">Email:</span> {applicant.cvData.email}</p>
-                )}
-                {applicant.cvData.jobTitle && (
-                  <p><span className="font-medium">Role:</span> {applicant.cvData.jobTitle}</p>
-                )}
-                {applicant.cvData.skills && applicant.cvData.skills.length > 0 && (
-                  <p><span className="font-medium">Skills:</span> {applicant.cvData.skills.slice(0, 3).join(', ')}{applicant.cvData.skills.length > 3 ? '...' : ''}</p>
+
+            {/* LinkedIn Analysis */}
+            {(applicant.linkedinData || status === 'processing') && (
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.linkedinData ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                <span className={`text-sm ${applicant.linkedinData ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
+                {applicant.linkedinData && (
+                  <div className="ml-auto">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
                 )}
               </div>
             )}
-          </div>
 
-          {/* LinkedIn Data */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-2 h-2 rounded-full ${applicant.linkedinData ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-              <span className="font-medium text-gray-700">LinkedIn Analysis</span>
-              {applicant.linkedinData && <span className="text-blue-600 text-sm">✓ Complete</span>}
-              {!applicant.linkedinData && !applicant.originalFileName?.includes('linkedin') && (
-                <span className="text-gray-400 text-sm">Not provided</span>
-              )}
-            </div>
-            {applicant.linkedinData && (
-              <div className="text-sm text-gray-600 space-y-1">
-                {applicant.linkedinData.jobTitle && (
-                  <p><span className="font-medium">Current Role:</span> {applicant.linkedinData.jobTitle}</p>
-                )}
-                {applicant.linkedinData.skills && applicant.linkedinData.skills.length > 0 && (
-                  <p><span className="font-medium">LinkedIn Skills:</span> {applicant.linkedinData.skills.slice(0, 3).join(', ')}{applicant.linkedinData.skills.length > 3 ? '...' : ''}</p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* GitHub Data */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-2 h-2 rounded-full ${applicant.githubData ? 'bg-purple-500' : 'bg-gray-300'}`}></div>
-              <span className="font-medium text-gray-700">GitHub Analysis</span>
-              {applicant.githubData && <span className="text-purple-600 text-sm">✓ Complete</span>}
-              {!applicant.githubData && !applicant.originalGithubUrl && (
-                <span className="text-gray-400 text-sm">Not provided</span>
-              )}
-            </div>
-            {applicant.githubData && (
-              <div className="text-sm text-gray-600 space-y-1">
-                <p><span className="font-medium">Username:</span> @{applicant.githubData.username}</p>
-                <p><span className="font-medium">Repositories:</span> {applicant.githubData.publicRepos}</p>
-                {applicant.githubData.languages && applicant.githubData.languages.length > 0 && (
-                  <p><span className="font-medium">Top Languages:</span> {applicant.githubData.languages.slice(0, 3).map(l => l.language).join(', ')}</p>
+            {/* GitHub Analysis */}
+            {(applicant.githubData || applicant.originalGithubUrl) && (
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.githubData ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
+                <span className={`text-sm ${applicant.githubData ? 'text-gray-700' : 'text-gray-400'}`}>GitHub Analysis</span>
+                {applicant.githubData && (
+                  <div className="ml-auto">
+                    <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
                 )}
               </div>
             )}
@@ -122,22 +105,22 @@ export default function ProcessingLoader({ applicantName, status, fileName, appl
         </div>
       )}
 
-      {/* Simple Progress Indicator */}
+      {/* Elegant Progress Bar */}
       <div className="w-full max-w-xs">
-        <div className="w-full bg-gray-200 rounded-full h-1.5">
-          <div className="bg-emerald-500 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+        <div className="w-full bg-gray-100 rounded-full h-1">
+          <div
+            className="bg-gradient-to-r from-emerald-500 to-blue-500 h-1 rounded-full transition-all duration-500 ease-out"
+            style={{
+              width: applicant ? `${(getCompletedSteps() / 3) * 100}%` : '30%'
+            }}
+          ></div>
         </div>
       </div>
 
-      {/* Status Message */}
-      <div className="text-center text-sm text-gray-500 max-w-md">
-        <p>We&apos;re analyzing your profile and extracting key information. This usually takes 30-60 seconds.</p>
-      </div>
-
-      {/* Auto-refresh notice */}
-      <div className="text-xs text-gray-400 text-center">
-        <p>This page will automatically update when complete.</p>
-      </div>
+      {/* Simple Status Message */}
+      <p className="text-center text-sm text-gray-500 max-w-sm">
+        Analyzing profile and extracting key insights...
+      </p>
     </div>
   );
 }

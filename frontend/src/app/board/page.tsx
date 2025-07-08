@@ -10,8 +10,283 @@ import CredibilityScore from '../../components/credibility-score';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
 import NewApplicantForm from './components/NewApplicantForm';
 import ApplicantSidebar from './components/ApplicantSidebar';
+import { CvData } from '../../lib/interfaces/cv';
+import { GitHubData } from '../../lib/interfaces/github';
 
+// LinkedIn Section Component
+function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
+  return (
+    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 overflow-hidden shadow-sm">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-6 flex items-center justify-between hover:bg-blue-100/50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">💼</span>
+          <h3 className="text-lg font-bold text-gray-900">LinkedIn Profile</h3>
+          <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Available</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Click to {isExpanded ? 'collapse' : 'expand'}</span>
+          <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+            ⬇️
+          </span>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="px-6 pb-6 border-t border-blue-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {linkedinData.professionalSummary && (
+              <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <span>📝</span>
+                  Professional Summary
+                </h4>
+                <p className="text-gray-700 text-sm leading-relaxed">{linkedinData.professionalSummary}</p>
+              </div>
+            )}
+
+            {linkedinData.jobTitle && (
+              <div className="bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <span>👔</span>
+                  Current Role
+                </h4>
+                <p className="text-gray-700 text-sm font-medium">{linkedinData.jobTitle}</p>
+              </div>
+            )}
+
+            {linkedinData.professionalExperiences && linkedinData.professionalExperiences.length > 0 && (
+              <div className="bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🏢</span>
+                  LinkedIn Experience
+                  <span className="text-xs text-gray-500">({linkedinData.professionalExperiences.length} roles)</span>
+                </h4>
+                <div className="space-y-3">
+                  {linkedinData.professionalExperiences.slice(0, 3).map((exp, i) => (
+                    <div key={i} className="text-sm border-l-2 border-cyan-300 pl-3">
+                      <div className="font-semibold text-gray-900">{exp.title}</div>
+                      <div className="text-cyan-700 font-medium">{exp.companyName}</div>
+                      <div className="text-gray-600 text-xs">
+                        {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
+                          exp.ongoing ? 'Present' :
+                          (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {linkedinData.skills && linkedinData.skills.length > 0 && (
+              <div className="bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🛠️</span>
+                  LinkedIn Skills
+                  <span className="text-xs text-gray-500">({linkedinData.skills.length} total)</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {linkedinData.skills.slice(0, 10).map((skill, i) => (
+                    <span key={i} className="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-xs font-medium">
+                      {skill}
+                    </span>
+                  ))}
+                  {linkedinData.skills.length > 10 && (
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                      +{linkedinData.skills.length - 10} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {linkedinData.educations && linkedinData.educations.length > 0 && (
+              <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🎓</span>
+                  LinkedIn Education
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {linkedinData.educations.slice(0, 2).map((edu, i) => (
+                    <div key={i} className="text-sm">
+                      <div className="font-semibold text-gray-900">{edu.degree}</div>
+                      <div className="text-cyan-700">{edu.institution}</div>
+                      <div className="text-gray-600 text-xs">
+                        {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// GitHub Section Component
+function GitHubSection({ githubData }: { githubData: GitHubData }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 overflow-hidden shadow-sm">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-6 flex items-center justify-between hover:bg-purple-100/50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🐙</span>
+          <h3 className="text-lg font-bold text-gray-900">GitHub Profile</h3>
+          <span className="text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Available</span>
+          <a
+            href={githubData.profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+            onClick={(e) => e.stopPropagation()}
+          >
+            @{githubData.username} ↗
+          </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Click to {isExpanded ? 'collapse' : 'expand'}</span>
+          <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+            ⬇️
+          </span>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="px-6 pb-6 border-t border-purple-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="bg-white/70 rounded-lg p-4">
+              <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <span>📊</span>
+                Activity Overview
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">📦 Public Repos:</span>
+                  <span className="font-medium">{githubData.publicRepos}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">👥 Followers:</span>
+                  <span className="font-medium">{githubData.followers}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">⭐ Total Stars:</span>
+                  <span className="font-medium">{githubData.starredRepos}</span>
+                </div>
+                {githubData.contributions && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">🔥 Streak:</span>
+                    <span className="font-medium">{githubData.contributions.streakDays} days</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {githubData.languages && githubData.languages.length > 0 && (
+              <div className="bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>💻</span>
+                  Top Languages
+                </h4>
+                <div className="space-y-2">
+                  {githubData.languages.slice(0, 5).map((lang, i) => (
+                    <div key={i} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-700 font-medium">{lang.language}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-purple-500 h-2 rounded-full"
+                            style={{ width: `${lang.percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-gray-500 text-xs">{lang.percentage.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {githubData.repositories && githubData.repositories.length > 0 && (
+              <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>📂</span>
+                  Notable Repositories
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {githubData.repositories
+                    .filter(repo => !repo.isFork && repo.stars > 0)
+                    .slice(0, 4)
+                    .map((repo, i) => (
+                      <div key={i} className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="font-semibold text-sm text-gray-900">{repo.name}</span>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">⭐ {repo.stars}</span>
+                            <span className="flex items-center gap-1">🍴 {repo.forks}</span>
+                          </div>
+                        </div>
+                        {repo.description && (
+                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">{repo.description}</p>
+                        )}
+                        {repo.language && (
+                          <span className="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">
+                            {repo.language}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {githubData.overallQualityScore && (
+              <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🏆</span>
+                  Code Quality Metrics
+                </h4>
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-medium">Overall Quality Score</span>
+                    <span className="text-2xl font-bold text-purple-600">
+                      {githubData.overallQualityScore.overall}/100
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">📖 README:</span>
+                      <span className="font-medium">{githubData.overallQualityScore.readme}/100</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">🔄 CI/CD:</span>
+                      <span className="font-medium">{githubData.overallQualityScore.cicd}/100</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">📚 Docs:</span>
+                      <span className="font-medium">{githubData.overallQualityScore.documentation}/100</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Add Reference and Transcript types from /reference
 interface Reference {
@@ -183,12 +458,12 @@ function BoardPageContent() {
 
   const generateSummaryForReference = async (referenceId: string, conversationId: string) => {
     if (!selectedCandidateId) return;
-    
+
     try {
       // Fetch the transcript
       const transcriptResponse = await fetch(`/api/get-transcript?conversationId=${conversationId}`);
       const transcriptData = await transcriptResponse.json();
-      
+
       if (transcriptData.success && transcriptData.hasTranscript && transcriptData.transcript) {
         // Generate summary using the transcript
         const summaryResponse = await fetch('/api/summarize-transcript', {
@@ -196,9 +471,9 @@ function BoardPageContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ transcript: transcriptData.transcript })
         });
-        
+
         const summaryData = await summaryResponse.json();
-        
+
         if (summaryData.success && summaryData.summary) {
           // Update the reference with the generated summary
           setReferencesByCandidate(prev => ({
@@ -250,7 +525,7 @@ function BoardPageContent() {
           )
         }));
         alert(`Call initiated successfully! Conversation ID: ${data.conversationId}`);
-        
+
         // Schedule automatic summary generation after a delay to allow transcript processing
         setTimeout(async () => {
           await generateSummaryForReference(reference.id, data.conversationId);
@@ -284,7 +559,7 @@ function BoardPageContent() {
           // First fetch the transcript
           const transcriptResponse = await fetch(`/api/get-transcript?conversationId=${reference.conversationId}`);
           const transcriptData = await transcriptResponse.json();
-          
+
           if (transcriptData.success && transcriptData.hasTranscript && transcriptData.transcript) {
             // Generate summary using the transcript
             const summaryResponse = await fetch('/api/summarize-transcript', {
@@ -292,9 +567,9 @@ function BoardPageContent() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ transcript: transcriptData.transcript })
             });
-            
+
             const summaryData = await summaryResponse.json();
-            
+
             if (summaryData.success && summaryData.summary) {
               // Update the reference with the generated summary
               setReferencesByCandidate(prev => ({
@@ -393,248 +668,130 @@ function BoardPageContent() {
                 </div>
               </div>
 
+              {/* Core Profile from CV - Always Available */}
+              {selectedCandidate.cvData && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">📄</span>
+                    <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
+                    <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">From CV</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {selectedCandidate.cvData.professionalSummary && (
+                      <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                        <h4 className="text-md font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          <span>💼</span>
+                          Professional Summary
+                        </h4>
+                        <p className="text-gray-700 text-sm leading-relaxed">{selectedCandidate.cvData.professionalSummary}</p>
+                      </div>
+                    )}
+
+                    {selectedCandidate.cvData.skills && selectedCandidate.cvData.skills.length > 0 && (
+                      <div className="bg-white/70 rounded-lg p-4">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <span>🛠️</span>
+                          Skills
+                          <span className="text-xs text-gray-500">({selectedCandidate.cvData.skills.length} total)</span>
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedCandidate.cvData.skills.slice(0, 12).map((skill, i) => (
+                            <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                          {selectedCandidate.cvData.skills.length > 12 && (
+                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                              +{selectedCandidate.cvData.skills.length - 12} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedCandidate.cvData.professionalExperiences && selectedCandidate.cvData.professionalExperiences.length > 0 && (
+                      <div className="bg-white/70 rounded-lg p-4">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <span>🏢</span>
+                          Experience
+                          <span className="text-xs text-gray-500">({selectedCandidate.cvData.professionalExperiences.length} roles)</span>
+                        </h4>
+                        <div className="space-y-3">
+                          {selectedCandidate.cvData.professionalExperiences.slice(0, 3).map((exp, i) => (
+                            <div key={i} className="text-sm border-l-2 border-blue-300 pl-3">
+                              <div className="font-semibold text-gray-900">{exp.title}</div>
+                              <div className="text-blue-700 font-medium">{exp.companyName}</div>
+                              <div className="text-gray-600 text-xs">
+                                {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
+                                  exp.ongoing ? 'Present' :
+                                  (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
+                                }
+                              </div>
+                            </div>
+                          ))}
+                          {selectedCandidate.cvData.professionalExperiences.length > 3 && (
+                            <div className="text-xs text-gray-500 italic">
+                              +{selectedCandidate.cvData.professionalExperiences.length - 3} more positions...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedCandidate.cvData.educations && selectedCandidate.cvData.educations.length > 0 && (
+                      <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <span>🎓</span>
+                          Education
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {selectedCandidate.cvData.educations.slice(0, 2).map((edu, i) => (
+                            <div key={i} className="text-sm">
+                              <div className="font-semibold text-gray-900">{edu.degree}</div>
+                              <div className="text-blue-700">{edu.institution}</div>
+                              <div className="text-gray-600 text-xs">
+                                {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Credibility Analysis */}
               {selectedCandidate.analysisResult && (
                 <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
               )}
 
-              {/* CV Data Summary */}
-              {selectedCandidate.cvData && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedCandidate.cvData.professionalSummary && (
-                    <div className="col-span-2">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Professional Summary</h3>
-                      <p className="text-gray-700 text-sm">{selectedCandidate.cvData.professionalSummary}</p>
-                    </div>
-                  )}
-
-                  {selectedCandidate.cvData.skills && selectedCandidate.cvData.skills.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Skills</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedCandidate.cvData.skills.slice(0, 10).map((skill, i) => (
-                          <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                            {skill}
-                          </span>
-                        ))}
-                        {selectedCandidate.cvData.skills.length > 10 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-                            +{selectedCandidate.cvData.skills.length - 10} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedCandidate.cvData.professionalExperiences && selectedCandidate.cvData.professionalExperiences.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Experience</h3>
-                      <div className="space-y-2">
-                        {selectedCandidate.cvData.professionalExperiences.slice(0, 3).map((exp, i) => (
-                          <div key={i} className="text-sm">
-                            <div className="font-medium">{exp.title} at {exp.companyName}</div>
-                            <div className="text-gray-600">
-                              {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
-                                exp.ongoing ? 'Present' :
-                                (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
-                              }
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              {/* LinkedIn Data - Expandable Section */}
+              {selectedCandidate.linkedinData ? (
+                <LinkedInSection linkedinData={selectedCandidate.linkedinData} />
+              ) : (
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl opacity-50">💼</span>
+                    <h3 className="text-lg font-semibold text-gray-500">LinkedIn Profile</h3>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
+                  </div>
+                  <p className="text-gray-500 text-sm">LinkedIn data not provided for this candidate.</p>
                 </div>
               )}
 
-              {/* LinkedIn Data Summary */}
-              {selectedCandidate.linkedinData && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
-                  <div className="col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">LinkedIn Profile Data</h3>
+              {/* GitHub Data - Expandable Section */}
+              {selectedCandidate.githubData ? (
+                <GitHubSection githubData={selectedCandidate.githubData} />
+              ) : (
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl opacity-50">🐙</span>
+                    <h3 className="text-lg font-semibold text-gray-500">GitHub Profile</h3>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
                   </div>
-
-                  {selectedCandidate.linkedinData.professionalSummary && (
-                    <div className="col-span-2">
-                      <h4 className="text-md font-medium text-gray-800 mb-1">Professional Summary</h4>
-                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.professionalSummary}</p>
-                    </div>
-                  )}
-
-                  {selectedCandidate.linkedinData.jobTitle && (
-                    <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-1">Current Role</h4>
-                      <p className="text-gray-700 text-sm">{selectedCandidate.linkedinData.jobTitle}</p>
-                    </div>
-                  )}
-
-                  {selectedCandidate.linkedinData.professionalExperiences && selectedCandidate.linkedinData.professionalExperiences.length > 0 && (
-                    <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Experience</h4>
-                      <div className="space-y-2">
-                        {selectedCandidate.linkedinData.professionalExperiences.slice(0, 3).map((exp, i) => (
-                          <div key={i} className="text-sm">
-                            <div className="font-medium">{exp.title} at {exp.companyName}</div>
-                            <div className="text-gray-600">
-                              {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
-                                exp.ongoing ? 'Present' :
-                                (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
-                              }
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedCandidate.linkedinData.skills && selectedCandidate.linkedinData.skills.length > 0 && (
-                    <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Skills</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedCandidate.linkedinData.skills.slice(0, 8).map((skill, i) => (
-                          <span key={i} className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs border border-blue-200">
-                            {skill}
-                          </span>
-                        ))}
-                        {selectedCandidate.linkedinData.skills.length > 8 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-                            +{selectedCandidate.linkedinData.skills.length - 8} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedCandidate.linkedinData.educations && selectedCandidate.linkedinData.educations.length > 0 && (
-                    <div className="col-span-2">
-                      <h4 className="text-md font-medium text-gray-800 mb-2">LinkedIn Education</h4>
-                      <div className="space-y-2">
-                        {selectedCandidate.linkedinData.educations.slice(0, 2).map((edu, i) => (
-                          <div key={i} className="text-sm">
-                            <div className="font-medium">{edu.degree} at {edu.institution}</div>
-                            <div className="text-gray-600">
-                              {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* GitHub Data Summary */}
-              {selectedCandidate.githubData && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
-                  <div className="col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      🐙 GitHub Profile Data
-                      <a
-                        href={selectedCandidate.githubData.profileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-sm text-purple-600 hover:text-purple-800"
-                      >
-                        @{selectedCandidate.githubData.username} ↗
-                      </a>
-                    </h3>
-                  </div>
-
-                  <div>
-                    <h4 className="text-md font-medium text-gray-800 mb-2">Activity Overview</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Public Repos:</span>
-                        <span className="font-medium">{selectedCandidate.githubData.publicRepos}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Followers:</span>
-                        <span className="font-medium">{selectedCandidate.githubData.followers}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Stars:</span>
-                        <span className="font-medium">{selectedCandidate.githubData.starredRepos}</span>
-                      </div>
-                      {selectedCandidate.githubData.contributions && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Streak:</span>
-                          <span className="font-medium">{selectedCandidate.githubData.contributions.streakDays} days</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedCandidate.githubData.languages && selectedCandidate.githubData.languages.length > 0 && (
-                    <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-2">Top Languages</h4>
-                      <div className="space-y-1">
-                        {selectedCandidate.githubData.languages.slice(0, 5).map((lang, i) => (
-                          <div key={i} className="flex justify-between items-center text-sm">
-                            <span className="text-gray-700">{lang.language}</span>
-                            <span className="text-gray-500">{lang.percentage.toFixed(1)}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedCandidate.githubData.repositories && selectedCandidate.githubData.repositories.length > 0 && (
-                    <div className="col-span-2">
-                      <h4 className="text-md font-medium text-gray-800 mb-2">Notable Repositories</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {selectedCandidate.githubData.repositories
-                          .filter(repo => !repo.isFork && repo.stars > 0)
-                          .slice(0, 4)
-                          .map((repo, i) => (
-                            <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="font-medium text-sm">{repo.name}</span>
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                  <span>⭐ {repo.stars}</span>
-                                  <span>🍴 {repo.forks}</span>
-                                </div>
-                              </div>
-                              {repo.description && (
-                                <p className="text-xs text-gray-600 mb-2 line-clamp-2">{repo.description}</p>
-                              )}
-                              {repo.language && (
-                                <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
-                                  {repo.language}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedCandidate.githubData.overallQualityScore && (
-                    <div className="col-span-2">
-                      <h4 className="text-md font-medium text-gray-800 mb-2">Code Quality Metrics</h4>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-medium">Overall Quality Score</span>
-                          <span className="text-lg font-bold text-emerald-600">
-                            {selectedCandidate.githubData.overallQualityScore.overall}/100
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">README:</span>
-                            <span>{selectedCandidate.githubData.overallQualityScore.readme}/100</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">CI/CD:</span>
-                            <span>{selectedCandidate.githubData.overallQualityScore.cicd}/100</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Documentation:</span>
-                            <span>{selectedCandidate.githubData.overallQualityScore.documentation}/100</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <p className="text-gray-500 text-sm">GitHub data not provided for this candidate.</p>
                 </div>
               )}
 
