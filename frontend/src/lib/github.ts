@@ -23,8 +23,7 @@ import {
  * GitHub API configuration
  */
 const GITHUB_API_BASE = 'https://api.github.com'
-// Note: In frontend, we'll need to use a backend API route for authenticated requests
-const GITHUB_TOKEN = undefined // Frontend doesn't have access to environment variables
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 
 /**
  * API usage tracking
