@@ -18,10 +18,10 @@ function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 overflow-hidden shadow-sm">
+    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-6 flex items-center justify-between hover:bg-blue-100/50 transition-colors"
+        className="w-full p-6 flex items-center justify-between hover:bg-gray-100 transition-colors"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">💼</span>
@@ -37,7 +37,7 @@ function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t border-blue-200">
+        <div className="px-6 pb-6 border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {linkedinData.professionalSummary && (
               <div className="col-span-2 bg-white/70 rounded-lg p-4">
@@ -136,10 +136,10 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 overflow-hidden shadow-sm">
+    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-6 flex items-center justify-between hover:bg-purple-100/50 transition-colors"
+        className="w-full p-6 flex items-center justify-between hover:bg-gray-100 transition-colors"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">🐙</span>
@@ -164,7 +164,7 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t border-purple-200">
+        <div className="px-6 pb-6 border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div className="bg-white/70 rounded-lg p-4">
               <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -313,10 +313,10 @@ interface ReferenceFormData {
 function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 mb-2 overflow-hidden">
+    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full p-4 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        className="w-full p-6 flex items-center justify-between hover:bg-gray-100 transition-colors"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">📄</span>
@@ -329,7 +329,7 @@ function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
         </div>
       </button>
       {isOpen && (
-        <div className="p-6 border-t border-gray-200">
+        <div className="px-6 pb-6 border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {cvData.professionalSummary && (
               <div className="col-span-2 bg-white/70 rounded-lg p-4">
