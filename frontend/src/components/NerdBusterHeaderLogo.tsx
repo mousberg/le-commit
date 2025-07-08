@@ -37,9 +37,9 @@ export default function Navbar() {
           />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-base font-medium text-gray-700">
-          <Link href="#how-it-works" className="hover:text-gray-900 transition-colors">How it works</Link>
-          <Link href="#demo" className="hover:text-gray-900 transition-colors">Demo</Link>
-          <Link href="#testimonials" className="hover:text-gray-900 transition-colors">Testimonials</Link>
+          <Link href="/#how-it-works" className="hover:text-gray-900 transition-colors">How it works</Link>
+          <Link href="/#demo" className="hover:text-gray-900 transition-colors">Demo</Link>
+          <Link href="/#testimonials" className="hover:text-gray-900 transition-colors">Testimonials</Link>
         </div>
         <div className="ml-4">
           <Link href="/board">
