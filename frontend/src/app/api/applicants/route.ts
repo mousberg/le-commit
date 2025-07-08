@@ -162,7 +162,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
     }
 
     // Calculate a simple score based on available data
-    const score = calculateScore(cvData, linkedinData, applicant.githubData);
+    const score = calculateScore(cvData, linkedinData || undefined, applicant.githubData);
 
     // Update applicant with processed data
     applicant.cvData = cvData;
@@ -211,7 +211,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
   }
 }
 
-function calculateScore(cvData: CvData, githubData?: GitHubData): number {
+function calculateScore(cvData: CvData, linkedinData?: CvData, githubData?: GitHubData): number {
   let score = 50; // Base score
 
   // Add points for CV completeness
