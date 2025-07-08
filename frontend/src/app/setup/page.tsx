@@ -110,12 +110,7 @@ export default function SetupPage() {
               <p>• AI Settings: Loaded from profile</p>
               <p>• Data Sources: Synced automatically</p>
             </div>
-            <button 
-              onClick={() => router.push('/settings')}
-              className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              Manage AI Configuration →
-            </button>
+
           </div>
 
           {/* Video Call URL Section */}
@@ -142,11 +137,11 @@ export default function SetupPage() {
               className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div className="space-y-4">
             {integrations.map((integration) => {
               const connected = isConnected(integration.id);
-              
+
               return (
                 <div key={integration.id} className="space-y-3">
                   <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
@@ -159,7 +154,7 @@ export default function SetupPage() {
                         <p className="text-sm text-gray-500">{integration.description}</p>
                       </div>
                     </div>
-                    
+
                     <button
                       onClick={() => handleToggleIntegration(integration.id)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
