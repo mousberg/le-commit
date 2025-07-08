@@ -2,58 +2,33 @@ import { Groq } from 'groq-sdk';
 import { Applicant } from './interfaces/applicant';
 import { CvData } from './interfaces/cv';
 import { GitHubData } from './interfaces/github';
-import {
-  AnalysisResult,
-  CvAnalysis,
-  LinkedInAnalysis,
-  GitHubAnalysis,
-  CrossReferenceAnalysis
-} from './interfaces/analysis';
+import { AnalysisResult } from './interfaces/analysis';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
 /**
- * Main analysis function that orchestrates all analysis types
+ * Main analysis function that performs comprehensive credibility analysis in a single call
  */
 export async function analyzeApplicant(applicant: Applicant): Promise<Applicant> {
   console.log(`Starting comprehensive analysis for applicant ${applicant.id}`);
 
   try {
-    const analysisResults = await Promise.allSettled([
-      analyzeCV(applicant.cvData),
-      analyzeLinkedIn(applicant.linkedinData),
-      analyzeGitHub(applicant.githubData),
-      crossReferenceAnalysis(applicant.cvData, applicant.linkedinData, applicant.githubData)
-    ]);
-
-    // Process results
-    const cvAnalysis = analysisResults[0].status === 'fulfilled' ? analysisResults[0].value : null;
-    const linkedinAnalysis = analysisResults[1].status === 'fulfilled' ? analysisResults[1].value : null;
-    const githubAnalysis = analysisResults[2].status === 'fulfilled' ? analysisResults[2].value : null;
-    const crossRefAnalysis = analysisResults[3].status === 'fulfilled' ? analysisResults[3].value : null;
-
-    // Generate overall analysis
-    const overallAnalysis = await generateOverallAnalysis(
-      applicant,
-      cvAnalysis,
-      linkedinAnalysis,
-      githubAnalysis,
-      crossRefAnalysis
+    const analysisResult = await performComprehensiveAnalysis(
+      applicant.cvData,
+      applicant.linkedinData,
+      applicant.githubData,
+      applicant.name,
+      applicant.email,
+      applicant.role
     );
 
     // Update applicant with analysis results
     return {
       ...applicant,
-      analysisResult: overallAnalysis,
-      individualAnalysis: {
-        cv: cvAnalysis || undefined,
-        linkedin: linkedinAnalysis || undefined,
-        github: githubAnalysis || undefined
-      },
-      crossReferenceAnalysis: crossRefAnalysis || undefined,
-      score: overallAnalysis.credibilityScore
+      analysisResult,
+      score: analysisResult.credibilityScore
     };
   } catch (error) {
     console.error(`Error during analysis for applicant ${applicant.id}:`, error);
@@ -80,296 +55,65 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
 }
 
 /**
- * Analyze CV data for credibility and completeness
+ * Perform comprehensive credibility analysis in a single call
  */
-async function analyzeCV(cvData?: CvData): Promise<CvAnalysis | null> {
-  if (!cvData) return null;
-
-  const prompt = `
-Analyze this CV data for credibility and completeness. Focus on:
-
-1. **Timeline Consistency**: Check for realistic career progression, no overlapping positions, reasonable gaps
-2. **Experience Realism**: Evaluate if job titles and responsibilities match experience level and industry norms
-3. **Education Verification**: Check if institutions and degrees seem legitimate
-4. **Skills Credibility**: Assess if listed skills align with experience and roles
-5. **Completeness**: Evaluate how complete the profile is
-
-CV Data:
-${JSON.stringify(cvData, null, 2)}
-
-Evaluate the following specifically:
-- Are there any timeline gaps or overlaps in employment/education?
-- Do job titles progress logically?
-- Are the listed skills realistic for the experience level?
-- Does the education appear legitimate?
-- Is the contact information complete?
-
-Return a JSON object with:
-{
-  "completenessScore": 0-100,
-  "consistencyScore": 0-100,
-  "experienceRealism": 0-100,
-  "skillsCredibility": 0-100,
-  "educationVerification": ["array of concerns about education"],
-  "timelineGaps": [{"type": "employment|education", "startDate": "YYYY-MM", "endDate": "YYYY-MM", "durationMonths": number, "severity": "minor|moderate|major"}],
-  "flags": [{"type": "red|yellow", "category": "consistency|verification|completeness|authenticity", "message": "specific concern", "severity": 1-10}]
-}
-`;
-
-  try {
-    const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-3.1-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-    });
-
-    const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
-    return processAnalysisResult(result) as unknown as CvAnalysis;
-  } catch (error) {
-    console.error('CV analysis failed:', error);
-    return {
-      completenessScore: 50,
-      consistencyScore: 50,
-      experienceRealism: 50,
-      educationVerification: [],
-      timelineGaps: [],
-      skillsCredibility: 50,
-      flags: [{ type: 'yellow', category: 'verification', message: 'CV analysis failed', severity: 5 }]
-    };
-  }
-}
-
-/**
- * Analyze LinkedIn data for authenticity and activity
- */
-async function analyzeLinkedIn(linkedinData?: CvData): Promise<LinkedInAnalysis | null> {
-  if (!linkedinData) return null;
-
-  const prompt = `
-Analyze this LinkedIn profile data for authenticity and credibility. Focus on:
-
-1. **Profile Completeness**: How complete is the profile?
-2. **Activity Level**: Signs of genuine engagement vs ghost profile
-3. **Network Quality**: Connection patterns and recommendations
-4. **Content Authenticity**: Quality and consistency of profile information
-5. **Account Signals**: Age, activity patterns, verification signals
-
-LinkedIn Data:
-${JSON.stringify(linkedinData, null, 2)}
-
-Evaluate:
-- Does the profile appear complete and professional?
-- Are there signs of genuine activity and engagement?
-- Do the connections and recommendations seem authentic?
-- Is the content consistent and believable?
-
-Return a JSON object with:
-{
-  "profileCompleteness": 0-100,
-  "activityLevel": 0-100,
-  "networkQuality": 0-100,
-  "contentAuthenticity": 0-100,
-  "cvConsistency": 0-100,
-  "connectionCount": estimated_number_or_null,
-  "hasActivity": boolean,
-  "hasRecommendations": boolean,
-  "flags": [{"type": "red|yellow", "category": "authenticity|activity|completeness", "message": "specific concern", "severity": 1-10}]
-}
-`;
-
-  try {
-    const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-3.1-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-    });
-
-    const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
-    return processAnalysisResult(result) as unknown as LinkedInAnalysis;
-  } catch (error) {
-    console.error('LinkedIn analysis failed:', error);
-    return {
-      profileCompleteness: 50,
-      activityLevel: 50,
-      networkQuality: 50,
-      contentAuthenticity: 50,
-      cvConsistency: 50,
-      hasActivity: false,
-      hasRecommendations: false,
-      flags: [{ type: 'yellow', category: 'verification', message: 'LinkedIn analysis failed', severity: 5 }]
-    };
-  }
-}
-
-/**
- * Analyze GitHub data for technical credibility
- */
-async function analyzeGitHub(githubData?: GitHubData): Promise<GitHubAnalysis | null> {
-  if (!githubData) return null;
-
-  const prompt = `
-Analyze this GitHub profile for technical credibility and authenticity. Focus on:
-
-1. **Code Quality**: Repository quality, documentation, best practices
-2. **Activity Consistency**: Commit patterns, contribution regularity
-3. **Contribution Realism**: Are contributions genuine and meaningful?
-4. **Profile Completeness**: Bio, contact info, professional presentation
-5. **Skills Alignment**: Do repositories match claimed technical skills?
-6. **Project Quality**: Evidence of real projects vs tutorial following
-
-GitHub Data:
-${JSON.stringify(githubData, null, 2)}
-
-Evaluate:
-- Are the repositories high quality with good documentation?
-- Do commit patterns show consistent, genuine activity?
-- Are the projects substantial and original?
-- Does the profile appear professional and complete?
-
-Return a JSON object with:
-{
-  "codeQuality": 0-100,
-  "activityConsistency": 0-100,
-  "contributionRealism": 0-100,
-  "profileCompleteness": 0-100,
-  "skillsAlignment": 0-100,
-  "projectQuality": 0-100,
-  "flags": [{"type": "red|yellow", "category": "authenticity|activity|completeness", "message": "specific concern", "severity": 1-10}]
-}
-`;
-
-  try {
-    const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-3.1-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-    });
-
-    const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
-    return processAnalysisResult(result) as unknown as GitHubAnalysis;
-  } catch (error) {
-    console.error('GitHub analysis failed:', error);
-    return {
-      codeQuality: 50,
-      activityConsistency: 50,
-      contributionRealism: 50,
-      profileCompleteness: 50,
-      skillsAlignment: 50,
-      projectQuality: 50,
-      flags: [{ type: 'yellow', category: 'verification', message: 'GitHub analysis failed', severity: 5 }]
-    };
-  }
-}
-
-/**
- * Cross-reference analysis between all data sources
- */
-async function crossReferenceAnalysis(
+async function performComprehensiveAnalysis(
   cvData?: CvData,
   linkedinData?: CvData,
-  githubData?: GitHubData
-): Promise<CrossReferenceAnalysis | null> {
-  if (!cvData) return null;
-
+  githubData?: GitHubData,
+  name?: string,
+  email?: string,
+  role?: string
+): Promise<AnalysisResult> {
   const prompt = `
-Compare and cross-reference these data sources for consistency and authenticity:
+You are a credibility-checking assistant inside Unmask, a tool used by hiring managers to verify whether candidates are being honest and consistent in their job applications.
 
-CV Data: ${JSON.stringify(cvData, null, 2)}
+Your job is to review structured data about a candidate and assess the overall *authenticity* of the profile. You are not scoring technical ability — only consistency and believability.
+
+**Candidate Information:**
+- Name: ${name || 'Not provided'}
+- Email: ${email || 'Not provided'}
+- Role: ${role || 'Not specified'}
+
+**Available Data Sources:**
+- CV: ${cvData ? 'Available' : 'Not available'}
+- LinkedIn: ${linkedinData ? 'Available' : 'Not available'}
+- GitHub: ${githubData ? 'Available' : 'Not available'}
+
+**Data:**
+CV Data: ${cvData ? JSON.stringify(cvData, null, 2) : 'Not provided'}
 LinkedIn Data: ${linkedinData ? JSON.stringify(linkedinData, null, 2) : 'Not provided'}
 GitHub Data: ${githubData ? JSON.stringify(githubData, null, 2) : 'Not provided'}
 
-Analyze for:
-1. **Name Consistency**: Do names match across sources?
-2. **Experience Consistency**: Job titles, companies, dates alignment
-3. **Skills Consistency**: Technical and professional skills alignment
-4. **Education Consistency**: Degrees and institutions matching
-5. **Timeline Consistency**: Employment dates and career progression
-6. **Contact Information**: Email, location consistency
+**Your Tasks:**
 
-Look for:
-- Name mismatches or inconsistencies
-- Different job titles for the same role
-- Misaligned employment dates
-- Skills listed in one source but not others
-- Education discrepancies
+1. **Compare CV and LinkedIn information** (if both available)
+   - Check if the full name in the CV matches the LinkedIn data
+   - Evaluate if job titles, company names, and employment dates are consistent
+   - Flag unrealistic career jumps (e.g., 3 unicorns in a year, vague titles)
+   - Flag aliases or recent account creation (if metadata is available)
 
-Return a JSON object with:
-{
-  "nameConsistency": boolean,
-  "cvLinkedInConsistency": 0-100,
-  "cvGitHubConsistency": 0-100,
-  "linkedInGitHubConsistency": 0-100,
-  "experienceConsistency": [{"field": "string", "cvValue": "string", "linkedinValue": "string", "githubValue": "string", "severity": "minor|moderate|major", "description": "string"}],
-  "skillsConsistency": [{"field": "string", "cvValue": "string", "linkedinValue": "string", "githubValue": "string", "severity": "minor|moderate|major", "description": "string"}],
-  "educationConsistency": [{"field": "string", "cvValue": "string", "linkedinValue": "string", "githubValue": "string", "severity": "minor|moderate|major", "description": "string"}],
-  "flags": [{"type": "red|yellow", "category": "consistency", "message": "specific inconsistency", "severity": 1-10}]
-}
-`;
+2. **Verify education**
+   - Check that the institutions in the CV are real and align with those on LinkedIn (if visible)
+   - Flag degrees in the CV that don't show up on LinkedIn
 
-  try {
-    const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-3.1-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-    });
+3. **Evaluate LinkedIn signals** (if provided)
+   - Does the candidate have at least 30–50 connections? (a near-zero number may signal a ghost profile)
+   - Do they have any activity, such as posts or comments?
+   - Are there any recommendations listed?
+   - Do their connections match the companies they list?
 
-    const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
-    return processAnalysisResult(result) as unknown as CrossReferenceAnalysis;
-  } catch (error) {
-    console.error('Cross-reference analysis failed:', error);
-    return {
-      nameConsistency: true,
-      cvLinkedInConsistency: 50,
-      cvGitHubConsistency: 50,
-      linkedInGitHubConsistency: 50,
-      experienceConsistency: [],
-      skillsConsistency: [],
-      educationConsistency: [],
-      flags: [{ type: 'yellow', category: 'verification', message: 'Cross-reference analysis failed', severity: 5 }]
-    };
-  }
-}
+4. **Evaluate GitHub signals** (if provided)
+   - Are repositories high quality with documentation?
+   - Do commit patterns show consistent, genuine activity?
+   - Are projects substantial and original vs tutorial following?
+   - Does the profile appear professional and complete?
 
-/**
- * Generate overall credibility analysis and recommendations
- */
-async function generateOverallAnalysis(
-  applicant: Applicant,
-  cvAnalysis?: CvAnalysis | null,
-  linkedinAnalysis?: LinkedInAnalysis | null,
-  githubAnalysis?: GitHubAnalysis | null,
-  crossRefAnalysis?: CrossReferenceAnalysis | null
-): Promise<AnalysisResult> {
-  const prompt = `
-You are a credibility-checking assistant for Unmask, a hiring verification tool.
+5. **Identify red/yellow flags**
+   - Red flag: major inconsistency (e.g. job listed in CV not on LinkedIn, alias or unverifiable employer)
+   - Yellow flag: soft concern (e.g. no GitHub, inactive LinkedIn, unverified university)
 
-Analyze this candidate's overall credibility based on their data sources and individual analyses:
-
-**Candidate**: ${applicant.name} (${applicant.email})
-**Role**: ${applicant.role || 'Not specified'}
-
-**Available Data Sources:**
-- CV: ${applicant.cvData ? 'Available' : 'Not available'}
-- LinkedIn: ${applicant.linkedinData ? 'Available' : 'Not available'}
-- GitHub: ${applicant.githubData ? 'Available' : 'Not available'}
-
-**Individual Analysis Results:**
-CV Analysis: ${cvAnalysis ? JSON.stringify(cvAnalysis, null, 2) : 'Not analyzed'}
-LinkedIn Analysis: ${linkedinAnalysis ? JSON.stringify(linkedinAnalysis, null, 2) : 'Not analyzed'}
-GitHub Analysis: ${githubAnalysis ? JSON.stringify(githubAnalysis, null, 2) : 'Not analyzed'}
-Cross-Reference Analysis: ${crossRefAnalysis ? JSON.stringify(crossRefAnalysis, null, 2) : 'Not analyzed'}
-
-**Your Task:**
-Generate an overall credibility assessment focusing on:
-1. Consistency across all data sources
-2. Authenticity signals and red flags
-3. Completeness and professionalism
-4. Technical credibility (if applicable)
-5. Specific areas of concern that warrant follow-up
+6. **Suggest 1–3 questions to ask the candidate if credibility is not clear**
 
 **Scoring Guidelines:**
 - 90-100: Highly credible, minimal concerns
@@ -378,22 +122,26 @@ Generate an overall credibility assessment focusing on:
 - 30-49: Significant red flags, requires investigation
 - 0-29: High risk, major credibility issues
 
+**Output Format:**
+
 Return a JSON object with:
 {
   "credibilityScore": 0-100,
-  "summary": "1-2 sentences about overall assessment",
-  "flags": [{"type": "red|yellow", "category": "consistency|verification|completeness|authenticity|activity", "message": "specific concern", "severity": 1-10}],
-  "suggestedQuestions": ["array of 1-3 specific questions to ask the candidate"],
-  "sources": [{"type": "cv|linkedin|github", "available": boolean, "score": 0-100, "flags": [], "analysisDetails": {}}]
+  "summary": "1-2 sentence judgment",
+  "flags": [{"type": "red"|"yellow", "category": "consistency"|"verification"|"completeness"|"authenticity"|"activity", "message": "specific concern", "severity": 1-10}],
+  "suggestedQuestions": ["array of clarifying questions to ask the candidate"],
+  "sources": [{"type": "cv"|"linkedin"|"github", "available": boolean, "score": 0-100, "flags": [], "analysisDetails": {}}]
 }
+
+Be objective. Do not make assumptions. Only work with the structured data provided. If data is missing, acknowledge it appropriately but still provide analysis based on what is available.
 `;
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-3.1-70b-versatile",
+      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.3,
+      temperature: 0.2,
     });
 
     const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
@@ -412,68 +160,14 @@ Return a JSON object with:
       sources: result.sources || []
     };
   } catch (error) {
-    console.error('Overall analysis failed:', error);
+    console.error('Comprehensive analysis failed:', error);
     return {
       credibilityScore: 50,
-      summary: 'Analysis completed with limited data due to technical constraints.',
-      flags: [{ type: 'yellow', category: 'verification', message: 'Overall analysis could not be completed', severity: 5 }],
+      summary: 'Analysis could not be completed due to technical error.',
+      flags: [{ type: 'yellow', category: 'verification', message: 'Analysis system temporarily unavailable', severity: 5 }],
       suggestedQuestions: ['Could you provide additional information about your background?'],
       analysisDate: new Date().toISOString(),
       sources: []
     };
   }
-}
-
-/**
- * Helper function to process and clean analysis results
- */
-function processAnalysisResult(result: Record<string, unknown>): Record<string, unknown> {
-  // Clean and validate the result structure
-  const cleaned: Record<string, unknown> = {
-    ...result,
-    flags: (result.flags as Record<string, unknown>[] || []).map((flag: Record<string, unknown>) => ({
-      type: flag.type === 'red' || flag.type === 'yellow' ? flag.type : 'yellow',
-      category: flag.category || 'verification',
-      message: flag.message || 'Analysis concern detected',
-      severity: typeof flag.severity === 'number' ? Math.max(1, Math.min(10, flag.severity)) : 5
-    }))
-  };
-
-  // Ensure numeric fields are valid numbers
-  const numericFields = ['completenessScore', 'consistencyScore', 'experienceRealism', 'skillsCredibility',
-    'profileCompleteness', 'activityLevel', 'networkQuality', 'contentAuthenticity', 'cvConsistency',
-    'codeQuality', 'activityConsistency', 'contributionRealism', 'projectQuality', 'skillsAlignment',
-    'cvLinkedInConsistency', 'cvGitHubConsistency', 'linkedInGitHubConsistency'];
-
-  numericFields.forEach(field => {
-    if (field in cleaned) {
-      const value = cleaned[field];
-      if (typeof value !== 'number' || isNaN(value)) {
-        cleaned[field] = 50; // Default score
-      } else {
-        cleaned[field] = Math.max(0, Math.min(100, value)); // Clamp to 0-100
-      }
-    }
-  });
-
-  // Ensure required arrays exist
-  const arrayFields = ['flags', 'timelineGaps', 'educationVerification', 'experienceConsistency', 'skillsConsistency', 'educationConsistency'];
-  arrayFields.forEach(field => {
-    if (!(field in cleaned) || !Array.isArray(cleaned[field])) {
-      cleaned[field] = [];
-    }
-  });
-
-  // Ensure boolean fields exist
-  if (typeof cleaned.nameConsistency !== 'boolean') {
-    cleaned.nameConsistency = true;
-  }
-  if (typeof cleaned.hasActivity !== 'boolean') {
-    cleaned.hasActivity = false;
-  }
-  if (typeof cleaned.hasRecommendations !== 'boolean') {
-    cleaned.hasRecommendations = false;
-  }
-
-  return cleaned;
 }

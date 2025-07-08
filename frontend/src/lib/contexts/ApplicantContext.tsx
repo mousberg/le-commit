@@ -95,8 +95,11 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (data.success) {
-        await fetchApplicants(); // Refresh the list
-        return data.applicantId;
+        // Add the new applicant to local state immediately for optimistic UI
+        setApplicants(prev => [data.applicant, ...prev]);
+
+        // Return the ID immediately - don't wait for full refresh
+        return data.applicant.id;
       } else {
         setError(data.error || 'Failed to create applicant');
         return null;
@@ -108,7 +111,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchApplicants]);
+  }, []);
 
   const refreshApplicant = useCallback(async (id: string) => {
     try {

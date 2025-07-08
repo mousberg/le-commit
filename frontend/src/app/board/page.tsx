@@ -275,6 +275,7 @@ function BoardPageContent() {
                 applicantName={selectedCandidate.name}
                 status={selectedCandidate.status}
                 fileName={selectedCandidate.originalFileName}
+                applicant={selectedCandidate}
               />
             ) : (
             <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
