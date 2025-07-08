@@ -119,7 +119,7 @@ export default function SessionPage() {
                 timestamp: new Date(),
               };
               setFlagItems(prev => [...prev, newFlag]);
-              
+
               // Decrease credibility score for warnings
               if (flag.type === "warning") {
                 setCredibilityScore(prev => Math.max(0, prev - 7));
@@ -158,7 +158,19 @@ export default function SessionPage() {
           <h1 className="text-2xl font-medium text-gray-900">
             NerdBuster Live Session
           </h1>
-          <CredibilityScore score={credibilityScore} />
+          <CredibilityScore analysisResult={{
+            credibilityScore: credibilityScore,
+            summary: `Live credibility analysis in progress. Current score: ${credibilityScore}%.`,
+            flags: flagItems.map(flag => ({
+              type: flag.type === 'error' ? 'red' : 'yellow',
+              category: 'verification',
+              message: flag.message,
+              severity: flag.type === 'error' ? 8 : 5
+            })),
+            suggestedQuestions: followUpItems.map(item => item.prompt),
+            analysisDate: new Date().toISOString(),
+            sources: []
+          }} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
