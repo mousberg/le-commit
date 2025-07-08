@@ -26,14 +26,8 @@ function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
         <div className="flex items-center gap-3">
           <span className="text-2xl">💼</span>
           <h3 className="text-lg font-bold text-gray-900">LinkedIn Profile</h3>
-          <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Available</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Click to {isExpanded ? 'collapse' : 'expand'}</span>
-          <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            ⬇️
-          </span>
-        </div>
+        <span className="ml-2 text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
       </button>
 
       {isExpanded && (
@@ -144,7 +138,6 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
         <div className="flex items-center gap-3">
           <span className="text-2xl">🐙</span>
           <h3 className="text-lg font-bold text-gray-900">GitHub Profile</h3>
-          <span className="text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Available</span>
           <a
             href={githubData.profileUrl}
             target="_blank"
@@ -155,12 +148,7 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
             @{githubData.username} ↗
           </a>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Click to {isExpanded ? 'collapse' : 'expand'}</span>
-          <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            ⬇️
-          </span>
-        </div>
+        <span className="ml-2 text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
       </button>
 
       {isExpanded && (
@@ -322,10 +310,7 @@ function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
           <span className="text-2xl">📄</span>
           <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Click to {isOpen ? 'collapse' : 'expand'}</span>
-          <span className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}>⬇️</span>
-        </div>
+        <span className="ml-2 text-xs text-gray-400">{isOpen ? '▲' : '▼'}</span>
       </button>
       {isOpen && (
         <div className="px-6 pb-6 border-t border-gray-200">
