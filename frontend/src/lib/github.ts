@@ -27,6 +27,25 @@ const GITHUB_API_BASE = 'https://api.github.com'
 const GITHUB_TOKEN = undefined // Frontend doesn't have access to environment variables
 
 /**
+ * API usage tracking
+ */
+let apiUsageTracker: {
+  totalCalls: number
+  callsByCategory: Record<string, number>
+  rateLimitInfo: {
+    remaining: number | null
+    reset: string | null
+  }
+} = {
+  totalCalls: 0,
+  callsByCategory: {},
+  rateLimitInfo: {
+    remaining: null,
+    reset: null
+  }
+}
+
+/**
  * GitHub API headers with authentication if token is available
  */
 function getGitHubHeaders(): Record<string, string> {
@@ -80,6 +99,25 @@ export function extractUsernameFromUrl(githubUrl: string): string {
 }
 
 /**
+ * Categorize API endpoint for usage tracking
+ * @param endpoint - API endpoint
+ * @returns Category name
+ */
+function categorizeApiCall(endpoint: string): string {
+  if (endpoint.includes('/users/') && endpoint.includes('/repos')) return 'repositories'
+  if (endpoint.includes('/users/') && endpoint.includes('/orgs')) return 'organizations'
+  if (endpoint.includes('/users/') && endpoint.includes('/events')) return 'events'
+  if (endpoint.includes('/users/') && !endpoint.includes('/')) return 'user-info'
+  if (endpoint.includes('/repos/') && endpoint.includes('/contents')) return 'repository-content'
+  if (endpoint.includes('/repos/') && endpoint.includes('/contributors')) return 'contributors'
+  if (endpoint.includes('/repos/') && endpoint.includes('/issues')) return 'issues'
+  if (endpoint.includes('/repos/') && endpoint.includes('/protection')) return 'branch-protection'
+  if (endpoint.includes('/repos/') && endpoint.includes('/community')) return 'community'
+  if (endpoint.includes('/orgs/')) return 'organization-details'
+  return 'other'
+}
+
+/**
  * Fetch data from GitHub API with error handling
  * @param endpoint - API endpoint (relative to base URL)
  * @param username - GitHub username for error context
@@ -93,7 +131,18 @@ async function fetchGitHubApi(endpoint: string, username?: string): Promise<any>
     console.log(`Fetching: ${url}`)
 
     const response = await fetch(url, { headers })
-
+    
+    // Track API usage
+    apiUsageTracker.totalCalls++
+    const category = categorizeApiCall(endpoint)
+    apiUsageTracker.callsByCategory[category] = (apiUsageTracker.callsByCategory[category] || 0) + 1
+    
+    // Update rate limit info
+    const remaining = response.headers.get('x-ratelimit-remaining')
+    const reset = response.headers.get('x-ratelimit-reset')
+    if (remaining) apiUsageTracker.rateLimitInfo.remaining = parseInt(remaining)
+    if (reset) apiUsageTracker.rateLimitInfo.reset = new Date(parseInt(reset) * 1000).toISOString()
+    
     if (!response.ok) {
       if (response.status === 404) {
         // Different 404 error messages based on endpoint type
@@ -976,11 +1025,6 @@ function analyzeReadmeContent(readmeContent: string | null): GitHubReadmeAnalysi
 }
 
 /**
- * Analyze package.json content
- * @param packageContent - package.json content
-
-
-/**
  * Analyze GitHub workflow files
  * @param username - Repository owner
  * @param repoName - Repository name
@@ -1080,18 +1124,12 @@ function analyzeWorkflowContent(fileName: string, content: string): GitHubWorkfl
 }
 
 /**
- * Analyze repository code structure
- * @param username - Repository owner
- * @param repoName - Repository name
+ * Analyze repository code structure from already-fetched root contents
+ * @param rootContents - Already-fetched root directory contents
  * @returns Code structure analysis
  */
-async function analyzeCodeStructure(
-  username: string,
-  repoName: string
-): Promise<GitHubCodeStructure> {
+function analyzeCodeStructureFromContents(rootContents: any[]): GitHubCodeStructure {
   try {
-    const rootContents = await getRepositoryDirectoryContents(username, repoName, '')
-
     let fileCount = 0
     let directoryCount = 0
     const languageFiles: Record<string, number> = {}
@@ -1138,10 +1176,7 @@ async function analyzeCodeStructure(
         }
       }
     }
-
-    // Detect test frameworks from package.json or file patterns
-    // This would be enhanced with actual file content analysis
-
+    
     // Calculate organization score
     let organizationScore = 0
 
@@ -1173,7 +1208,7 @@ async function analyzeCodeStructure(
       organizationScore: Math.min(100, organizationScore),
     }
   } catch (error) {
-    console.warn('Failed to analyze code structure:', error)
+    console.warn('Failed to analyze code structure from contents:', error)
     return {
       fileCount: 0,
       directoryCount: 0,
@@ -1187,6 +1222,8 @@ async function analyzeCodeStructure(
     }
   }
 }
+
+
 
 /**
  * Calculate overall quality score for a repository
@@ -1251,27 +1288,38 @@ export async function analyzeRepositoryContent(repository: GitHubRepository): Pr
     console.log(`Analyzing content for repository: ${repository.name}`)
 
     const [owner, repoName] = repository.fullName.split('/')
-
-    // Analyze README
-    const readmeContent = await getRepositoryFileContent(owner, repoName, 'README.md') ||
-                          await getRepositoryFileContent(owner, repoName, 'readme.md') ||
-                          await getRepositoryFileContent(owner, repoName, 'README.rst') ||
-                          await getRepositoryFileContent(owner, repoName, 'README.txt')
-
+    
+    // Get root directory contents once (shared between README and code structure analysis)
+    const rootContents = await getRepositoryDirectoryContents(owner, repoName, '')
+    
+    // Smart README detection - find README file from directory listing
+    const readmeFile = rootContents.find(file => 
+      file.type === 'file' && /^readme\.(md|rst|txt)$/i.test(file.name)
+    )
+    
+    // Only fetch README content if file exists (saves 3 API calls per repo)
+    const readmeContent = readmeFile ? 
+      await getRepositoryFileContent(owner, repoName, readmeFile.name) : null
+    
     const readme = analyzeReadmeContent(readmeContent)
-
-    // Analyze package.json (if it exists) with enhanced framework detection
-    const packageContent = await getRepositoryFileContent(owner, repoName, 'package.json')
-    const packageJson = packageContent ?
-      enhancedPackageAnalysis(JSON.parse(packageContent)) :
+    
+    // Smart package.json detection - check if it exists before fetching
+    const hasPackageJson = rootContents.some(file => 
+      file.type === 'file' && file.name === 'package.json'
+    )
+    
+    const packageContent = hasPackageJson ? 
+      await getRepositoryFileContent(owner, repoName, 'package.json') : null
+    const packageJson = packageContent ? 
+      enhancedPackageAnalysis(JSON.parse(packageContent)) : 
       undefined
 
     // Analyze workflows
     const workflows = await analyzeGitHubWorkflows(owner, repoName)
-
-    // Analyze code structure
-    const codeStructure = await analyzeCodeStructure(owner, repoName)
-
+    
+    // Analyze code structure using the already-fetched root contents
+    const codeStructure = await analyzeCodeStructureFromContents(rootContents)
+    
     // Calculate quality score
     const qualityScore = calculateRepositoryQualityScore(
       readme,
@@ -1346,10 +1394,19 @@ export async function processGitHubAccount(
   } = {}
 ): Promise<GitHubData> {
   try {
-    const {
-      maxRepos = 100,
-      includeOrganizations = true,
-      analyzeContent = false,
+    // Reset API usage tracker at start
+    apiUsageTracker = {
+      totalCalls: 0,
+      callsByCategory: {},
+      rateLimitInfo: {
+        remaining: null,
+        reset: null
+      }
+    }
+    const { 
+      maxRepos = 100, 
+      includeOrganizations = true, 
+      analyzeContent = false, 
       maxContentAnalysis = 10,
       includeActivity = true
     } = options
@@ -1431,54 +1488,7 @@ export async function processGitHubAccount(
     // Calculate enhanced contribution statistics
     console.log('Calculating contribution statistics...')
     const contributionStats = calculateContributionStats(repositories, userInfo, languageStats, userEvents)
-
-    // Calculate overall quality score (if content was analyzed)
-    let overallQualityScore: GitHubQualityScore | undefined
-    if (repositoryContent && repositoryContent.length > 0) {
-      console.log('Calculating overall quality score...')
-
-      // Average quality scores across analyzed repositories
-      const avgScores = repositoryContent.reduce((acc, content) => {
-        acc.overall += content.qualityScore.overall
-        acc.readme += content.qualityScore.readme
-        acc.codeOrganization += content.qualityScore.codeOrganization
-        acc.cicd += content.qualityScore.cicd
-        acc.documentation += content.qualityScore.documentation
-        acc.maintenance += content.qualityScore.maintenance
-        acc.community += content.qualityScore.community
-
-        Object.keys(content.qualityScore.breakdown).forEach(key => {
-          if (!acc.breakdown[key]) acc.breakdown[key] = 0
-          acc.breakdown[key] += content.qualityScore.breakdown[key as keyof typeof content.qualityScore.breakdown]
-        })
-
-        return acc
-      }, {
-        overall: 0,
-        readme: 0,
-        codeOrganization: 0,
-        cicd: 0,
-        documentation: 0,
-        maintenance: 0,
-        community: 0,
-        breakdown: {} as Record<string, number>
-      })
-
-      const count = repositoryContent.length
-      overallQualityScore = {
-        overall: Math.round(avgScores.overall / count),
-        readme: Math.round(avgScores.readme / count),
-        codeOrganization: Math.round(avgScores.codeOrganization / count),
-        cicd: Math.round(avgScores.cicd / count),
-        documentation: Math.round(avgScores.documentation / count),
-        maintenance: Math.round(avgScores.maintenance / count),
-        community: Math.round(avgScores.community / count),
-        breakdown: Object.fromEntries(
-          Object.entries(avgScores.breakdown).map(([key, value]) => [key, Math.round(value / count)])
-        ) as any,
-      }
-    }
-
+    
     // Count starred and forked repositories
     const starredRepos = repositories.reduce((sum, repo) => sum + repo.stars, 0)
     const forkedRepos = repositories.filter(repo => repo.isFork).length
@@ -1508,7 +1518,6 @@ export async function processGitHubAccount(
       starredRepos,
       forkedRepos,
       organizations,
-      overallQualityScore,
       other: {
         processingDate: new Date().toISOString(),
         apiVersion: 'v3',
@@ -1521,6 +1530,22 @@ export async function processGitHubAccount(
     }
 
     console.log('GitHub account processing completed successfully')
+    
+    // Log API usage summary
+    console.log('\n=== GitHub API Usage Summary ===')
+    console.log(`Total API calls made: ${apiUsageTracker.totalCalls}`)
+    console.log('Calls by category:')
+    Object.entries(apiUsageTracker.callsByCategory).forEach(([category, count]) => {
+      console.log(`  ${category}: ${count} calls`)
+    })
+    if (apiUsageTracker.rateLimitInfo.remaining !== null) {
+      console.log(`Rate limit remaining: ${apiUsageTracker.rateLimitInfo.remaining}`)
+    }
+    if (apiUsageTracker.rateLimitInfo.reset) {
+      console.log(`Rate limit resets at: ${apiUsageTracker.rateLimitInfo.reset}`)
+    }
+    console.log('================================\n')
+    
     return githubData
 
   } catch (error) {
@@ -1568,67 +1593,8 @@ export function validateAndCleanGitHubData(githubData: Partial<GitHubData>): Git
     starredRepos: githubData.starredRepos || 0,
     forkedRepos: githubData.forkedRepos || 0,
     organizations: githubData.organizations || [],
-    overallQualityScore: githubData.overallQualityScore,
     other: githubData.other || {},
   }
-
-  // Validate email format if provided
-  if (cleanData.email && !isValidEmail(cleanData.email)) {
-    console.warn(`Invalid email format: ${cleanData.email}`)
-  }
-
-  // Validate URLs
-  if (cleanData.profileUrl && !isValidUrl(cleanData.profileUrl)) {
-    console.warn(`Invalid profile URL: ${cleanData.profileUrl}`)
-  }
-
-  if (cleanData.blog && !isValidUrl(cleanData.blog)) {
-    console.warn(`Invalid blog URL: ${cleanData.blog}`)
-  }
-
+  
   return cleanData
-}
-
-/**
- * Utility function to validate email format
- * @param email - Email string to validate
- * @returns True if valid email format
- */
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-/**
- * Utility function to validate URL format
- * @param url - URL string to validate
- * @returns True if valid URL format
- */
-function isValidUrl(url: string): boolean {
-  try {
-    new URL(url)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * Convert GitHub data to JSON string (frontend compatible)
- * @param githubData - GitHub data to convert
- * @param outputPath - Optional path for logging purposes only
- * @returns JSON string of the GitHub data
- */
-export function saveGitHubDataToJson(githubData: GitHubData, outputPath?: string): string {
-  try {
-    const jsonData = JSON.stringify(githubData, null, 2)
-    if (outputPath) {
-      console.log(`GitHub data prepared for: ${outputPath}`)
-      console.log('Note: In frontend context, use the returned JSON string to download or send to backend')
-    }
-    return jsonData
-  } catch (error) {
-    console.error('Error converting GitHub data to JSON:', error)
-    throw new Error(`Failed to convert GitHub data: ${error}`)
-  }
 }
