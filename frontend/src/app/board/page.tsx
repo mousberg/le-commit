@@ -47,9 +47,10 @@ function BoardPageContent() {
 
   const [showNotes, setShowNotes] = useState(false);
 
-  // Get current selection from URL
+  // NEW URL LOGIC: /board = new form, /board?id=<id> = view applicant
   const urlId = searchParams.get('id');
-  const selectedId = urlId || 'new'; // Default to 'new' if no ID in URL
+  const isNewForm = !urlId; // If no id parameter, show new form
+  const selectedId = urlId; // The actual applicant ID (or null for new form)
 
   // Navigation helpers - use replace for cleaner history
   const navigateToApplicant = useCallback((id: string) => {
@@ -57,7 +58,7 @@ function BoardPageContent() {
   }, [router]);
 
   const navigateToNew = useCallback(() => {
-    router.replace('/board?id=new');
+    router.replace('/board'); // Just /board for new form
   }, [router]);
 
   // Load applicants on component mount
@@ -122,7 +123,7 @@ function BoardPageContent() {
     setDeleteConfirmModal({ isOpen: false, applicantId: '', applicantName: '' });
   };
 
-  const selectedCandidate = selectedId === 'new' ? null : applicants.find(a => a.id === selectedId);
+  const selectedCandidate = isNewForm ? null : applicants.find(a => a.id === selectedId);
 
   const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: string]: Reference[] }>({});
   const [addingReference, setAddingReference] = useState(false);
@@ -258,14 +259,14 @@ function BoardPageContent() {
       <div className="min-h-screen flex bg-gradient-to-b from-white via-slate-50 to-white">
         {/* Sidebar */}
         <ApplicantSidebar
-          selectedId={selectedId}
+          selectedId={selectedId || 'new'}
           onSelectApplicant={navigateToApplicant}
           onSelectNew={navigateToNew}
           onDeleteApplicant={handleDeleteApplicant}
         />
       {/* Main Content */}
       <main className="flex-1 p-10">
-        {selectedId === 'new' ? (
+        {isNewForm ? (
             <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
             // Show processing loader for uploading/processing/analyzing states
