@@ -10,7 +10,7 @@ import CredibilityScore from '../../components/credibility-score';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
 import NewApplicantForm from './components/NewApplicantForm';
 import ApplicantSidebar from './components/ApplicantSidebar';
-import { CvData } from '../../lib/interfaces/cv';
+import { CvData, Experience, Education } from '../../lib/interfaces/cv';
 import { GitHubData } from '../../lib/interfaces/github';
 
 // LinkedIn Section Component
@@ -308,6 +308,111 @@ interface ReferenceFormData {
   companyName: string;
   roleTitle: string;
   workDuration: string;
+}
+
+function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="bg-gray-50 rounded-xl border border-gray-200 mb-2 overflow-hidden">
+      <button
+        onClick={() => setIsOpen((v) => !v)}
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-100 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📄</span>
+          <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
+          <span className="text-sm bg-gray-200 text-gray-700 px-2 py-1 rounded-full">From CV</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Click to {isOpen ? 'collapse' : 'expand'}</span>
+          <span className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}>⬇️</span>
+        </div>
+      </button>
+      {isOpen && (
+        <div className="p-6 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {cvData.professionalSummary && (
+              <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <span>💼</span>
+                  Professional Summary
+                </h4>
+                <p className="text-gray-700 text-sm leading-relaxed">{cvData.professionalSummary}</p>
+              </div>
+            )}
+            {cvData.skills && cvData.skills.length > 0 && (
+              <div className="bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🛠️</span>
+                  Skills
+                  <span className="text-xs text-gray-500">({cvData.skills.length} total)</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {cvData.skills.slice(0, 12).map((skill: string, i: number) => (
+                    <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                      {skill}
+                    </span>
+                  ))}
+                  {cvData.skills.length > 12 && (
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                      +{cvData.skills.length - 12} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {cvData.professionalExperiences && cvData.professionalExperiences.length > 0 && (
+              <div className="bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🏢</span>
+                  Experience
+                  <span className="text-xs text-gray-500">({cvData.professionalExperiences.length} roles)</span>
+                </h4>
+                <div className="space-y-3">
+                  {cvData.professionalExperiences.slice(0, 3).map((exp: Experience, i: number) => (
+                    <div key={i} className="text-sm border-l-2 border-blue-300 pl-3">
+                      <div className="font-semibold text-gray-900">{exp.title}</div>
+                      <div className="text-blue-700 font-medium">{exp.companyName}</div>
+                      <div className="text-gray-600 text-xs">
+                        {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
+                          exp.ongoing ? 'Present' :
+                          (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
+                        }
+                      </div>
+                    </div>
+                  ))}
+                  {cvData.professionalExperiences.length > 3 && (
+                    <div className="text-xs text-gray-500 italic">
+                      +{cvData.professionalExperiences.length - 3} more positions...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {cvData.educations && cvData.educations.length > 0 && (
+              <div className="col-span-2 bg-white/70 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>🎓</span>
+                  Education
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {cvData.educations.slice(0, 2).map((edu: Education, i: number) => (
+                    <div key={i} className="text-sm">
+                      <div className="font-semibold text-gray-900">{edu.degree}</div>
+                      <div className="text-blue-700">{edu.institution}</div>
+                      <div className="text-gray-600 text-xs">
+                        {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function BoardPageContent() {
@@ -667,103 +772,16 @@ function BoardPageContent() {
                 </div>
               </div>
 
-              {/* Core Profile from CV - Always Available */}
-              {selectedCandidate.cvData && (
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">📄</span>
-                    <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
-                    <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">From CV</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {selectedCandidate.cvData.professionalSummary && (
-                      <div className="col-span-2 bg-white/70 rounded-lg p-4">
-                        <h4 className="text-md font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                          <span>💼</span>
-                          Professional Summary
-                        </h4>
-                        <p className="text-gray-700 text-sm leading-relaxed">{selectedCandidate.cvData.professionalSummary}</p>
-                      </div>
-                    )}
-
-                    {selectedCandidate.cvData.skills && selectedCandidate.cvData.skills.length > 0 && (
-                      <div className="bg-white/70 rounded-lg p-4">
-                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <span>🛠️</span>
-                          Skills
-                          <span className="text-xs text-gray-500">({selectedCandidate.cvData.skills.length} total)</span>
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedCandidate.cvData.skills.slice(0, 12).map((skill, i) => (
-                            <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                              {skill}
-                            </span>
-                          ))}
-                          {selectedCandidate.cvData.skills.length > 12 && (
-                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                              +{selectedCandidate.cvData.skills.length - 12} more
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedCandidate.cvData.professionalExperiences && selectedCandidate.cvData.professionalExperiences.length > 0 && (
-                      <div className="bg-white/70 rounded-lg p-4">
-                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <span>🏢</span>
-                          Experience
-                          <span className="text-xs text-gray-500">({selectedCandidate.cvData.professionalExperiences.length} roles)</span>
-                        </h4>
-                        <div className="space-y-3">
-                          {selectedCandidate.cvData.professionalExperiences.slice(0, 3).map((exp, i) => (
-                            <div key={i} className="text-sm border-l-2 border-blue-300 pl-3">
-                              <div className="font-semibold text-gray-900">{exp.title}</div>
-                              <div className="text-blue-700 font-medium">{exp.companyName}</div>
-                              <div className="text-gray-600 text-xs">
-                                {exp.startMonth ? `${exp.startMonth}/` : ''}{exp.startYear} - {
-                                  exp.ongoing ? 'Present' :
-                                  (exp.endMonth ? `${exp.endMonth}/` : '') + (exp.endYear || '')
-                                }
-                              </div>
-                            </div>
-                          ))}
-                          {selectedCandidate.cvData.professionalExperiences.length > 3 && (
-                            <div className="text-xs text-gray-500 italic">
-                              +{selectedCandidate.cvData.professionalExperiences.length - 3} more positions...
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedCandidate.cvData.educations && selectedCandidate.cvData.educations.length > 0 && (
-                      <div className="col-span-2 bg-white/70 rounded-lg p-4">
-                        <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <span>🎓</span>
-                          Education
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {selectedCandidate.cvData.educations.slice(0, 2).map((edu, i) => (
-                            <div key={i} className="text-sm">
-                              <div className="font-semibold text-gray-900">{edu.degree}</div>
-                              <div className="text-blue-700">{edu.institution}</div>
-                              <div className="text-gray-600 text-xs">
-                                {edu.startYear} - {edu.ongoing ? 'Present' : (edu.endYear || '')}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              {/* Credibility Analysis - move to top and update background */}
+              {selectedCandidate.analysisResult && (
+                <div className="bg-blue-50 rounded-xl p-6 mb-2">
+                  <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
                 </div>
               )}
 
-              {/* Credibility Analysis */}
-              {selectedCandidate.analysisResult && (
-                <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
+              {/* Core Profile from CV - Collapsible, collapsed by default, light grey bg */}
+              {selectedCandidate.cvData && (
+                <CollapsibleCVSection cvData={selectedCandidate.cvData} />
               )}
 
               {/* LinkedIn Data - Expandable Section */}
