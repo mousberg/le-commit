@@ -12,7 +12,7 @@ export default function Home() {
         <div className="mb-16">
           <h1 className="text-5xl md:text-6xl font-bold mb-10 text-gray-900 leading-tight">Trust your hiring process again.</h1>
           <p className="text-xl md:text-2xl text-gray-600 mb-16 max-w-4xl mx-auto leading-relaxed">
-            Unmask helps you verify candidate skills with real-world validation, so you can hire with confidence and speed.
+          Instant checks across CVs, LinkedIn, GitHub, and calls to expose red flags and protect your hiring pipeline.
           </p>
         </div>
         {/* Only one CTA here now */}
