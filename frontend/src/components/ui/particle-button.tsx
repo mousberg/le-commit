@@ -2,13 +2,11 @@
 
 import * as React from "react"
 import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import type { ButtonProps } from "@/components/ui/button";
 import { MousePointerClick } from "lucide-react";
 
-interface ParticleButtonProps extends ButtonProps {
+interface ParticleButtonProps extends React.ComponentProps<"button"> {
     onSuccess?: () => void;
     successDuration?: number;
 }
@@ -16,7 +14,7 @@ interface ParticleButtonProps extends ButtonProps {
 function SuccessParticles({
     buttonRef,
 }: {
-    buttonRef: React.RefObject<HTMLButtonElement>;
+    buttonRef: React.RefObject<HTMLButtonElement | null>;
 }) {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -64,10 +62,19 @@ function ParticleButton({
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        // Call the original onClick handler if provided
+        if (onClick) {
+            onClick(e);
+        }
+        
         setShowParticles(true);
 
         setTimeout(() => {
             setShowParticles(false);
+            // Call onSuccess callback after the animation
+            if (onSuccess) {
+                onSuccess();
+            }
         }, successDuration);
     };
 

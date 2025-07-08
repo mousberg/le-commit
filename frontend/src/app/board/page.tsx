@@ -624,7 +624,6 @@ function BoardPageContent() {
             // Show processing loader for uploading/processing/analyzing states
             selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' ? (
               <ProcessingLoader
-                applicantName={selectedCandidate.name}
                 status={selectedCandidate.status}
                 fileName={selectedCandidate.originalFileName}
                 applicant={selectedCandidate}

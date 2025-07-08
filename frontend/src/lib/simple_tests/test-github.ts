@@ -1,4 +1,4 @@
-import { processGitHubAccount, saveGitHubDataToJson, extractUsernameFromUrl } from '../github'
+import { processGitHubAccount } from '../github'
 
 /**
  * Example usage of GitHub processing functions (Frontend compatible)
@@ -15,9 +15,6 @@ async function exampleUsage() {
     for (const githubUrl of githubAccounts) {
       console.log(`\n=== Processing GitHub Account: ${githubUrl} ===`)
       
-      // Extract username for output file naming
-      const username = extractUsernameFromUrl(githubUrl)
-      
       try {
         // Process the GitHub account with enhanced features
         console.log('Starting GitHub account processing...')
@@ -30,8 +27,7 @@ async function exampleUsage() {
         })
 
         // Convert the extracted data to JSON (frontend compatible)
-        const outputPath = `github_${username}_data.json`
-        const jsonData = saveGitHubDataToJson(githubData, outputPath)
+        const jsonData = JSON.stringify(githubData, null, 2)
 
         // Display summary
         console.log('\n=== GitHub Account Summary ===')
@@ -196,9 +192,7 @@ async function processSingleAccount(githubUrl: string) {
       includeActivity: true
     })
     
-    const username = extractUsernameFromUrl(githubUrl)
-    const outputPath = `github_${username}_detailed.json`
-    const jsonData = saveGitHubDataToJson(githubData, outputPath)
+    const jsonData = JSON.stringify(githubData, null, 2)
     
     console.log(`Detailed GitHub data ready (${jsonData.length} characters)`)
     return { githubData, jsonData }
@@ -245,8 +239,7 @@ async function compareGitHubAccounts(githubUrls: string[]) {
     })
     
     // Convert comparison data to JSON
-    const comparisonPath = 'github_comparison.json'
-    const jsonData = saveGitHubDataToJson(accountData[0], comparisonPath)
+    const jsonData = JSON.stringify(accountData, null, 2)
     console.log(`\nComparison data ready (${jsonData.length} characters)`)
     
     return { accountData, jsonData }
