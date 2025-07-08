@@ -403,49 +403,19 @@ export async function extractDataFromImage(
     const base64Image = encodeImageToBase64(imagePath)
     const schema = getCvDataSchema()
 
-    const systemPrompt = documentType === 'cv'
-      ? `You are a CV/Resume parser. Extract information from the CV image and return it as valid JSON.
-
-CRITICAL: Your response must be valid JSON that can be parsed. Focus on this above all else.
+    const systemPrompt = `
+    You are a CV/Resume parser. Extract information from the CV image and return it as valid JSON.
 
 Guidelines:
 - Extract years as integers (e.g., 2023), months as integers 1-12
 - For ongoing positions: set "ongoing": true
-- If you cannot find a value, use empty string, empty array, or omit the field
 - Do not include any text outside the JSON object
-- Do not use line breaks or extra formatting inside string values
-- Ensure all quotes and brackets are properly closed
+- Ensure all quotes and brackets are properly closed`
 
-Return only the JSON object, nothing else.`
-      : `You are a LinkedIn profile parser. Extract information from the LinkedIn profile image and return it as valid JSON.
-
-CRITICAL: Your response must be valid JSON that can be parsed. Focus on this above all else.
-
-Guidelines:
-- This is a LinkedIn profile, so adapt field meanings (e.g., headline goes in professionalSummary)
-- Extract years as integers, months as integers 1-12
-- For current positions: set "ongoing": true
-- Map LinkedIn experience to professionalExperiences format
-- If you cannot find a value, use empty string, empty array, or omit the field
-- Do not include any text outside the JSON object
-- Ensure all quotes and brackets are properly closed
-
-Return only the JSON object, nothing else.`
-
-    const userPrompt = documentType === 'cv'
-      ? `Extract CV information from this image and return as JSON. Here's the expected structure:
-
-${JSON.stringify(schema, null, 2)}
-
-Focus on extracting what you can see clearly. If information is missing or unclear, use empty values rather than guessing.`
-      : `Extract LinkedIn profile information from this image and return as JSON using this structure:
-
-${JSON.stringify(schema, null, 2)}
-
-Focus on what you can clearly see. Map LinkedIn sections to CV format as best as possible.`
+    const userPrompt = `Extract CV information from this image and return as JSON with this schema: ${JSON.stringify(schema, null, 2)}`
 
     const completion = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
       messages: [
         {
           role: "system",
@@ -468,11 +438,10 @@ Focus on what you can clearly see. Map LinkedIn sections to CV format as best as
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.0,
+      temperature: 0.2,
     })
 
     const responseText = completion.choices[0]?.message?.content || '{}'
-    console.log(`Raw ${documentType.toUpperCase()} LLM response:`, responseText.substring(0, 500) + '...')
 
     // Try to parse JSON with fallback handling
     let rawData;
