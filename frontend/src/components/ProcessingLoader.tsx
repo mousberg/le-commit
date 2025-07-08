@@ -1,13 +1,12 @@
 import { Applicant } from '@/lib/interfaces/applicant';
 
 interface ProcessingLoaderProps {
-  applicantName: string;
   status: 'uploading' | 'processing' | 'analyzing';
   fileName?: string;
   applicant?: Applicant;
 }
 
-export default function ProcessingLoader({ applicantName, status, fileName, applicant }: ProcessingLoaderProps) {
+export default function ProcessingLoader({ status, fileName, applicant }: ProcessingLoaderProps) {
   const getStatusText = () => {
     switch (status) {
       case 'uploading':
