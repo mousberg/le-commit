@@ -21,6 +21,7 @@ interface Reference {
   dateAdded: string;
   callStatus?: 'idle' | 'calling' | 'completed' | 'failed';
   conversationId?: string;
+  summary?: string; // AI-generated summary from transcript analysis
 }
 
 interface ReferenceFormData {
@@ -222,6 +223,45 @@ function BoardPageContent() {
       setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
     }
   };
+
+  const generateSummaryForReference = async (referenceId: string, conversationId: string) => {
+    if (!selectedCandidateId) return;
+    
+    try {
+      // Fetch the transcript
+      const transcriptResponse = await fetch(`/api/get-transcript?conversationId=${conversationId}`);
+      const transcriptData = await transcriptResponse.json();
+      
+      if (transcriptData.success && transcriptData.hasTranscript && transcriptData.transcript) {
+        // Generate summary using the transcript
+        const summaryResponse = await fetch('/api/summarize-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: transcriptData.transcript })
+        });
+        
+        const summaryData = await summaryResponse.json();
+        
+        if (summaryData.success && summaryData.summary) {
+          // Update the reference with the generated summary
+          setReferencesByCandidate(prev => ({
+            ...prev,
+            [selectedCandidateId]: prev[selectedCandidateId].map(ref =>
+              ref.id === referenceId ? { ...ref, summary: summaryData.summary } : ref
+            )
+          }));
+          console.log('Summary generated for reference:', referenceId, summaryData.summary);
+        }
+      } else {
+        // If transcript is not ready yet, try again in 15 seconds
+        setTimeout(() => generateSummaryForReference(referenceId, conversationId), 15000);
+      }
+    } catch (error) {
+      console.error('Failed to generate summary for reference:', referenceId, error);
+      // Retry once after 30 seconds on error
+      setTimeout(() => generateSummaryForReference(referenceId, conversationId), 30000);
+    }
+  };
   const handleCallReference = async (reference: Reference) => {
     if (callInProgress || !selectedCandidateId || !selectedCandidate) return;
     setCallInProgress(true);
@@ -253,6 +293,11 @@ function BoardPageContent() {
           )
         }));
         alert(`Call initiated successfully! Conversation ID: ${data.conversationId}`);
+        
+        // Schedule automatic summary generation after a delay to allow transcript processing
+        setTimeout(async () => {
+          await generateSummaryForReference(reference.id, data.conversationId);
+        }, 10000); // Wait 10 seconds for transcript to be available
       } else {
         throw new Error(data.error || 'Failed to initiate call');
       }
@@ -268,13 +313,45 @@ function BoardPageContent() {
       setCallInProgress(false);
     }
   };
-  const handleViewTranscript = (reference: Reference) => {
+  const handleViewTranscript = async (reference: Reference) => {
     if (reference.conversationId) {
       setTranscriptModal({
         isOpen: true,
         conversationId: reference.conversationId,
         referenceName: reference.name
       });
+
+      // Auto-generate summary if it doesn't exist
+      if (!reference.summary && selectedCandidateId) {
+        try {
+          // First fetch the transcript
+          const transcriptResponse = await fetch(`/api/get-transcript?conversationId=${reference.conversationId}`);
+          const transcriptData = await transcriptResponse.json();
+          
+          if (transcriptData.success && transcriptData.hasTranscript && transcriptData.transcript) {
+            // Generate summary using the transcript
+            const summaryResponse = await fetch('/api/summarize-transcript', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ transcript: transcriptData.transcript })
+            });
+            
+            const summaryData = await summaryResponse.json();
+            
+            if (summaryData.success && summaryData.summary) {
+              // Update the reference with the generated summary
+              setReferencesByCandidate(prev => ({
+                ...prev,
+                [selectedCandidateId]: prev[selectedCandidateId].map(ref =>
+                  ref.id === reference.id ? { ...ref, summary: summaryData.summary } : ref
+                )
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Failed to generate summary:', error);
+        }
+      }
     }
   };
   const closeTranscriptModal = () => {
@@ -788,10 +865,17 @@ function BoardPageContent() {
                               </Button>
                             )}
                           </div>
-                          {/* Automated notes summary */}
-                          <div className="bg-white border border-dashed border-emerald-200 rounded-md px-3 py-2 text-gray-700 text-sm mt-2">
-                            <span className="font-semibold text-emerald-600">Summary:</span> Positive feedback, recommended for rehire.
-                          </div>
+                          {/* AI-generated summary - only show after call completion */}
+                          {reference.callStatus === 'completed' && reference.summary && (
+                            <div className="bg-white border border-dashed border-emerald-200 rounded-md px-3 py-2 text-gray-700 text-sm mt-2">
+                              <span className="font-semibold text-emerald-600">Summary:</span> {reference.summary}
+                            </div>
+                          )}
+                          {reference.callStatus === 'completed' && !reference.summary && (
+                            <div className="bg-gray-50 border border-dashed border-gray-200 rounded-md px-3 py-2 text-gray-500 text-sm mt-2">
+                              <span className="font-medium">Summary:</span> Processing transcript for analysis...
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
