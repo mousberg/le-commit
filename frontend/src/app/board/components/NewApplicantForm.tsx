@@ -173,15 +173,15 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
 
   return (
     <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
-      <h2 className="text-2xl font-bold text-center mb-2 text-gray-900">Add New Applicant</h2>
+      <h2 className="text-2xl font-bold text-center mb-2 text-gray-900">New Applicant</h2>
 
       <div className="flex flex-col gap-6">
         {/* CV Upload */}
         <DropZone
           onDrop={setCvFile}
           accept=".pdf,.doc,.docx"
-          label="Upload CV"
-          description="Supports PDF, DOC, DOCX files"
+          label="CV"
+          description="PDF"
           file={cvFile}
           disabled={isCreating}
           required={true}
@@ -191,15 +191,15 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
         <DropZone
           onDrop={setLinkedinFile}
           accept=".pdf,.html,.txt"
-          label="Upload LinkedIn Profile (Optional)"
-          description="Supports PDF, HTML, TXT files"
+          label="LinkedIn"
+          description="Profile PDF Download"
           file={linkedinFile}
           disabled={isCreating}
         />
 
         {/* GitHub Profile URL */}
         <div className="flex flex-col gap-2">
-          <label className="text-lg font-medium text-gray-800 mb-1">GitHub Profile (Optional)</label>
+          <label className="text-lg font-medium text-gray-800 mb-1">GitHub</label>
           <div className="relative">
             <input
               type="text"
