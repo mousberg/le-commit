@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ParticleButton } from "./ui/particle-button";
+import { Button } from "./ui/button";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -42,13 +42,10 @@ export default function Navbar() {
           <Link href="#testimonials" className="hover:text-gray-900 transition-colors">Testimonials</Link>
         </div>
         <div className="ml-4">
-          <Link href="/board">
-            <ParticleButton 
-              size="lg"
-              className="bg-black hover:bg-gray-800 text-white rounded-xl px-6"
-            >
+          <Link href="/board" target="_blank" rel="noopener noreferrer">
+            <Button size="sm" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-6 py-2.5 text-base font-semibold transition-all hover:shadow-lg hover:scale-105">
               Try Unmask
-            </ParticleButton>
+            </Button>
           </Link>
         </div>
       </nav>
