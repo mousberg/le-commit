@@ -884,6 +884,9 @@ function BoardPageContent() {
                               disabled={reference.callStatus === 'calling' || callInProgress}
                               variant={getCallButtonVariant(reference.callStatus)}
                               size="sm"
+                              className={reference.callStatus === 'idle' || !reference.callStatus ?
+                                'bg-emerald-500 hover:bg-emerald-600 text-white font-semibold' :
+                                ''}
                             >
                               {getCallButtonText(reference.callStatus)}
                             </Button>
