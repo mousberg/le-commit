@@ -25,7 +25,7 @@ function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">💼</span>
-          <h3 className="text-lg font-bold text-gray-900">LinkedIn Profile</h3>
+          <h3 className="text-lg font-bold text-gray-900">LinkedIn</h3>
         </div>
         <span className="ml-2 text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
       </button>
@@ -137,7 +137,7 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">🐙</span>
-          <h3 className="text-lg font-bold text-gray-900">GitHub Profile</h3>
+          <h3 className="text-lg font-bold text-gray-900">GitHub</h3>
           <a
             href={githubData.profileUrl}
             target="_blank"
@@ -308,7 +308,7 @@ function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">📄</span>
-          <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
+          <h3 className="text-xl font-bold text-gray-900">CV</h3>
         </div>
         <span className="ml-2 text-xs text-gray-400">{isOpen ? '▲' : '▼'}</span>
       </button>
@@ -770,7 +770,7 @@ function BoardPageContent() {
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-2xl opacity-50">💼</span>
-                    <h3 className="text-lg font-semibold text-gray-500">LinkedIn Profile</h3>
+                    <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
                     <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
                   </div>
                   <p className="text-gray-500 text-sm">LinkedIn data not provided for this candidate.</p>
