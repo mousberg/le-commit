@@ -772,11 +772,9 @@ function BoardPageContent() {
                 </div>
               </div>
 
-              {/* Credibility Analysis - move to top and update background */}
+              {/* Credibility Analysis */}
               {selectedCandidate.analysisResult && (
-                <div className="bg-blue-50 rounded-xl p-6 mb-2">
-                  <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
-                </div>
+                <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
               )}
 
               {/* Core Profile from CV - Collapsible, collapsed by default, light grey bg */}
