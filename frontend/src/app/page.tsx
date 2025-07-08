@@ -34,7 +34,7 @@ export default function Home() {
             <Shield className="w-10 h-10 text-emerald-500 mb-4" />
             <h3 className="text-xl font-semibold mb-2">User Info Check</h3>
             <p className="text-gray-600">
-              Upload a CV, LinkedIn, and GitHub. Unmask flags timeline gaps, fake profiles, and missing signals using Groq + LLaMA 3.
+              Upload a CV, LinkedIn, and GitHub. Unmask flags timeline gaps, fake profiles, and missing signals.
             </p>
           </div>
           {/* Step 2 */}
