@@ -121,14 +121,14 @@ export function CredibilityScore({ analysisResult }: CredibilityScoreProps) {
           ))}
 
           {yellowFlags.map((flag, i) => (
-            <div key={`yellow-${i}`} className="flex items-start gap-3 text-sm bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg">
+            <div key={`yellow-${i}`} className="flex items-start gap-3 text-sm border border-yellow-100 px-4 py-3 rounded-lg bg-white/60">
               <span className="text-lg flex-shrink-0">{getCategoryEmoji(flag.category)}</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
                   <span className="font-semibold text-yellow-800 capitalize">{flag.category}</span>
                   {flag.severity && (
-                    <span className="text-xs bg-yellow-200 text-yellow-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full">
                       Severity: {flag.severity}/10
                     </span>
                   )}
