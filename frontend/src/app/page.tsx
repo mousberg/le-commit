@@ -26,7 +26,7 @@ export default function Home() {
       </section>
 
       {/* How Unmask Works Section */}
-      <section className="w-full max-w-5xl mb-24">
+      <section className="w-full max-w-5xl mb-5">
         <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">How Unmask Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* Step 1 */}
@@ -63,7 +63,7 @@ export default function Home() {
           </div>
         </div>
         {/* CTA after flow */}
-        <div className="flex justify-center mt-12">
+        <div className="flex justify-center my-16">
           <Link href="/board">
             <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
               Start Unmask
@@ -74,8 +74,8 @@ export default function Home() {
 
       {/* Value Proposition Section */}
       <section className="w-full max-w-4xl mb-24 mx-auto px-4">
-        <div className="flex flex-col items-center w-full bg-white/0 rounded-3xl p-0">
-          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 text-center">Trust who you hire, without wasting time.</h2>
+        <div className="flex flex-col items-center w-full bg-white/0 rounded-3xl p-0 mt-0">
+          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 mt-0 text-center">Trust who you hire, without wasting time.</h2>
           <p className="text-lg text-gray-700 text-center max-w-2xl">
             Unmask delivers fast, automated screening across CVs, LinkedIn, GitHub, and references—surfacing inconsistencies in minutes, not days. It guides hiring managers with targeted questions, scores, and context, all in a plug-and-play experience that skips the HR vendor complexity.
           </p>
