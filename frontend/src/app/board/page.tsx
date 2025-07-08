@@ -410,8 +410,6 @@ function BoardPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [showNotes, setShowNotes] = useState(false);
-
   // NEW URL LOGIC: /board = new form, /board?id=<id> = view applicant
   const urlId = searchParams.get('id');
   const isNewForm = !urlId; // If no id parameter, show new form
@@ -904,20 +902,6 @@ function BoardPageContent() {
                     <div className="text-gray-400 text-center py-6">No references added yet.</div>
                   )}
                 </div>
-              </div>
-              {/* Notes Toggle */}
-              <div>
-                <button
-                  className="text-emerald-600 font-semibold underline mb-2"
-                  onClick={() => setShowNotes((v) => !v)}
-                >
-                  {showNotes ? 'Hide Main Notes' : 'Show Main Notes'}
-                </button>
-                {showNotes && (
-                  <div className="bg-slate-50 rounded-xl p-4 text-gray-800 shadow-inner">
-                    <p className="text-gray-500 italic">No notes available for this applicant yet.</p>
-                  </div>
-                )}
               </div>
               {/* Start Call Button */}
               <Button
