@@ -17,6 +17,8 @@ import {
   GitHubCollaborationSignals
 } from './interfaces/github'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * GitHub API configuration
  */
@@ -40,167 +42,7 @@ function getGitHubHeaders(): Record<string, string> {
   return headers
 }
 
-/**
- * Generate JSON schema for GitHubData interface
- */
-function getGitHubDataSchema() {
-  return {
-    type: "object",
-    description: "GitHub account data structure",
-    properties: {
-      username: {
-        type: "string",
-        description: "GitHub username/login"
-      },
-      name: {
-        type: "string",
-        description: "Display name"
-      },
-      bio: {
-        type: "string",
-        description: "User biography/description"
-      },
-      location: {
-        type: "string",
-        description: "User location"
-      },
-      email: {
-        type: "string",
-        description: "Public email address"
-      },
-      blog: {
-        type: "string",
-        description: "Website/blog URL"
-      },
-      company: {
-        type: "string",
-        description: "Company/organization"
-      },
-      profileUrl: {
-        type: "string",
-        description: "GitHub profile URL"
-      },
-      avatarUrl: {
-        type: "string",
-        description: "Profile avatar image URL"
-      },
-      followers: {
-        type: "number",
-        description: "Number of followers"
-      },
-      following: {
-        type: "number",
-        description: "Number of users following"
-      },
-      publicRepos: {
-        type: "number",
-        description: "Number of public repositories"
-      },
-      publicGists: {
-        type: "number",
-        description: "Number of public gists"
-      },
-      accountCreationDate: {
-        type: "string",
-        description: "Account creation date (ISO 8601)"
-      },
-      lastActivityDate: {
-        type: "string",
-        description: "Last activity date (ISO 8601)"
-      },
-      repositories: {
-        type: "array",
-        description: "User's repositories",
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string", description: "Repository name" },
-            fullName: { type: "string", description: "Full repository name (owner/repo)" },
-            description: { type: "string", description: "Repository description" },
-            language: { type: "string", description: "Primary programming language" },
-            stars: { type: "number", description: "Number of stars" },
-            forks: { type: "number", description: "Number of forks" },
-            watchers: { type: "number", description: "Number of watchers" },
-            size: { type: "number", description: "Repository size in KB" },
-            isPrivate: { type: "boolean", description: "Whether repository is private" },
-            isFork: { type: "boolean", description: "Whether repository is a fork" },
-            createdAt: { type: "string", description: "Creation date (ISO 8601)" },
-            updatedAt: { type: "string", description: "Last update date (ISO 8601)" },
-            topics: { type: "array", items: { type: "string" }, description: "Repository topics/tags" },
-            url: { type: "string", description: "Repository URL" },
-            cloneUrl: { type: "string", description: "Git clone URL" },
-            license: { type: "string", description: "License name" },
-            hasIssues: { type: "boolean", description: "Whether issues are enabled" },
-            hasProjects: { type: "boolean", description: "Whether projects are enabled" },
-            hasWiki: { type: "boolean", description: "Whether wiki is enabled" },
-            hasPages: { type: "boolean", description: "Whether GitHub Pages is enabled" },
-            openIssues: { type: "number", description: "Number of open issues" },
-            defaultBranch: { type: "string", description: "Default branch name" }
-          }
-        }
-      },
-      languages: {
-        type: "array",
-        description: "Programming language statistics",
-        items: {
-          type: "object",
-          properties: {
-            language: { type: "string", description: "Language name" },
-            percentage: { type: "number", description: "Percentage of total code" },
-            bytes: { type: "number", description: "Number of bytes" }
-          }
-        }
-      },
-      contributions: {
-        type: "object",
-        description: "Contribution statistics",
-        properties: {
-          totalCommits: { type: "number", description: "Total commits across all repos" },
-          totalPullRequests: { type: "number", description: "Total pull requests" },
-          totalIssues: { type: "number", description: "Total issues opened" },
-          totalRepositories: { type: "number", description: "Total repositories" },
-          streakDays: { type: "number", description: "Current contribution streak" },
-          contributionsLastYear: { type: "number", description: "Contributions in the last year" },
-          mostActiveDay: { type: "string", description: "Most active day of the week" },
-          mostUsedLanguage: { type: "string", description: "Most frequently used language" }
-        }
-      },
-      starredRepos: {
-        type: "number",
-        description: "Number of starred repositories"
-      },
-      forkedRepos: {
-        type: "number",
-        description: "Number of forked repositories"
-      },
-      organizations: {
-        type: "array",
-        description: "Organizations the user belongs to",
-        items: {
-          type: "object",
-          properties: {
-            login: { type: "string", description: "Organization login/username" },
-            name: { type: "string", description: "Organization display name" },
-            description: { type: "string", description: "Organization description" },
-            url: { type: "string", description: "Organization URL" },
-            avatarUrl: { type: "string", description: "Organization avatar URL" },
-            publicRepos: { type: "number", description: "Number of public repositories" },
-            location: { type: "string", description: "Organization location" },
-            blog: { type: "string", description: "Organization website" },
-            email: { type: "string", description: "Organization email" },
-            createdAt: { type: "string", description: "Organization creation date" }
-          }
-        }
-      },
-      other: {
-        type: "object",
-        description: "Any additional information not covered by other fields",
-        additionalProperties: true
-      }
-    },
-    required: ["username", "name", "profileUrl", "followers", "following", "publicRepos", "accountCreationDate", "repositories", "languages", "contributions", "organizations", "other"]
-  }
-}
+
 
 /**
  * Extract username from GitHub URL
@@ -440,7 +282,7 @@ export async function getGitHubUserOrganizations(username: string): Promise<GitH
           email: detailedOrg.email || '',
           createdAt: detailedOrg.created_at,
         })
-      } catch (orgError) {
+      } catch {
         // If we can't get detailed info, use basic info
         organizations.push({
           login: org.login,
@@ -720,7 +562,7 @@ async function analyzeCollaborationSignals(
   events: any[]
 ): Promise<GitHubCollaborationSignals> {
   try {
-    let uniqueContributors = new Set<string>()
+    const uniqueContributors = new Set<string>()
     let outsideContributions = 0
     let hasCodeOfConduct = false
     let hasContributingGuide = false
@@ -821,7 +663,7 @@ async function analyzeCollaborationSignals(
  * @param repoStructure - Repository file structure
  * @returns Enhanced package analysis with framework detection
  */
-function enhancedPackageAnalysis(packageJson: any, repoStructure?: any): GitHubPackageAnalysis {
+function enhancedPackageAnalysis(packageJson: any): GitHubPackageAnalysis {
   if (!packageJson) {
     return {
       exists: false,
@@ -876,7 +718,6 @@ function enhancedPackageAnalysis(packageJson: any, repoStructure?: any): GitHubP
   const hasTesting = testingTools.some(tool => allDeps[tool]) ||
                      Object.keys(scripts).some(script => script.includes('test'))
   
-  const hasBuildTool = buildTools.some(tool => allDeps[tool])
   const hasTypeScript = !!allDeps['typescript'] || !!allDeps['@types/node']
   
   return {
@@ -942,7 +783,6 @@ export function calculateContributionStats(
       
       // Calculate current streak
       let currentStreak = 0
-      const today = new Date().toDateString()
       
       for (let i = 0; i < contributionDates.length; i++) {
         const date = new Date(contributionDates[i])
@@ -1138,64 +978,7 @@ function analyzeReadmeContent(readmeContent: string | null): GitHubReadmeAnalysi
 /**
  * Analyze package.json content
  * @param packageContent - package.json content
- * @returns Package analysis
- */
-function analyzePackageJson(packageContent: string | null): GitHubPackageAnalysis | undefined {
-  if (!packageContent) {
-    return undefined
-  }
 
-  try {
-    const pkg = JSON.parse(packageContent)
-    
-    const scripts = pkg.scripts || {}
-    const dependencies = pkg.dependencies || {}
-    const devDependencies = pkg.devDependencies || {}
-    
-    const hasLinting = Object.keys({...dependencies, ...devDependencies}).some(dep => 
-      /eslint|tslint|prettier|stylelint|jshint/.test(dep)
-    ) || Object.keys(scripts).some(script => /lint|format/.test(script))
-    
-    const hasTesting = Object.keys({...dependencies, ...devDependencies}).some(dep => 
-      /jest|mocha|chai|jasmine|karma|ava|tape|cypress|playwright/.test(dep)
-    ) || Object.keys(scripts).some(script => /test|spec/.test(script))
-    
-    const hasTypeScript = Object.keys({...dependencies, ...devDependencies}).some(dep => 
-      /typescript|@types\//.test(dep)
-    )
-    
-    const hasDocumentation = Object.keys(scripts).some(script => 
-      /docs|documentation|typedoc|jsdoc/.test(script)
-    )
-    
-    return {
-      exists: true,
-      hasScripts: Object.keys(scripts).length > 0,
-      scriptCount: Object.keys(scripts).length,
-      dependencyCount: Object.keys(dependencies).length,
-      devDependencyCount: Object.keys(devDependencies).length,
-      hasLinting,
-      hasTesting,
-      hasTypeScript,
-      hasDocumentation,
-      hasValidLicense: !!pkg.license,
-    }
-  } catch (error) {
-    console.warn('Failed to parse package.json:', error)
-    return {
-      exists: true,
-      hasScripts: false,
-      scriptCount: 0,
-      dependencyCount: 0,
-      devDependencyCount: 0,
-      hasLinting: false,
-      hasTesting: false,
-      hasTypeScript: false,
-      hasDocumentation: false,
-      hasValidLicense: false,
-    }
-  }
-}
 
 /**
  * Analyze GitHub workflow files
@@ -1241,7 +1024,6 @@ async function analyzeGitHubWorkflows(
  * @returns Workflow analysis
  */
 function analyzeWorkflowContent(fileName: string, content: string): GitHubWorkflowAnalysis {
-  const lines = content.split('\n')
   const lowerContent = content.toLowerCase()
   
   // Extract workflow name
