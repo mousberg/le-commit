@@ -25,15 +25,9 @@ function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">💼</span>
-          <h3 className="text-lg font-bold text-gray-900">LinkedIn Profile</h3>
-          <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Available</span>
+          <h3 className="text-lg font-bold text-gray-900">LinkedIn</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Click to {isExpanded ? 'collapse' : 'expand'}</span>
-          <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            ⬇️
-          </span>
-        </div>
+        <span className="ml-2 text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
       </button>
 
       {isExpanded && (
@@ -143,8 +137,7 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">🐙</span>
-          <h3 className="text-lg font-bold text-gray-900">GitHub Profile</h3>
-          <span className="text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Available</span>
+          <h3 className="text-lg font-bold text-gray-900">GitHub</h3>
           <a
             href={githubData.profileUrl}
             target="_blank"
@@ -155,12 +148,7 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
             @{githubData.username} ↗
           </a>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Click to {isExpanded ? 'collapse' : 'expand'}</span>
-          <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            ⬇️
-          </span>
-        </div>
+        <span className="ml-2 text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
       </button>
 
       {isExpanded && (
@@ -320,13 +308,9 @@ function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">📄</span>
-          <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
-          <span className="text-sm bg-gray-200 text-gray-700 px-2 py-1 rounded-full">From CV</span>
+          <h3 className="text-xl font-bold text-gray-900">CV</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Click to {isOpen ? 'collapse' : 'expand'}</span>
-          <span className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}>⬇️</span>
-        </div>
+        <span className="ml-2 text-xs text-gray-400">{isOpen ? '▲' : '▼'}</span>
       </button>
       {isOpen && (
         <div className="px-6 pb-6 border-t border-gray-200">
@@ -425,8 +409,6 @@ function BoardPageContent() {
 
   const searchParams = useSearchParams();
   const router = useRouter();
-
-  const [showNotes, setShowNotes] = useState(false);
 
   // NEW URL LOGIC: /board = new form, /board?id=<id> = view applicant
   const urlId = searchParams.get('id');
@@ -558,6 +540,8 @@ function BoardPageContent() {
       }));
       setAddingReference(false);
       setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
+      // Automatically open the newly created reference card
+      setOpenReferenceId(reference.id);
     }
   };
 
@@ -758,16 +742,11 @@ function BoardPageContent() {
                       <span className="text-gray-400">GitHub</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {selectedCandidate.score && (
-                      <div className="text-2xl font-bold text-emerald-600">{selectedCandidate.score}%</div>
-                    )}
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {selectedCandidate.status}
-                    </div>
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                    selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {selectedCandidate.status}
                   </div>
                 </div>
               </div>
@@ -789,7 +768,7 @@ function BoardPageContent() {
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-2xl opacity-50">💼</span>
-                    <h3 className="text-lg font-semibold text-gray-500">LinkedIn Profile</h3>
+                    <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
                     <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
                   </div>
                   <p className="text-gray-500 text-sm">LinkedIn data not provided for this candidate.</p>
@@ -803,7 +782,7 @@ function BoardPageContent() {
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-2xl opacity-50">🐙</span>
-                    <h3 className="text-lg font-semibold text-gray-500">GitHub Profile</h3>
+                    <h3 className="text-lg font-semibold text-gray-500">GitHub</h3>
                     <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
                   </div>
                   <p className="text-gray-500 text-sm">GitHub data not provided for this candidate.</p>
@@ -888,6 +867,9 @@ function BoardPageContent() {
                               disabled={reference.callStatus === 'calling' || callInProgress}
                               variant={getCallButtonVariant(reference.callStatus)}
                               size="sm"
+                              className={reference.callStatus === 'idle' || !reference.callStatus ?
+                                'bg-emerald-500 hover:bg-emerald-600 text-white font-semibold' :
+                                ''}
                             >
                               {getCallButtonText(reference.callStatus)}
                             </Button>
@@ -920,20 +902,6 @@ function BoardPageContent() {
                     <div className="text-gray-400 text-center py-6">No references added yet.</div>
                   )}
                 </div>
-              </div>
-              {/* Notes Toggle */}
-              <div>
-                <button
-                  className="text-emerald-600 font-semibold underline mb-2"
-                  onClick={() => setShowNotes((v) => !v)}
-                >
-                  {showNotes ? 'Hide Main Notes' : 'Show Main Notes'}
-                </button>
-                {showNotes && (
-                  <div className="bg-slate-50 rounded-xl p-4 text-gray-800 shadow-inner">
-                    <p className="text-gray-500 italic">No notes available for this applicant yet.</p>
-                  </div>
-                )}
               </div>
               {/* Start Call Button */}
               <Button
