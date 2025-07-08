@@ -29,8 +29,8 @@ ENV NODE_ENV production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Install GraphicsMagick for PDF processing
-RUN apk add --no-cache graphicsmagick
+# Install GraphicsMagick and Ghostscript for PDF processing
+RUN apk add --no-cache graphicsmagick ghostscript
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -41,6 +41,10 @@ COPY --from=builder /app/public ./public
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
+
+# Create temp directory for CV processing and give nextjs user write permissions
+RUN mkdir -p /app/temp_images && chown nextjs:nodejs /app/temp_images
+RUN chmod 755 /app && chmod 755 /app/temp_images
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
