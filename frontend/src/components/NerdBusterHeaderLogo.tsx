@@ -28,10 +28,10 @@ export default function Navbar() {
       }`}>
         <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
           <Image 
-            src="/unmask.png" 
+            src="/unmask-logo-full.svg" 
             alt="Unmask" 
-            width={isScrolled ? 136 : 140} 
-            height={isScrolled ? 47 : 48} 
+            width={isScrolled ? 120 : 140} 
+            height={isScrolled ? 30 : 35} 
             className="transition-all duration-400 ease-out" 
             priority
           />

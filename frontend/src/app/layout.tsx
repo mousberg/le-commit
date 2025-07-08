@@ -29,7 +29,7 @@ export default function RootLayout({
         <ApplicantProvider>
           <Navbar />
           {/* Global header spacer for all pages */}
-          <div className="h-24 w-full"></div>
+          <div className="h-16 w-full"></div>
           {children}
         </ApplicantProvider>
       </body>
