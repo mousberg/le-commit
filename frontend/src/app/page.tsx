@@ -132,7 +132,7 @@ export default function Home() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-2 pb-2">
           <span>Built for <span className="font-medium text-gray-800">RAISE YOUR HACK 2025</span> • Vultr Track</span>
           <span>
-            <a href="https://github.com/le-commit" target="_blank" rel="noopener noreferrer" className="underline hover:text-emerald-500">GitHub</a>
+            <a href="https://github.com/mousberg/le-commit" target="_blank" rel="noopener noreferrer" className="underline hover:text-emerald-500">GitHub</a>
           </span>
         </div>
       </footer>
