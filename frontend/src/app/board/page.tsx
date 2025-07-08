@@ -321,7 +321,6 @@ function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
         <div className="flex items-center gap-3">
           <span className="text-2xl">📄</span>
           <h3 className="text-xl font-bold text-gray-900">Core Profile</h3>
-          <span className="text-sm bg-gray-200 text-gray-700 px-2 py-1 rounded-full">From CV</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">Click to {isOpen ? 'collapse' : 'expand'}</span>
@@ -558,6 +557,8 @@ function BoardPageContent() {
       }));
       setAddingReference(false);
       setNewReferenceForm({ name: '', phoneNumber: '', companyName: '', roleTitle: '', workDuration: '' });
+      // Automatically open the newly created reference card
+      setOpenReferenceId(reference.id);
     }
   };
 
@@ -758,16 +759,11 @@ function BoardPageContent() {
                       <span className="text-gray-400">GitHub</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {selectedCandidate.score && (
-                      <div className="text-2xl font-bold text-emerald-600">{selectedCandidate.score}%</div>
-                    )}
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {selectedCandidate.status}
-                    </div>
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                    selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {selectedCandidate.status}
                   </div>
                 </div>
               </div>
@@ -803,7 +799,7 @@ function BoardPageContent() {
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-2xl opacity-50">🐙</span>
-                    <h3 className="text-lg font-semibold text-gray-500">GitHub Profile</h3>
+                    <h3 className="text-lg font-semibold text-gray-500">GitHub</h3>
                     <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
                   </div>
                   <p className="text-gray-500 text-sm">GitHub data not provided for this candidate.</p>

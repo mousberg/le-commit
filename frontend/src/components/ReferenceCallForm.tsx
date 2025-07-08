@@ -9,9 +9,9 @@ interface ReferenceCallFormProps {
   onCallInitiated?: (callSid: string, agentId: string) => void;
 }
 
-export default function ReferenceCallForm({ 
-  candidateName = '', 
-  onCallInitiated 
+export default function ReferenceCallForm({
+  candidateName = '',
+  onCallInitiated
 }: ReferenceCallFormProps) {
   const [formData, setFormData] = useState({
     phoneNumber: '',
@@ -45,25 +45,25 @@ export default function ReferenceCallForm({
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
-        setResult({ 
-          success: true, 
+        setResult({
+          success: true,
           callSid: data.callSid,
           agentId: data.agentId,
-          message: data.message 
+          message: data.message
         });
         onCallInitiated?.(data.callSid, data.agentId);
       } else {
-        setResult({ 
-          success: false, 
-          error: data.error || 'Failed to initiate call' 
+        setResult({
+          success: false,
+          error: data.error || 'Failed to initiate call'
         });
       }
     } catch {
-      setResult({ 
-        success: false, 
-        error: 'Network error occurred' 
+      setResult({
+        success: false,
+        error: 'Network error occurred'
       });
     } finally {
       setIsLoading(false);
@@ -82,14 +82,14 @@ export default function ReferenceCallForm({
       <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
         AI Reference Calling
       </h2>
-      
+
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
         <p className="text-blue-800 text-sm">
           🤖 <strong>Natural AI Conversation</strong><br/>
           AI conducts a friendly, professional reference check with context about the candidate.
         </p>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -175,8 +175,8 @@ export default function ReferenceCallForm({
           <p className="text-xs text-gray-500 mt-1">Optional timeline information</p>
         </div>
 
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isLoading}
           className="w-full"
         >
@@ -224,4 +224,4 @@ export default function ReferenceCallForm({
       </div>
     </div>
   );
-} 
+}
