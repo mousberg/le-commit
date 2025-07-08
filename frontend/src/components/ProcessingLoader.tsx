@@ -1,6 +1,6 @@
 interface ProcessingLoaderProps {
   applicantName: string;
-  status: 'uploading' | 'processing';
+  status: 'uploading' | 'processing' | 'analyzing';
   fileName?: string;
 }
 
@@ -22,7 +22,9 @@ export default function ProcessingLoader({ applicantName, status, fileName }: Pr
       {/* Status Text */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {status === 'uploading' ? 'Uploading Files...' : 'Processing CV...'}
+          {status === 'uploading' ? 'Uploading Files...' :
+           status === 'processing' ? 'Processing CV...' :
+           'Analyzing Credibility...'}
         </h2>
         <p className="text-lg text-gray-600 mb-1">{applicantName}</p>
         {fileName && (
@@ -35,11 +37,15 @@ export default function ProcessingLoader({ applicantName, status, fileName }: Pr
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <div className={`w-3 h-3 rounded-full ${status === 'uploading' ? 'bg-emerald-600' : 'bg-emerald-400'} mr-2`}></div>
-            <span className="text-sm font-medium text-gray-700">Upload Files</span>
+            <span className="text-sm font-medium text-gray-700">Upload</span>
           </div>
           <div className="flex items-center">
             <div className={`w-3 h-3 rounded-full ${status === 'processing' ? 'bg-emerald-600' : status === 'uploading' ? 'bg-gray-300' : 'bg-emerald-400'} mr-2`}></div>
-            <span className="text-sm font-medium text-gray-700">Process CV</span>
+            <span className="text-sm font-medium text-gray-700">Process</span>
+          </div>
+          <div className="flex items-center">
+            <div className={`w-3 h-3 rounded-full ${status === 'analyzing' ? 'bg-emerald-600' : (status === 'uploading' || status === 'processing') ? 'bg-gray-300' : 'bg-emerald-400'} mr-2`}></div>
+            <span className="text-sm font-medium text-gray-700">Analyze</span>
           </div>
           <div className="flex items-center">
             <div className="w-3 h-3 rounded-full bg-gray-300 mr-2"></div>
@@ -52,7 +58,9 @@ export default function ProcessingLoader({ applicantName, status, fileName }: Pr
           <div
             className="bg-emerald-600 h-2 rounded-full transition-all duration-500 ease-out"
             style={{
-              width: status === 'uploading' ? '33%' : status === 'processing' ? '66%' : '100%'
+              width: status === 'uploading' ? '25%' :
+                     status === 'processing' ? '50%' :
+                     status === 'analyzing' ? '75%' : '100%'
             }}
           ></div>
         </div>
@@ -65,6 +73,9 @@ export default function ProcessingLoader({ applicantName, status, fileName }: Pr
         )}
         {status === 'processing' && (
           <p>Analyzing your CV and extracting key information. This may take 30-60 seconds...</p>
+        )}
+        {status === 'analyzing' && (
+          <p>Performing credibility analysis and cross-referencing data sources. Almost done...</p>
         )}
       </div>
 

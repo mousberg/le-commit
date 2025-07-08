@@ -4,6 +4,7 @@ import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
 import { processGitHubAccount } from '@/lib/github';
+import { analyzeApplicant } from '@/lib/analysis';
 import * as fs from 'fs';
 import {
   loadAllApplicants,
@@ -190,11 +191,44 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
     applicant.name = `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown';
     applicant.email = cvData.email || '';
     applicant.role = cvData.jobTitle || '';
-    applicant.status = 'completed';
+    applicant.status = 'analyzing';
 
+    // Save intermediate state before analysis
     saveApplicant(applicant);
 
-    console.log(`Successfully processed applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}${githubData ? ' (with GitHub data)' : ''}`);
+    console.log(`Data processing completed for applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}${githubData ? ' (with GitHub data)' : ''}, starting analysis...`);
+
+    // Perform comprehensive analysis
+    try {
+      const analyzedApplicant = await analyzeApplicant(applicant);
+
+      // Save final results with analysis
+      analyzedApplicant.status = 'completed';
+      saveApplicant(analyzedApplicant);
+
+      console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysisResult?.credibilityScore || 'N/A'}`);
+    } catch (analysisError) {
+      console.error(`Analysis failed for applicant ${applicantId}:`, analysisError);
+
+      // Even if analysis fails, we can still mark as completed with the data we have
+      applicant.status = 'completed';
+      applicant.analysisResult = {
+        credibilityScore: 50,
+        summary: 'Analysis could not be completed due to technical error.',
+        flags: [{
+          type: 'yellow',
+          category: 'verification',
+          message: 'Credibility analysis failed',
+          severity: 5
+        }],
+        suggestedQuestions: ['Could you provide additional information to verify your background?'],
+        analysisDate: new Date().toISOString(),
+        sources: []
+      };
+      saveApplicant(applicant);
+
+      console.log(`Applicant ${applicantId} marked as completed despite analysis failure`);
+    }
 
   } catch (error) {
     console.error(`Error processing applicant ${applicantId}:`, error);

@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import TranscriptModal from '../../components/TranscriptModal';
 import ProcessingLoader from '../../components/ProcessingLoader';
+import CredibilityScore from '../../components/credibility-score';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
+import NewApplicantForm from './components/NewApplicantForm';
+import ApplicantSidebar from './components/ApplicantSidebar';
 
 
 
@@ -35,10 +38,8 @@ function BoardPageContent() {
   const {
     applicants,
     fetchApplicants,
-    createApplicant,
     refreshApplicant,
-    deleteApplicant,
-    isLoading
+    deleteApplicant
   } = useApplicants();
 
   const searchParams = useSearchParams();
@@ -46,31 +47,18 @@ function BoardPageContent() {
 
   const [showNotes, setShowNotes] = useState(false);
 
-  // Get current selection from URL or determine default
+  // Get current selection from URL
   const urlId = searchParams.get('id');
-  const selectedId = urlId || (applicants.length > 0 ? applicants[0].id : 'new');
+  const selectedId = urlId || 'new'; // Default to 'new' if no ID in URL
 
-    // Navigation helpers
+  // Navigation helpers - use replace for cleaner history
   const navigateToApplicant = useCallback((id: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('id', id);
-    router.push(`/board?${params.toString()}`);
-  }, [searchParams, router]);
+    router.replace(`/board?id=${id}`);
+  }, [router]);
 
   const navigateToNew = useCallback(() => {
-    const params = new URLSearchParams(searchParams);
-    params.set('id', 'new');
-    router.push(`/board?${params.toString()}`);
-  }, [searchParams, router]);
-
-  // File upload state
-  const [cvFile, setCvFile] = useState<File | null>(null);
-  const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
-  const [githubUrl, setGithubUrl] = useState<string>('');
-
-  // File input refs
-  const cvInputRef = useRef<HTMLInputElement>(null);
-  const linkedinInputRef = useRef<HTMLInputElement>(null);
+    router.replace('/board?id=new');
+  }, [router]);
 
   // Load applicants on component mount
   useEffect(() => {
@@ -81,7 +69,7 @@ function BoardPageContent() {
   useEffect(() => {
     const interval = setInterval(() => {
       applicants.forEach(applicant => {
-        if (applicant.status === 'processing' || applicant.status === 'uploading') {
+        if (applicant.status === 'processing' || applicant.status === 'uploading' || applicant.status === 'analyzing') {
           refreshApplicant(applicant.id);
         }
       });
@@ -90,48 +78,16 @@ function BoardPageContent() {
     return () => clearInterval(interval);
   }, [applicants, refreshApplicant]);
 
-  // Auto-navigate to first applicant if no URL param and applicants exist
-  // If no applicants exist, default to 'new' form
-  useEffect(() => {
-    if (!urlId) {
-      if (applicants.length > 0) {
-        navigateToApplicant(applicants[0].id);
-      } else {
-        navigateToNew();
-      }
-    }
-  }, [urlId, applicants, navigateToApplicant, navigateToNew]);
-
-  const handleCreateCandidate = async () => {
-    if (!cvFile) {
-      alert('Please select a CV file');
-      return;
-    }
-
-    const applicantId = await createApplicant({
-      cvFile,
-      linkedinFile: linkedinFile || undefined,
-      githubUrl: githubUrl.trim() || undefined
-    });
-
-    if (applicantId) {
-      // Reset form
-      setCvFile(null);
-      setLinkedinFile(null);
-      setGithubUrl('');
-
-      // Reset file inputs
-      if (cvInputRef.current) cvInputRef.current.value = '';
-      if (linkedinInputRef.current) linkedinInputRef.current.value = '';
-
-      // Navigate to the new applicant
-      navigateToApplicant(applicantId);
-    }
-  };
+  // Handle successful applicant creation from NewApplicantForm
+  const handleApplicantCreated = useCallback((applicantId: string) => {
+    // The NewApplicantForm component handles navigation, but we can add
+    // additional logic here if needed (e.g., analytics, notifications)
+    console.log('Applicant created:', applicantId);
+  }, []);
 
   const handleDeleteApplicant = async (applicantId: string, applicantName: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent triggering the navigate click
-    
+
     setDeleteConfirmModal({
       isOpen: true,
       applicantId,
@@ -141,9 +97,9 @@ function BoardPageContent() {
 
   const confirmDeleteApplicant = async () => {
     const { applicantId } = deleteConfirmModal;
-    
+
     await deleteApplicant(applicantId);
-    
+
     // If we just deleted the currently selected applicant, navigate appropriately
     if (selectedId === applicantId) {
       if (applicants.length > 1) {
@@ -301,118 +257,19 @@ function BoardPageContent() {
     <>
       <div className="min-h-screen flex bg-gradient-to-b from-white via-slate-50 to-white">
         {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-gray-100 flex flex-col py-6 px-4 gap-4">
-          <div className="mb-4">
-            <div className="text-lg font-semibold mb-2">Applicants</div>
-            <ul className="space-y-1">
-              {applicants.map(applicant => (
-                <li key={applicant.id} className="group relative">
-                  <button
-                    className={`w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${selectedId === applicant.id ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-100 text-gray-800'}`}
-                    onClick={() => navigateToApplicant(applicant.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="flex-1">{applicant.name}</span>
-                      <div className="flex items-center gap-2 pr-8">
-                        {applicant.status === 'processing' && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-                            Processing...
-                          </span>
-                        )}
-                        {applicant.status === 'uploading' && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                            Uploading...
-                          </span>
-                        )}
-                        {applicant.status === 'failed' && (
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                            Failed
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteApplicant(applicant.id, applicant.name, e)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 z-10"
-                    title={`Delete ${applicant.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <Button
-            onClick={navigateToNew}
-            className="w-full rounded-lg bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold shadow-sm"
-          >
-            + Add New Applicant
-          </Button>
-      </aside>
+        <ApplicantSidebar
+          selectedId={selectedId}
+          onSelectApplicant={navigateToApplicant}
+          onSelectNew={navigateToNew}
+          onDeleteApplicant={handleDeleteApplicant}
+        />
       {/* Main Content */}
       <main className="flex-1 p-10">
         {selectedId === 'new' ? (
-            <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
-              <h2 className="text-2xl font-bold text-center mb-2 text-gray-900">Add New Applicant</h2>
-              <div className="flex flex-col gap-6">
-                {/* CV Upload */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">
-                    Upload CV <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    ref={cvInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={(e) => setCvFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                  />
-                  {cvFile && (
-                    <p className="text-sm text-green-600">✓ {cvFile.name}</p>
-                  )}
-                </div>
-                {/* LinkedIn Profile Upload */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">Upload LinkedIn Profile (Optional)</label>
-                  <input
-                    ref={linkedinInputRef}
-                    type="file"
-                    accept=".pdf,.html,.txt"
-                    onChange={(e) => setLinkedinFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                  />
-                  {linkedinFile && (
-                    <p className="text-sm text-green-600">✓ {linkedinFile.name}</p>
-                  )}
-                </div>
-                {/* GitHub Profile URL */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-lg font-medium text-gray-800 mb-1">GitHub Profile (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="https://github.com/username"
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  {githubUrl && (
-                    <p className="text-sm text-green-600">✅ GitHub URL entered</p>
-                  )}
-                </div>
-              </div>
-              <Button
-                onClick={handleCreateCandidate}
-                disabled={!cvFile || isLoading}
-                size="lg"
-                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-8 py-3 text-xl font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Processing...' : 'Analyse Profile'}
-              </Button>
-            </div>
+            <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
-            // Show processing loader for uploading/processing states
-            selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' ? (
+            // Show processing loader for uploading/processing/analyzing states
+            selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' ? (
               <ProcessingLoader
                 applicantName={selectedCandidate.name}
                 status={selectedCandidate.status}
@@ -456,6 +313,11 @@ function BoardPageContent() {
                   </div>
                 </div>
               </div>
+
+              {/* Credibility Analysis */}
+              {selectedCandidate.analysisResult && (
+                <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
+              )}
 
               {/* CV Data Summary */}
               {selectedCandidate.cvData && (
@@ -588,9 +450,9 @@ function BoardPageContent() {
                   <div className="col-span-2">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       🐙 GitHub Profile Data
-                      <a 
-                        href={selectedCandidate.githubData.profileUrl} 
-                        target="_blank" 
+                      <a
+                        href={selectedCandidate.githubData.profileUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="ml-2 text-sm text-purple-600 hover:text-purple-800"
                       >
