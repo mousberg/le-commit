@@ -28,7 +28,7 @@ export default function Navbar() {
       }`}>
         <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
           <Image 
-            src="/unmasklogo.svg?v=2" 
+            src="/unmask.png" 
             alt="Unmask" 
             width={isScrolled ? 120 : 140} 
             height={isScrolled ? 41 : 48} 
