@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/public/le-commit.svg" alt="Le Commit" width="400" />
+  <img src="frontend/public/le-commit-unmask.svg" alt="Le Commit" width="400" />
 </div>
 
 # le commit \ unmask
