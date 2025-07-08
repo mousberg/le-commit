@@ -10,7 +10,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100);
+      setIsScrolled(window.scrollY > 40);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -18,21 +18,21 @@ export default function Navbar() {
   }, []);
 
   return (
-    <div className={`w-full z-50 fixed top-0 left-0 transition-all duration-700 ease-out ${
-      isScrolled ? 'px-6 py-4' : 'px-0 py-0'
+    <div className={`w-full z-50 fixed top-0 left-0 transition-all duration-400 ease-out ${
+      isScrolled ? 'px-2 py-1' : 'px-0 py-0'
     }`}>
-      <nav className={`mx-auto flex items-center justify-between transition-all duration-700 ease-out will-change-transform ${
+      <nav className={`mx-auto flex items-center justify-between transition-all duration-400 ease-out will-change-transform ${
         isScrolled 
-          ? 'max-w-6xl bg-white/90 backdrop-blur-md shadow-xl rounded-3xl px-8 py-4 border border-gray-200/20' 
-          : 'w-full bg-white/95 backdrop-blur-sm shadow-sm rounded-none px-8 py-6 border-0'
+          ? 'max-w-6xl bg-white/90 backdrop-blur-md shadow-xl rounded-2xl px-8 py-2 border border-gray-200/20' 
+          : 'w-full bg-white/95 backdrop-blur-sm shadow-sm rounded-none px-8 py-3 border-0'
       }`}>
         <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
           <Image 
             src="/unmasklogo.svg?v=2" 
             alt="Unmask" 
-            width={isScrolled ? 120 : 140} 
-            height={isScrolled ? 41 : 48} 
-            className="transition-all duration-700 ease-out" 
+            width={isScrolled ? 136 : 140} 
+            height={isScrolled ? 47 : 48} 
+            className="transition-all duration-400 ease-out" 
             priority
           />
         </Link>
