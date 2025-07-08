@@ -83,10 +83,10 @@ export default function Home() {
       </section>
 
       {/* Testimonial Section */}
-      <section className="w-full max-w-6xl mb-32 flex flex-col items-center">
-        <h2 className="text-3xl font-semibold text-center mb-8 text-gray-900">What our users say</h2>
-        <div className="w-full bg-white/0 rounded-3xl p-8 md:p-12 flex flex-col">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
+      <section className="w-full max-w-6xl mb-16 flex flex-col items-center">
+        <h2 className="text-3xl font-semibold text-center mb-4 text-gray-900">What our users say</h2>
+        <div className="w-full bg-white/0 rounded-3xl p-4 md:p-6 flex flex-col">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
             {/* Existing testimonial (updated) */}
             <div className="bg-white/0 rounded-2xl p-12 flex flex-col items-center w-full max-w-xs md:max-w-sm lg:max-w-md mx-auto">
               <div className="mb-6">
@@ -109,7 +109,7 @@ export default function Home() {
               <blockquote className="text-xl text-gray-700 italic mb-4 text-center">
                 &ldquo;Unmask is a game-changer for fast, high-stakes hiring. We caught things we&apos;d never have found with traditional reference checks.&rdquo;
               </blockquote>
-              <span className="text-base text-gray-500">— Jamie L., Founder (YC W23)</span>
+              <span className="text-base text-gray-500">— Jamie L., YC Founder</span>
             </div>
             {/* New testimonial from Chloe M. */}
             <div className="bg-white/0 rounded-2xl p-12 flex flex-col items-center w-full max-w-xs md:max-w-sm lg:max-w-md mx-auto">
@@ -121,7 +121,7 @@ export default function Home() {
               <blockquote className="text-xl text-gray-700 italic mb-4 text-center">
                 &ldquo;We run all candidates through Unmask before screening. It&apos;s like a truth filter.&rdquo;
               </blockquote>
-              <span className="text-base text-gray-500">— Chloe M., Talent Ops @ Seed-stage startup</span>
+              <span className="text-base text-gray-500">— Chloe M., Hiring Manager</span>
             </div>
           </div>
         </div>
