@@ -42,6 +42,10 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
+# Create temp directory for CV processing and give nextjs user write permissions
+RUN mkdir -p /app/temp_images && chown nextjs:nodejs /app/temp_images
+RUN chmod 755 /app && chmod 755 /app/temp_images
+
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
