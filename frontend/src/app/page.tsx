@@ -17,9 +17,9 @@ export default function Home() {
         </div>
         {/* Only one CTA here now */}
         <div className="flex justify-center mb-20">
-          <Link href="/board">
+          <Link href="https://airtable.com/appoSboKNF3Y9JJkV/pagH1p6bBlsUCEDN0/form" target="_blank" rel="noopener noreferrer">
             <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Start Unmask
+              Join Waitlist
             </Button>
           </Link>
         </div>
@@ -64,9 +64,9 @@ export default function Home() {
         </div>
         {/* CTA after flow */}
         <div className="flex justify-center my-16">
-          <Link href="/board">
+          <Link href="https://airtable.com/appoSboKNF3Y9JJkV/pagH1p6bBlsUCEDN0/form" target="_blank" rel="noopener noreferrer">
             <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Start Unmask
+              Join Waitlist
             </Button>
           </Link>
         </div>
