@@ -1,10 +1,29 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Shield, Zap, Target, Phone } from "lucide-react";
 
 export default function Home() {
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Navigate immediately to waitlist page - no API call here
+    window.location.href = `/waitlist?email=${encodeURIComponent(email)}`;
+  };
   return (
     <main className="flex flex-col items-center w-full pt-12 pb-12 px-4 bg-gradient-to-b from-gray-50 via-white to-gray-50 min-h-screen">
       {/* Hero Section */}
@@ -15,13 +34,32 @@ export default function Home() {
           Instant checks across CVs, LinkedIn, GitHub, and calls to expose red flags and protect your hiring pipeline.
           </p>
         </div>
-        {/* Only one CTA here now */}
+        
+        {/* Waitlist Form */}
         <div className="flex justify-center mb-20">
-          <Link href="/board">
-            <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Start Unmask
-            </Button>
-          </Link>
+          <div className="bg-white/80 rounded-2xl shadow-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Get Early Access</h2>
+            <p className="text-gray-600 mb-6">Join the waitlist to be the first to try Unmask when it launches.</p>
+            
+            <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full"
+              />
+              <Button 
+                type="submit" 
+                size="lg" 
+                className="w-full rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105"
+                disabled={isLoading}
+              >
+                {isLoading ? "Joining..." : "Join Waitlist"}
+              </Button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -61,14 +99,6 @@ export default function Home() {
               See a full profile with flags, suggested follow-ups, and a credibility score — all in one clear dashboard.
             </p>
           </div>
-        </div>
-        {/* CTA after flow */}
-        <div className="flex justify-center my-16">
-          <Link href="/board">
-            <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Start Unmask
-            </Button>
-          </Link>
         </div>
       </section>
 
