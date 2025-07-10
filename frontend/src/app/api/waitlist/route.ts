@@ -4,7 +4,12 @@ import { existsSync } from 'fs';
 import path from 'path';
 
 interface WaitlistEntry {
+  id?: string;
   email: string;
+  name?: string;
+  company?: string;
+  employees?: string;
+  industry?: string;
   timestamp: string;
   ip?: string;
   userAgent?: string;
@@ -43,9 +48,58 @@ async function writeWaitlist(entries: WaitlistEntry[]): Promise<void> {
   }
 }
 
+async function addToAirtable(entry: WaitlistEntry): Promise<string | null> {
+  const airtableApiKey = process.env.AIRTABLE_API_KEY;
+  const airtableBaseId = process.env.AIRTABLE_BASE_ID;
+  const airtableTableName = process.env.AIRTABLE_TABLE_NAME || 'Waitlist';
+
+  if (!airtableApiKey || !airtableBaseId) {
+    console.warn('Airtable credentials not configured, skipping Airtable integration');
+    return null;
+  }
+
+  try {
+    const fields = {
+      Email: entry.email,
+      'Full Name': entry.name || '',
+      'Company Name': entry.company || '',
+      'Company Size': entry.employees || '',
+      Industry: entry.industry ? [entry.industry] : [], // Multiple select field
+      'Sign Up Date': new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+      Status: 'Waiting',
+      Notes: `IP: ${entry.ip || 'unknown'}, UserAgent: ${entry.userAgent || 'unknown'}`
+    };
+
+    const response = await fetch(`https://api.airtable.com/v0/${airtableBaseId}/${airtableTableName}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${airtableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        records: [{ fields }]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Airtable API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.records[0]?.id || null;
+  } catch (error) {
+    console.error('Error adding to Airtable:', error);
+    return null;
+  }
+}
+
+
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    const { email, name, company, employees, industry, id } = body;
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
@@ -66,33 +120,63 @@ export async function POST(request: NextRequest) {
     // Read existing waitlist
     const waitlist = await readWaitlist();
 
-    // Check if email already exists
-    const existingEntry = waitlist.find(entry => 
-      entry.email.toLowerCase() === email.toLowerCase()
-    );
+    if (id) {
+      // Update existing entry by ID (complete form submission)
+      const existingEntryIndex = waitlist.findIndex(entry => entry.id === id);
+      
+      if (existingEntryIndex === -1) {
+        return NextResponse.json(
+          { error: 'Record not found' },
+          { status: 404 }
+        );
+      }
 
-    if (existingEntry) {
+      const updatedEntry: WaitlistEntry = {
+        ...waitlist[existingEntryIndex],
+        name: name || '',
+        company: company || '',
+        employees: employees || '',
+        industry: industry || '',
+        timestamp: new Date().toISOString(),
+        ip: request.ip || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown'
+      };
+
+      waitlist[existingEntryIndex] = updatedEntry;
+      await writeWaitlist(waitlist);
+
+      // Only call Airtable when complete form is submitted
+      await addToAirtable(updatedEntry);
+
       return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 409 }
+        { message: 'Successfully updated waitlist entry', id: updatedEntry.id },
+        { status: 200 }
+      );
+    } else {
+      // Create new entry (just email)
+      const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+      const entryData: WaitlistEntry = {
+        id: newId,
+        email: email.toLowerCase(),
+        name: name || '',
+        company: company || '',
+        employees: employees || '',
+        industry: industry || '',
+        timestamp: new Date().toISOString(),
+        ip: request.ip || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown'
+      };
+
+      waitlist.push(entryData);
+      await writeWaitlist(waitlist);
+
+      // No Airtable call here - only on complete form submission
+
+      return NextResponse.json(
+        { message: 'Successfully added to waitlist', id: entryData.id },
+        { status: 201 }
       );
     }
-
-    // Add new entry
-    const newEntry: WaitlistEntry = {
-      email: email.toLowerCase(),
-      timestamp: new Date().toISOString(),
-      ip: request.ip || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown'
-    };
-
-    waitlist.push(newEntry);
-    await writeWaitlist(waitlist);
-
-    return NextResponse.json(
-      { message: 'Successfully added to waitlist' },
-      { status: 201 }
-    );
 
   } catch (error) {
     console.error('Error processing waitlist signup:', error);

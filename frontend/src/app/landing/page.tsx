@@ -3,38 +3,26 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield, Zap, Target, Phone, CheckCircle } from "lucide-react";
+import { Shield, Zap, Target, Phone } from "lucide-react";
 
 export default function LandingPage() {
   const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    try {
-      const response = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      if (response.ok) {
-        setIsSubmitted(true);
-        setEmail("");
-      } else {
-        throw new Error('Failed to submit');
-      }
-    } catch (error) {
-      console.error('Error submitting to waitlist:', error);
-      // You might want to show an error message here
-    } finally {
-      setIsLoading(false);
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('Please enter a valid email address');
+      return;
     }
+
+    setIsLoading(true);
+
+    // Navigate immediately to waitlist page - no API call here
+    window.location.href = `/waitlist?email=${encodeURIComponent(email)}`;
   };
 
   return (
@@ -56,32 +44,24 @@ export default function LandingPage() {
             <h2 className="text-2xl font-bold mb-4 text-gray-900">Get Early Access</h2>
             <p className="text-gray-600 mb-6">Join the waitlist to be the first to try Unmask when it launches.</p>
             
-            {isSubmitted ? (
-              <div className="flex flex-col items-center text-center">
-                <CheckCircle className="w-12 h-12 text-green-500 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">You're on the list!</h3>
-                <p className="text-gray-600">We'll notify you when Unmask is ready.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleWaitlistSubmit} className="space-y-4">
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full"
-                />
-                <Button 
-                  type="submit" 
-                  size="lg" 
-                  className="w-full rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Joining..." : "Join Waitlist"}
-                </Button>
-              </form>
-            )}
+            <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full"
+              />
+              <Button 
+                type="submit" 
+                size="lg" 
+                className="w-full rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105"
+                disabled={isLoading}
+              >
+                {isLoading ? "Joining..." : "Join Waitlist"}
+              </Button>
+            </form>
           </div>
         </div>
       </section>
