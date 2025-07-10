@@ -36,9 +36,24 @@ export default function WaitlistDetailsPage() {
   }, [searchParams, router]);
 
   const submitEmailToWaitlist = async (emailAddress: string) => {
-    // Skip API call since there's no waitlist endpoint
-    // Just set a mock record ID to allow form submission
-    setRecordId('mock-id');
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: emailAddress }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecordId(data.id);
+      } else {
+        console.error('Failed to submit email to waitlist');
+      }
+    } catch (error) {
+      console.error('Error submitting email to waitlist:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,11 +68,33 @@ export default function WaitlistDetailsPage() {
 
     setIsLoading(true);
     
-    // Mock successful submission since there's no waitlist API
-    setTimeout(() => {
-      setIsSubmitted(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          id: recordId,
+          email, 
+          name, 
+          company, 
+          employees, 
+          industry 
+        }),
+      });
+
+      if (response.ok) {
+        setIsSubmitted(true);
+      } else {
+        throw new Error('Failed to submit details');
+      }
+    } catch (error) {
+      console.error('Error submitting waitlist details:', error);
+      alert('Failed to submit. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const employeeOptions = [
