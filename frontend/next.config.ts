@@ -14,36 +14,7 @@ const nextConfig: NextConfig = {
     ];
   },
   
-  // Add redirects for better UX
-  async redirects() {
-    return [
-      {
-        source: '/board',
-        destination: '/app/board',
-        permanent: false,
-      },
-      {
-        source: '/call',
-        destination: '/app/call',
-        permanent: false,
-      },
-      {
-        source: '/session',
-        destination: '/app/session',
-        permanent: false,
-      },
-      {
-        source: '/setup',
-        destination: '/app/setup',
-        permanent: false,
-      },
-      {
-        source: '/overlay',
-        destination: '/app/overlay',
-        permanent: false,
-      },
-    ];
-  },
+  // Redirects removed to allow middleware to handle waitlist protection
 };
 
 export default nextConfig;

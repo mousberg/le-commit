@@ -9,8 +9,8 @@ export default function RootPage() {
   useEffect(() => {
     // This component should only be reached in specific routing scenarios
     // In normal cases, middleware will handle the routing
-    // If we reach here, redirect to app by default
-    router.push("/app");
+    // Default to landing page to show waitlist
+    router.push("/landing");
   }, [router]);
 
   return (

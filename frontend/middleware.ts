@@ -3,24 +3,21 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
-  const hostname = request.headers.get('host') || '';
   
-  // Define your domains
-  const mainDomain = 'unmask.click';
-  const appSubdomain = 'app.unmask.click';
-  
-  // For local development, handle localhost
-  const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+  console.log('🔍 Middleware executing for:', url.pathname);
   
   // Check for waitlist bypass code
   const waitlistCode = url.searchParams.get('code');
-  const validWaitlistCode = 'early-access-2025'; // You can change this to your desired code
+  const validWaitlistCode = 'early-access-2025';
   
   // Check if user has valid waitlist code in cookie
-  const hasValidAccess = request.cookies.has('waitlist-access') || waitlistCode === validWaitlistCode;
+  const hasValidAccess = request.cookies.get('waitlist-access')?.value === 'true';
+  
+  console.log('🎫 Has valid access:', hasValidAccess, 'Code provided:', waitlistCode);
   
   // Set cookie if valid code is provided
   if (waitlistCode === validWaitlistCode) {
+    console.log('✅ Setting waitlist access cookie');
     const response = NextResponse.next();
     response.cookies.set('waitlist-access', 'true', {
       httpOnly: true,
@@ -31,52 +28,31 @@ export function middleware(request: NextRequest) {
     return response;
   }
   
-  // Protect app routes - redirect to landing if no valid access
-  if (url.pathname.startsWith('/app') && !hasValidAccess) {
-    url.pathname = '/landing';
-    return NextResponse.redirect(url);
+  // Protected routes - these require waitlist access
+  const isProtectedRoute = url.pathname.startsWith('/app') || 
+                          url.pathname.startsWith('/board') || 
+                          url.pathname.startsWith('/call') || 
+                          url.pathname.startsWith('/session') || 
+                          url.pathname.startsWith('/setup') || 
+                          url.pathname.startsWith('/overlay');
+  
+  console.log('🛡️ Is protected route:', isProtectedRoute);
+  
+  // Block access to protected routes without valid access
+  if (isProtectedRoute && !hasValidAccess) {
+    console.log('🚫 BLOCKING access to protected route - redirecting to landing');
+    const redirectUrl = new URL('/landing', request.url);
+    return NextResponse.redirect(redirectUrl);
   }
   
-  // For local development
-  if (isLocalhost) {
-    const subdomain = url.searchParams.get('subdomain');
-    
-    if (subdomain === 'app') {
-      // Simulate app subdomain - check for valid access
-      if (!hasValidAccess) {
-        url.pathname = '/landing';
-        return NextResponse.redirect(url);
-      }
-      return NextResponse.next();
-    } else if (subdomain === 'www' || subdomain === null) {
-      // Simulate main domain - serve landing page
-      url.pathname = '/landing';
-      return NextResponse.rewrite(url);
-    }
-  }
-  
-  // Production routing
-  if (hostname === appSubdomain) {
-    // app.unmask.click - check for valid access
-    if (!hasValidAccess) {
-      url.pathname = '/landing';
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
-  }
-  
-  if (hostname === mainDomain || hostname === `www.${mainDomain}`) {
-    // unmask.click or www.unmask.click - serve landing page
-    url.pathname = '/landing';
-    return NextResponse.rewrite(url);
-  }
-  
-  // Default behavior - redirect to landing page
+  // Default behavior - redirect root to landing page
   if (url.pathname === '/') {
-    url.pathname = '/landing';
-    return NextResponse.rewrite(url);
+    console.log('🏠 Redirecting root to landing');
+    const rewriteUrl = new URL('/landing', request.url);
+    return NextResponse.rewrite(rewriteUrl);
   }
   
+  console.log('✅ Allowing request to continue');
   return NextResponse.next();
 }
 

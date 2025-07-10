@@ -30,18 +30,13 @@ export default function LandingLayout({
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
                 <img
-                  src="/unmask-logo-full.svg"
+                  src="/unmask-logo-blue.svg"
                   alt="Unmask"
                   className="h-8 w-auto"
                 />
               </div>
               <div className="flex items-center space-x-4">
-                <a
-                  href="https://app.unmask.click"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  Login
-                </a>
+                {/* Login removed - app is behind waitlist */}
               </div>
             </div>
           </div>
