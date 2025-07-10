@@ -1,8 +1,6 @@
-    import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "../components/NerdBusterHeaderLogo";
-import { ApplicantProvider } from "../lib/contexts/ApplicantContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -11,11 +9,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Unmask - Real time reference checking made easy",
-  description: "Real-time interview anti-cheating agent for detecting inconsistencies",
+  title: "Unmask - Trust your hiring process, again",
+  description: "Instant checks across CVs, LinkedIn, GitHub, and calls to expose red flags and protect your hiring pipeline.",
 };
 
-export default function RootLayout({
+export default function LandingLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -26,12 +24,28 @@ export default function RootLayout({
         className={`${inter.variable} font-inter antialiased`}
         style={{ letterSpacing: '-0.025em' }}
       >
-        <ApplicantProvider>
-          <Navbar />
-          {/* Global header spacer for all pages */}
-          <div className="h-16 w-full"></div>
-          {children}
-        </ApplicantProvider>
+        {/* Simple header for landing page */}
+        <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center">
+                <img
+                  src="/unmask-logo-blue.svg"
+                  alt="Unmask"
+                  className="h-8 w-auto"
+                />
+              </div>
+              <div className="flex items-center space-x-4">
+                {/* Login removed - app is behind waitlist */}
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        {/* Header spacer */}
+        <div className="h-16 w-full"></div>
+        
+        {children}
       </body>
     </html>
   );

@@ -42,7 +42,7 @@ export default function Navbar() {
           <Link href="/#testimonials" className="hover:text-gray-900 transition-colors">Testimonials</Link>
         </div>
         <div className="ml-4">
-          <Link href="https://airtable.com/appoSboKNF3Y9JJkV/pagH1p6bBlsUCEDN0/form" target="_blank" rel="noopener noreferrer">
+          <Link href="/waitlist">
             <Button size="sm" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-6 py-2.5 text-base font-semibold transition-all hover:shadow-lg hover:scale-105">
               Join Waitlist
             </Button>

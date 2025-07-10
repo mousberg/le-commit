@@ -1,27 +1,68 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Shield, Zap, Target, Phone } from "lucide-react";
 
-export default function Home() {
+export default function LandingPage() {
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Navigate immediately to waitlist page - no API call here
+    window.location.href = `/waitlist?email=${encodeURIComponent(email)}`;
+  };
+
   return (
     <main className="flex flex-col items-center w-full pt-12 pb-12 px-4 bg-gradient-to-b from-gray-50 via-white to-gray-50 min-h-screen">
       {/* Hero Section */}
       <section className="w-full max-w-6xl text-center">
         <div className="mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold mb-10 text-gray-900 leading-tight">Trust your hiring process, again.</h1>
+          <h1 className="text-5xl md:text-6xl font-bold mb-10 text-gray-900 leading-tight">
+            Trust your hiring process, again.
+          </h1>
           <p className="text-xl md:text-2xl text-gray-600 mb-16 max-w-4xl mx-auto leading-relaxed">
-          Instant checks across CVs, LinkedIn, GitHub, and calls to expose red flags and protect your hiring pipeline.
+            Instant checks across CVs, LinkedIn, GitHub, and calls to expose red flags and protect your hiring pipeline.
           </p>
         </div>
-        {/* Only one CTA here now */}
+        
+        {/* Waitlist Form */}
         <div className="flex justify-center mb-20">
-          <Link href="https://airtable.com/appoSboKNF3Y9JJkV/pagH1p6bBlsUCEDN0/form" target="_blank" rel="noopener noreferrer">
-            <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Join Waitlist
-            </Button>
-          </Link>
+          <div className="bg-white/80 rounded-2xl shadow-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Get Early Access</h2>
+            <p className="text-gray-600 mb-6">Join the waitlist to be the first to try Unmask when it launches.</p>
+            
+            <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full"
+              />
+              <Button 
+                type="submit" 
+                size="lg" 
+                className="w-full rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105"
+                disabled={isLoading}
+              >
+                {isLoading ? "Joining..." : "Join Waitlist"}
+              </Button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -42,7 +83,7 @@ export default function Home() {
             <Phone className="w-10 h-10 text-blue-500 mb-4" />
             <h3 className="text-xl font-semibold mb-2">Reference Call Automation</h3>
             <p className="text-gray-600">
-              Add past references — Unmask automates the call, transcribes responses, and checks them against the candidate&apos;s story.
+              Add past references — Unmask automates the call, transcribes responses, and checks them against the candidate's story.
             </p>
           </div>
           {/* Step 3 */}
@@ -62,20 +103,14 @@ export default function Home() {
             </p>
           </div>
         </div>
-        {/* CTA after flow */}
-        <div className="flex justify-center my-16">
-          <Link href="https://airtable.com/appoSboKNF3Y9JJkV/pagH1p6bBlsUCEDN0/form" target="_blank" rel="noopener noreferrer">
-            <Button size="lg" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Join Waitlist
-            </Button>
-          </Link>
-        </div>
       </section>
 
       {/* Value Proposition Section */}
       <section className="w-full max-w-4xl mb-24 mx-auto px-4">
         <div className="flex flex-col items-center w-full bg-white/0 rounded-3xl p-0 mt-0">
-          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 mt-0 text-center">Trust who you hire, without wasting time.</h2>
+          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 mt-0 text-center">
+            Trust who you hire, without wasting time.
+          </h2>
           <p className="text-lg text-gray-700 text-center max-w-2xl">
             Unmask delivers fast, automated screening across CVs, LinkedIn, GitHub, and references—surfacing inconsistencies in minutes, not days. It guides hiring managers with targeted questions, scores, and context, all in a plug-and-play experience that skips the HR vendor complexity.
           </p>
@@ -95,7 +130,7 @@ export default function Home() {
                 </div>
               </div>
               <blockquote className="text-xl text-gray-700 italic mb-4 text-center">
-                &ldquo;We caught a duplicate applicant before the first call. That would&apos;ve cost us weeks.&rdquo;
+                "We caught a duplicate applicant before the first call. That would've cost us weeks."
               </blockquote>
               <span className="text-base text-gray-500">— Alex P., Tech Lead</span>
             </div>
@@ -107,7 +142,7 @@ export default function Home() {
                 </div>
               </div>
               <blockquote className="text-xl text-gray-700 italic mb-4 text-center">
-                &ldquo;Unmask is a game-changer for fast, high-stakes hiring. We caught things we&apos;d never have found with traditional reference checks.&rdquo;
+                "Unmask is a game-changer for fast, high-stakes hiring. We caught things we'd never have found with traditional reference checks."
               </blockquote>
               <span className="text-base text-gray-500">— Jamie L., YC Founder</span>
             </div>
@@ -119,7 +154,7 @@ export default function Home() {
                 </div>
               </div>
               <blockquote className="text-xl text-gray-700 italic mb-4 text-center">
-                &ldquo;We run all candidates through Unmask before screening. It&apos;s like a truth filter.&rdquo;
+                "We run all candidates through Unmask before screening. It's like a truth filter."
               </blockquote>
               <span className="text-base text-gray-500">— Chloe M., Hiring Manager</span>
             </div>
