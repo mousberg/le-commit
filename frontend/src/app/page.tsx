@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Shield, Zap, Target, Phone } from "lucide-react";
+import { Shield, Phone, Zap, Target } from "lucide-react";
 
-export default function Home() {
+export default function RootPage() {
   return (
     <main className="flex flex-col items-center w-full pt-12 pb-12 px-4 bg-gradient-to-b from-gray-50 via-white to-gray-50 min-h-screen">
       {/* Hero Section */}
