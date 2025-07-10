@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
+import Navbar from "../../components/NerdBusterHeaderLogo";
+import { ApplicantProvider } from "../../lib/contexts/ApplicantContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
   description: "Real-time interview anti-cheating agent for detecting inconsistencies",
 };
 
-export default function RootLayout({
+export default function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -24,7 +26,12 @@ export default function RootLayout({
         className={`${inter.variable} font-inter antialiased`}
         style={{ letterSpacing: '-0.025em' }}
       >
-        {children}
+        <ApplicantProvider>
+          <Navbar />
+          {/* Global header spacer for all pages */}
+          <div className="h-16 w-full"></div>
+          {children}
+        </ApplicantProvider>
       </body>
     </html>
   );
