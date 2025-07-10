@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle, ArrowLeft } from "lucide-react";
-import Image from "next/image";
 
 function WaitlistContent() {
   const router = useRouter();
@@ -133,13 +132,6 @@ function WaitlistContent() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to home
           </button>
-          <Image
-            src="/unmask-logo-blue.svg"
-            alt="Unmask"
-            width={140}
-            height={32}
-            className="h-8 w-auto"
-          />
         </div>
       </header>
 
