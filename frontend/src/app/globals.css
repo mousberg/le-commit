@@ -227,4 +227,35 @@
   input[type="email"]:-webkit-autofill {
     border-radius: 9999px !important;
   }
+
+  /* Mobile header animation effects */
+  @keyframes mobile-header-slide {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes mobile-menu-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .mobile-header-animated {
+    animation: mobile-header-slide 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .mobile-menu-animated {
+    animation: mobile-menu-fade-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
 }

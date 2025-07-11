@@ -73,9 +73,9 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
   };
 
   return (
-    <div className={`mx-auto fixed flex left-0 right-0 top-0 w-full z-[12] items-center justify-between max-w-[76rem] select-none transition-all duration-300 ease-spring lg:mt-5 ${
+    <div className={`mx-auto fixed flex left-0 right-0 top-0 w-full z-[50] items-center justify-between max-w-[76rem] select-none transition-all duration-300 ease-spring lg:mt-5 ${
       isScrolled 
-        ? 'bg-white/95 backdrop-blur-md rounded-full mx-4 lg:mx-auto shadow-lg border border-white/20' 
+        ? 'bg-white/95 backdrop-blur-md lg:rounded-full mx-0 lg:mx-auto shadow-lg' 
         : 'bg-transparent'
     }`}>
       <header className="relative isolate w-full bg-transparent">
@@ -146,40 +146,40 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className={`lg:hidden absolute top-full left-0 right-0 bg-white border border-zinc-200 rounded-lg mt-2 p-4 shadow-lg z-50 ${
-            isScrolled ? 'mx-0' : 'mx-3'
-          }`}>
-            <div className="flex flex-col space-y-4">
-              <Link 
-                href="#features" 
-                className="text-sm font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                How it works
-              </Link>
-              <button 
-                onClick={() => {
-                  handleDemoClick();
-                  setIsMenuOpen(false);
-                }}
-                className="text-sm font-semibold text-zinc-900 hover:text-pink-400 transition-colors text-left"
-              >
-                Demo
-              </button>
-              <Link 
-                href="#testimonials" 
-                className="text-sm font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Testimonials
-              </Link>
-              <div className="border-t border-zinc-200 pt-4">
+          <div className="lg:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md border-b border-white/20 shadow-xl z-50 mobile-menu-animated">
+            <div className="p-6">
+              <nav className="flex flex-col space-y-1">
+                <Link 
+                  href="#features" 
+                  className="text-base font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-3 px-4 rounded-lg hover:bg-pink-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  How it works
+                </Link>
+                <button 
+                  onClick={() => {
+                    handleDemoClick();
+                    setIsMenuOpen(false);
+                  }}
+                  className="text-base font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-3 px-4 rounded-lg hover:bg-pink-50 text-left w-full"
+                >
+                  Demo
+                </button>
+                <Link 
+                  href="#testimonials" 
+                  className="text-base font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-3 px-4 rounded-lg hover:bg-pink-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Testimonials
+                </Link>
+              </nav>
+              <div className="mt-6 pt-6 border-t border-gray-200">
                 <button 
                   onClick={() => {
                     handleWaitlistClick();
                     setIsMenuOpen(false);
                   }}
-                  className="flex items-center justify-center gap-x-1 px-4 py-2 text-sm font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                  className="w-full flex items-center justify-center gap-x-1 px-6 py-3 text-base font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
                 >
                   Try Unmask
                   <ArrowIcon />

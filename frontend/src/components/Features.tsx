@@ -51,21 +51,21 @@ export default function Features() {
       <div className="relative pointer-events-none lg:border-b border-zinc-200">
         <div className="grid lg:grid-cols-2">
           {/* Left side - Text and small image */}
-          <div className="px-8 py-16 lg:py-20 flex flex-col justify-between">
+          <div className="px-8 py-12 lg:py-16 flex flex-col justify-start">
             <div>
               <h2 className="text-2xl font-medium break-words">Live Interview Feedback</h2>
               <p className="mt-3 text-base leading-5 text-zinc-600 break-words">
                 Get real-time prompts and live transcripts during calls. Unmask highlights inconsistencies and suggests questions on the spot.
               </p>
             </div>
-            <div className="mt-8 mb-8 lg:mb-0">
+            <div className="mt-6 mb-4 lg:mb-0">
               <img 
                 src="/cand.png" 
                 alt="Additional feedback component"
                 className="w-full max-w-md h-auto rounded-lg"
               />
             </div>
-            <div className="hidden lg:block absolute bg-[#0055FE] w-1 h-[2.125rem] top-[5rem] -left-[1px]"></div>
+            <div className="hidden lg:block absolute bg-[#0055FE] w-1 h-[2.125rem] top-[4rem] -left-[1px]"></div>
           </div>
           
           {/* Right side - Image */}
