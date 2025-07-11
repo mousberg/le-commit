@@ -2,7 +2,7 @@
 
 export default function Features() {
   return (
-    <div id="features" className="mx-auto max-w-7xl pt-20 lg:pt-[16.25rem] select-none lg:border-x border-zinc-200 overflow-hidden">
+    <div id="features" className="mx-auto max-w-7xl pt-20 lg:pt-[16.25rem] pb-8 lg:pb-0 select-none lg:border-x border-zinc-200 overflow-hidden">
       {/* Section Header */}
       <div className="mx-auto max-w-2xl sm:text-center px-5 lg:px-0">
         <h2 className="text-lg/10 font-base text-zinc-500 uppercase">How it works</h2>
@@ -58,22 +58,22 @@ export default function Features() {
                 Get real-time prompts and live transcripts during calls. Unmask highlights inconsistencies and suggests questions on the spot.
               </p>
             </div>
-            <div className="mt-8">
+            <div className="mt-8 mb-8 lg:mb-0">
               <img 
                 src="/cand.png" 
                 alt="Additional feedback component"
-                className="max-w-md h-auto rounded-lg"
+                className="w-full max-w-md h-auto rounded-lg"
               />
             </div>
             <div className="hidden lg:block absolute bg-[#0055FE] w-1 h-[2.125rem] top-[5rem] -left-[1px]"></div>
           </div>
           
           {/* Right side - Image */}
-          <div className="relative">
+          <div className="relative overflow-hidden">
             <img 
               src="/gmeet.png" 
               alt="Live Interview Feedback"
-              className="w-full h-auto"
+              className="w-full h-auto object-cover object-top"
             />
           </div>
         </div>
