@@ -1,54 +1,194 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Button } from "./ui/button";
+import { useState, useEffect } from "react";
+import { Menu, X } from "lucide-react";
 
-export default function Navbar() {
+const ArrowIcon = () => (
+  <svg 
+    width="20" 
+    height="21" 
+    viewBox="0 0 20 21" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <circle cx="10" cy="10.9469" r="10" fill="#282828"></circle>
+    <mask 
+      id="mask0_1_567" 
+      style={{ maskType: "alpha" }} 
+      maskUnits="userSpaceOnUse" 
+      x="0" 
+      y="0" 
+      width="20" 
+      height="21"
+    >
+      <circle cx="10" cy="10.9469" r="10" fill="#282828"></circle>
+    </mask>
+    <g mask="url(#mask0_1_567)">
+      <path 
+        d="M4.78544 8.12311L12.8231 8.12311M12.8231 8.12311L12.8231 16.1608M12.8231 8.12311L3.1779 17.7683" 
+        stroke="white" 
+        strokeWidth="1.3" 
+        strokeLinecap="square"
+      />
+    </g>
+  </svg>
+);
+
+interface HeaderProps {
+  onDemoOpen?: () => void;
+  onWaitlistOpen?: () => void;
+}
+
+export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {}) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 100);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleWaitlistClick = () => {
+    if (onWaitlistOpen) {
+      onWaitlistOpen();
+    } else {
+      // Dispatch custom event to open waitlist overlay
+      window.dispatchEvent(new CustomEvent('openWaitlist'));
+    }
+  };
+
+  const handleDemoClick = () => {
+    if (onDemoOpen) {
+      onDemoOpen();
+    } else {
+      // Dispatch custom event to open demo overlay
+      window.dispatchEvent(new CustomEvent('openDemo'));
+    }
+  };
+
   return (
-    <div className={`w-full z-50 fixed top-0 left-0 transition-all duration-400 ease-out ${
-      isScrolled ? 'px-2 py-1' : 'px-0 py-0'
+    <div className={`mx-auto fixed flex left-0 right-0 top-0 w-full z-[12] items-center justify-between max-w-[76rem] select-none transition-all duration-300 ease-spring lg:mt-5 ${
+      isScrolled 
+        ? 'bg-white/95 backdrop-blur-md rounded-full mx-4 lg:mx-auto shadow-lg border border-white/20' 
+        : 'bg-transparent'
     }`}>
-      <nav className={`mx-auto flex items-center justify-between transition-all duration-400 ease-out will-change-transform ${
-        isScrolled
-          ? 'max-w-6xl bg-white/90 backdrop-blur-md shadow-xl rounded-2xl px-8 py-2 border border-gray-200/20'
-          : 'w-full bg-white/95 backdrop-blur-sm shadow-sm rounded-none px-8 py-3 border-0'
-      }`}>
-        <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <Image
-            src="/unmask-logo-blue.svg"
-            alt="Unmask"
-            width={isScrolled ? 120 : 140}
-            height={isScrolled ? 30 : 35}
-            className="transition-all duration-400 ease-out"
-            priority
-          />
-        </Link>
-        <div className="hidden md:flex items-center gap-8 text-base font-medium text-gray-700">
-          <Link href="/#how-it-works" className="hover:text-gray-900 transition-colors">How it works</Link>
-          <Link href="/#demo" className="hover:text-gray-900 transition-colors">Demo</Link>
-          <Link href="/#testimonials" className="hover:text-gray-900 transition-colors">Testimonials</Link>
-        </div>
-        <div className="ml-4">
-          <Link href="/">
-            <Button size="sm" className="rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-6 py-2.5 text-base font-semibold transition-all hover:shadow-lg hover:scale-105">
-              Join Waitlist
-            </Button>
-          </Link>
-        </div>
-      </nav>
+      <header className="relative isolate w-full bg-transparent">
+        <nav className="flex items-center justify-between p-3 lg:p-2 bg-transparent">
+          {/* Logo */}
+          <div className="flex lg:flex-1 ml-2 -mt-0.5">
+            <Link 
+              href="/" 
+              className="flex items-center"
+            >
+              <img 
+                src="/Logo-full.svg" 
+                alt="Unmask" 
+                className="h-8 w-auto"
+              />
+            </Link>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="flex lg:hidden">
+            <button
+              type="button"
+              className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-zinc-700"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              <span className="sr-only">Open main menu</span>
+              {isMenuOpen ? (
+                <X className="size-5.5 mr-1 outline-none" />
+              ) : (
+                <Menu className="size-5.5 mr-1 outline-none" />
+              )}
+            </button>
+          </div>
+
+          {/* Desktop navigation */}
+          <div className="hidden lg:flex lg:gap-x-12">
+            <Link 
+              href="#features" 
+              className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+            >
+              How it works
+            </Link>
+            <button 
+              onClick={handleDemoClick}
+              className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+            >
+              Demo
+            </button>
+            <Link 
+              href="#testimonials" 
+              className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+            >
+              Testimonials
+            </Link>
+          </div>
+
+          {/* Desktop CTA buttons */}
+          <div className="hidden lg:flex lg:flex-1 lg:justify-end items-center gap-x-5">
+            <button 
+              onClick={handleWaitlistClick}
+              className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+            >
+              Try Unmask
+              <ArrowIcon />
+            </button>
+          </div>
+        </nav>
+
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className={`lg:hidden absolute top-full left-0 right-0 bg-white border border-zinc-200 rounded-lg mt-2 p-4 shadow-lg z-50 ${
+            isScrolled ? 'mx-0' : 'mx-3'
+          }`}>
+            <div className="flex flex-col space-y-4">
+              <Link 
+                href="#features" 
+                className="text-sm font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                How it works
+              </Link>
+              <button 
+                onClick={() => {
+                  handleDemoClick();
+                  setIsMenuOpen(false);
+                }}
+                className="text-sm font-semibold text-zinc-900 hover:text-pink-400 transition-colors text-left"
+              >
+                Demo
+              </button>
+              <Link 
+                href="#testimonials" 
+                className="text-sm font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Testimonials
+              </Link>
+              <div className="border-t border-zinc-200 pt-4">
+                <button 
+                  onClick={() => {
+                    handleWaitlistClick();
+                    setIsMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-x-1 px-4 py-2 text-sm font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                >
+                  Try Unmask
+                  <ArrowIcon />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
     </div>
   );
 }

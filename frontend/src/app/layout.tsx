@@ -1,13 +1,17 @@
-    import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/NerdBusterHeaderLogo";
 import { ApplicantProvider } from "../lib/contexts/ApplicantContext";
 
-const inter = Inter({
-  variable: "--font-inter",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -23,13 +27,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} font-inter antialiased`}
-        style={{ letterSpacing: '-0.025em' }}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ApplicantProvider>
           <Navbar />
-          {/* Global header spacer for all pages */}
-          <div className="h-16 w-full"></div>
           {children}
         </ApplicantProvider>
       </body>

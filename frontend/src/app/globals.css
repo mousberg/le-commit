@@ -121,45 +121,93 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-geist-sans);
   }
 }
 
-/* Custom scrollbar for console and glassmorphic containers */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(16, 185, 129, 0.3) rgba(255, 255, 255, 0.1);
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.6), rgba(59, 130, 246, 0.6));
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(59, 130, 246, 0.8));
-}
+@layer utilities {
+  .ease-spring {
+    transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  .contain-paint {
+    contain: paint;
+  }
 
-/* Glass Panel Styling */
-.glass-panel {
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
+  /* Island animation keyframes */
+  @keyframes float-gentle {
+    0%, 100% {
+      transform: translateY(0px) scale(1);
+      opacity: 0.7;
+    }
+    50% {
+      transform: translateY(-10px) scale(1.02);
+      opacity: 1;
+    }
+  }
 
-/* Overlay body styling */
-.overlay-body {
-  background: transparent;
-  overflow: hidden;
+  @keyframes float-slow {
+    0%, 100% {
+      transform: translateY(0px) scale(1);
+      opacity: 0.5;
+    }
+    50% {
+      transform: translateY(-15px) scale(1.03);
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes float-very-slow {
+    0%, 100% {
+      transform: translateY(0px) scale(1);
+      opacity: 0.4;
+    }
+    50% {
+      transform: translateY(-20px) scale(1.05);
+      opacity: 0.7;
+    }
+  }
+
+  /* Custom island animations */
+  .island-float-1 {
+    animation: float-gentle 4s ease-in-out infinite;
+  }
+
+  .island-float-2 {
+    animation: float-slow 6s ease-in-out infinite;
+    animation-delay: 1s;
+  }
+
+  .island-float-3 {
+    animation: float-very-slow 8s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+
+  .island-float-4 {
+    animation: float-gentle 5s ease-in-out infinite;
+    animation-delay: 3s;
+  }
+
+  /* Confetti styles */
+  .confetti {
+    width: 10px;
+    height: 10px;
+    position: absolute;
+    top: -10px;
+  }
+
+  @keyframes confetti {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-confetti {
+    animation: confetti 3s ease-out forwards;
+  }
 }

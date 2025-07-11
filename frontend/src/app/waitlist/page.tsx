@@ -2,8 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { CheckCircle, ArrowLeft } from "lucide-react";
 
 function WaitlistContent() {
@@ -121,13 +119,26 @@ function WaitlistContent() {
   ];
 
   return (
-    <main className="flex flex-col items-center w-full min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 px-4">
+    <main className="flex flex-col items-center w-full min-h-screen bg-gradient-to-t from-pink-100 to-pink-200 px-4 relative overflow-hidden">
+      {/* Background gradient blob */}
+      <div 
+        aria-hidden="true" 
+        className="absolute inset-x-0 top-1/2 transform -translate-y-1/2 overflow-hidden blur-3xl"
+      >
+        <div 
+          style={{
+            clipPath: "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)"
+          }} 
+          className="relative left-1/2 aspect-[1155/678] w-96 -translate-x-1/2 bg-gradient-to-tr from-pink-500 to-pink-600 opacity-30 sm:w-[36rem] md:w-[72rem] animate-pulse"
+        />
+      </div>
+
       {/* Header */}
-      <header className="w-full max-w-4xl pt-8 pb-4">
+      <header className="w-full max-w-4xl pt-8 pb-4 relative z-10">
         <div className="flex items-center justify-between">
           <button
             onClick={() => router.push("/")}
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center text-gray-700 hover:text-gray-900 transition-colors font-medium"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to home
@@ -136,96 +147,121 @@ function WaitlistContent() {
       </header>
 
       {/* Main Content */}
-      <section className="w-full max-w-md mt-8 mb-12">
-        <div className="bg-white/80 rounded-2xl shadow-lg p-8">
+      <section className="w-full max-w-lg mt-8 mb-12 relative z-10">
+        <div className="bg-white/15 backdrop-blur-lg rounded-2xl border border-white/30 shadow-[0_20px_50px_rgba(0,0,0,0.4)] p-8" style={{ 
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)'
+        }}>
           {isInitializing ? (
             <div className="flex flex-col items-center text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-              <p className="text-gray-600">Setting up your waitlist entry...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mb-4"></div>
+              <p className="text-white/80">Setting up your waitlist entry...</p>
             </div>
           ) : isSubmitted ? (
             <div className="flex flex-col items-center text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mb-6" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              <CheckCircle className="w-16 h-16 text-green-400 mb-6" />
+              <h2 className="text-2xl font-bold text-white mb-4">
                 Welcome to the waitlist!
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-white/80 mb-6">
                 Thanks for providing your details. We&apos;ll be in touch soon with early access to Unmask.
               </p>
-              <Button
+              <button
                 onClick={() => router.push("/")}
-                className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-8 py-3 rounded-2xl font-semibold"
+                className="px-8 py-3 text-base font-semibold text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300 rounded-lg"
               >
                 Back to Home
-              </Button>
+              </button>
             </div>
           ) : (
             <>
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl font-medium text-white mb-2">
                   Tell us about yourself
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-white/70">
                   Help us understand your needs better
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email (read-only) */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-white/90 mb-1.5">
                     Email Address
                   </label>
-                  <Input
+                  <input
                     type="email"
                     value={email}
                     readOnly
-                    className="bg-gray-50 border-gray-200"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all text-base"
+                    style={{ 
+                      minHeight: '40px',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
                   />
                 </div>
 
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name *
+                  <label className="block text-sm font-medium text-white/90 mb-1.5">
+                    Full Name <span className="text-pink-400">*</span>
                   </label>
-                  <Input
+                  <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
                     placeholder="Your full name"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all text-base"
+                    style={{ 
+                      minHeight: '40px',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
                   />
                 </div>
 
                 {/* Company */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name *
+                  <label className="block text-sm font-medium text-white/90 mb-1.5">
+                    Company Name <span className="text-pink-400">*</span>
                   </label>
-                  <Input
+                  <input
                     type="text"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     required
                     placeholder="Your company name"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all text-base"
+                    style={{ 
+                      minHeight: '40px',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
                   />
                 </div>
 
                 {/* Number of Employees */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Employees *
+                  <label className="block text-sm font-medium text-white/90 mb-1.5">
+                    Number of Employees <span className="text-pink-400">*</span>
                   </label>
                   <select
                     value={employees}
                     onChange={(e) => setEmployees(e.target.value)}
                     required
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all appearance-none text-base"
+                    style={{ 
+                      minHeight: '40px',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
                   >
-                    <option value="">Select company size</option>
+                    <option value="" className="bg-zinc-900 text-white">Select company size</option>
                     {employeeOptions.map((option) => (
-                      <option key={option} value={option}>
+                      <option key={option} value={option} className="bg-zinc-900 text-white">
                         {option} {option === "1" ? "employee" : "employees"}
                       </option>
                     ))}
@@ -234,18 +270,23 @@ function WaitlistContent() {
 
                 {/* Industry */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Industry *
+                  <label className="block text-sm font-medium text-white/90 mb-1.5">
+                    Industry <span className="text-pink-400">*</span>
                   </label>
                   <select
                     value={industry}
                     onChange={(e) => setIndustry(e.target.value)}
                     required
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all appearance-none text-base"
+                    style={{ 
+                      minHeight: '40px',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
                   >
-                    <option value="">Select your industry</option>
+                    <option value="" className="bg-zinc-900 text-white">Select your industry</option>
                     {industryOptions.map((option) => (
-                      <option key={option} value={option}>
+                      <option key={option} value={option} className="bg-zinc-900 text-white">
                         {option}
                       </option>
                     ))}
@@ -253,14 +294,20 @@ function WaitlistContent() {
                 </div>
 
                 {/* Submit Button */}
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full rounded-2xl shadow-md bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-10 py-4 text-lg font-semibold transition-all hover:shadow-lg hover:scale-105"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Submitting..." : "Complete Registration"}
-                </Button>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full px-6 py-2.5 text-base font-semibold text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ 
+                      minHeight: '44px',
+                      WebkitAppearance: 'none',
+                      appearance: 'none'
+                    }}
+                  >
+                    {isLoading ? "Submitting..." : "Complete Registration"}
+                  </button>
+                </div>
               </form>
             </>
           )}
