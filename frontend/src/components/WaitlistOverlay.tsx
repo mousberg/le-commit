@@ -83,7 +83,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       // First, submit email to get record ID if we don't have one
       if (!recordId) {
@@ -98,20 +98,20 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
         if (emailResponse.ok) {
           const emailData = await emailResponse.json();
           setRecordId(emailData.id);
-          
+
           // Then update with full details
           const detailsResponse = await fetch('/api/waitlist', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               id: emailData.id,
-              email: formData.email, 
-              name: formData.fullName, 
-              company: formData.company, 
-              employees: formData.employees, 
-              industry: formData.industry 
+              email: formData.email,
+              name: formData.fullName,
+              company: formData.company,
+              employees: formData.employees,
+              industry: formData.industry
             }),
           });
 
@@ -130,13 +130,13 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             id: recordId,
-            email: formData.email, 
-            name: formData.fullName, 
-            company: formData.company, 
-            employees: formData.employees, 
-            industry: formData.industry 
+            email: formData.email,
+            name: formData.fullName,
+            company: formData.company,
+            employees: formData.employees,
+            industry: formData.industry
           }),
         });
 
@@ -180,20 +180,20 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={handleClose}
         style={{ backdropFilter: 'blur(8px)' }}
       />
-      
+
       {/* Modal */}
       <div className="relative w-full max-w-xl mx-auto max-h-[90vh] overflow-y-auto">
         {/* Glassmorphic container */}
-        <div className="relative bg-white/15 backdrop-blur-lg rounded-2xl border border-white/30 shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden" style={{ 
+        <div className="relative bg-white/15 backdrop-blur-lg rounded-2xl border border-white/30 shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden" style={{
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)'
         }}>
-          
+
           {/* Close button */}
           <button
             onClick={handleClose}
@@ -239,7 +239,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all text-base"
-                      style={{ 
+                      style={{
                         minHeight: '40px',
                         WebkitAppearance: 'none',
                         appearance: 'none'
@@ -259,7 +259,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
                       value={formData.fullName}
                       onChange={(e) => handleInputChange('fullName', e.target.value)}
                       className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all text-base"
-                      style={{ 
+                      style={{
                         minHeight: '40px',
                         WebkitAppearance: 'none',
                         appearance: 'none'
@@ -279,7 +279,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
                       value={formData.company}
                       onChange={(e) => handleInputChange('company', e.target.value)}
                       className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all text-base"
-                      style={{ 
+                      style={{
                         minHeight: '40px',
                         WebkitAppearance: 'none',
                         appearance: 'none'
@@ -298,7 +298,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
                       value={formData.employees}
                       onChange={(e) => handleInputChange('employees', e.target.value)}
                       className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all appearance-none text-base"
-                      style={{ 
+                      style={{
                         minHeight: '40px',
                         WebkitAppearance: 'none',
                         appearance: 'none'
@@ -323,7 +323,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
                       value={formData.industry}
                       onChange={(e) => handleInputChange('industry', e.target.value)}
                       className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all appearance-none text-base"
-                      style={{ 
+                      style={{
                         minHeight: '40px',
                         WebkitAppearance: 'none',
                         appearance: 'none'
@@ -344,7 +344,7 @@ export default function WaitlistOverlay({ isOpen, onClose, initialEmail = "" }: 
                       type="submit"
                       disabled={isLoading}
                       className="w-full px-6 py-2.5 text-base font-semibold text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ 
+                      style={{
                         minHeight: '44px',
                         WebkitAppearance: 'none',
                         appearance: 'none'
