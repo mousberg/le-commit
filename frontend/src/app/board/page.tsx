@@ -2,36 +2,159 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Trash2 } from 'lucide-react';
+import { Trash2, MoreVertical, Trash, Download, Share2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import TranscriptModal from '../../components/TranscriptModal';
 import ProcessingLoader from '../../components/ProcessingLoader';
 import CredibilityScore from '../../components/credibility-score';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
 import NewApplicantForm from './components/NewApplicantForm';
-import ApplicantSidebar from './components/ApplicantSidebar';
 import { CvData, Experience, Education } from '../../lib/interfaces/cv';
 import { GitHubData } from '../../lib/interfaces/github';
+
+// Data Comparison Component
+function DataComparisonSection({ cvData, linkedinData }: { cvData?: CvData; linkedinData?: CvData }) {
+  if (!cvData || !linkedinData) return null;
+
+  const compareExperiences = () => {
+    const cvExperiences = cvData.professionalExperiences || [];
+    const linkedinExperiences = linkedinData.professionalExperiences || [];
+    
+    const matches: Array<{cvExp: Experience; linkedinExp: Experience; titleMatch: boolean; type: string}> = [];
+    const mismatches: Array<{data: Experience; source: string; missing: string; type: string}> = [];
+
+    cvExperiences.forEach(cvExp => {
+      const linkedinMatch = linkedinExperiences.find(lExp => 
+        lExp.companyName?.toLowerCase().includes(cvExp.companyName?.toLowerCase() || '') ||
+        cvExp.companyName?.toLowerCase().includes(lExp.companyName?.toLowerCase() || '')
+      );
+      
+      if (linkedinMatch) {
+        const titleMatch = cvExp.title?.toLowerCase() === linkedinMatch.title?.toLowerCase();
+        matches.push({
+          cvExp,
+          linkedinExp: linkedinMatch,
+          titleMatch,
+          type: 'experience'
+        });
+      } else {
+        mismatches.push({
+          data: cvExp,
+          source: 'CV',
+          missing: 'LinkedIn',
+          type: 'experience'
+        });
+      }
+    });
+
+    return { matches, mismatches };
+  };
+
+  const compareSkills = () => {
+    const cvSkills = (cvData.skills || []).map(s => s.toLowerCase());
+    const linkedinSkills = (linkedinData.skills || []).map(s => s.toLowerCase());
+    
+    const commonSkills = cvSkills.filter(skill => linkedinSkills.includes(skill));
+    const cvOnlySkills = cvSkills.filter(skill => !linkedinSkills.includes(skill));
+    const linkedinOnlySkills = linkedinSkills.filter(skill => !cvSkills.includes(skill));
+
+    return { commonSkills, cvOnlySkills, linkedinOnlySkills };
+  };
+
+  const { matches, mismatches } = compareExperiences();
+  const { cvOnlySkills, linkedinOnlySkills } = compareSkills();
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center gap-2">
+        <span className="text-xl">🔍</span>
+        CV vs LinkedIn Comparison
+      </h3>
+      
+      {/* Quick Summary */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+          <div>
+            <div className="text-sm text-green-600 font-medium">Companies Verified</div>
+            <div className="text-xs text-green-600">{matches.length} of {(cvData.professionalExperiences || []).length} CV companies found on LinkedIn</div>
+          </div>
+          <div className="text-2xl font-semibold text-green-700">{matches.length}</div>
+        </div>
+        <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div>
+            <div className="text-sm text-yellow-700 font-medium">Skills to Verify</div>
+            <div className="text-xs text-yellow-600">{cvOnlySkills.length} CV skills + {linkedinOnlySkills.length} LinkedIn skills missing from other</div>
+          </div>
+          <div className="text-2xl font-semibold text-yellow-700">{cvOnlySkills.length + linkedinOnlySkills.length}</div>
+        </div>
+      </div>
+
+      {/* Key Findings */}
+      {(matches.length > 0 || mismatches.length > 0 || cvOnlySkills.length > 0 || linkedinOnlySkills.length > 0) && (
+        <div className="space-y-3">
+          {/* Verified Companies */}
+          {matches.length > 0 && (
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="font-medium text-sm text-green-700">Verified: {matches.map(m => m.cvExp.companyName).join(', ')}</span>
+              </div>
+              <div className="text-xs text-green-600">
+                {matches.filter(m => m.titleMatch).length} exact title matches, {matches.filter(m => !m.titleMatch).length} title differences
+              </div>
+            </div>
+          )}
+
+          {/* Missing Companies */}
+          {mismatches.length > 0 && (
+            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <span className="font-medium text-sm text-yellow-700">CV Only: {mismatches.map(m => m.data.companyName).join(', ')}</span>
+              </div>
+              <div className="text-xs text-yellow-600">Ask why these companies aren&apos;t on LinkedIn</div>
+            </div>
+          )}
+
+          {/* Skill Differences */}
+          {(cvOnlySkills.length > 0 || linkedinOnlySkills.length > 0) && (
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="font-medium text-sm text-blue-700 mb-1">Skill Gaps</div>
+              <div className="text-xs text-blue-600 space-y-1">
+                {cvOnlySkills.length > 0 && (
+                  <div><span className="font-medium">CV only ({cvOnlySkills.length}):</span> {cvOnlySkills.slice(0, 5).join(', ')}{cvOnlySkills.length > 5 ? '...' : ''}</div>
+                )}
+                {linkedinOnlySkills.length > 0 && (
+                  <div><span className="font-medium">LinkedIn only ({linkedinOnlySkills.length}):</span> {linkedinOnlySkills.slice(0, 5).join(', ')}{linkedinOnlySkills.length > 5 ? '...' : ''}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // LinkedIn Section Component
 function LinkedInSection({ linkedinData }: { linkedinData: CvData }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="h-full">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-6 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100 rounded-t-xl"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">💼</span>
-          <h3 className="text-lg font-bold text-gray-900">LinkedIn</h3>
+          <h3 className="text-lg font-semibold text-gray-900">LinkedIn Data</h3>
         </div>
         <span className="ml-2 text-xs text-gray-400">{isExpanded ? '▲' : '▼'}</span>
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t border-gray-200">
+        <div className="p-4 rounded-b-xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {linkedinData.professionalSummary && (
               <div className="col-span-2 bg-white/70 rounded-lg p-4">
@@ -130,14 +253,14 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="h-full">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-6 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100 rounded-t-xl"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">🐙</span>
-          <h3 className="text-lg font-bold text-gray-900">GitHub</h3>
+          <h3 className="text-lg font-semibold text-gray-900">GitHub Data</h3>
           <a
             href={githubData.profileUrl}
             target="_blank"
@@ -152,7 +275,7 @@ function GitHubSection({ githubData }: { githubData: GitHubData }) {
       </button>
 
       {isExpanded && (
-        <div className="px-6 pb-6 border-t border-gray-200">
+        <div className="p-4 rounded-b-xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div className="bg-white/70 rounded-lg p-4">
               <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -301,19 +424,19 @@ interface ReferenceFormData {
 function CollapsibleCVSection({ cvData }: { cvData: CvData }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="h-full">
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-full p-6 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100 rounded-t-xl"
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">📄</span>
-          <h3 className="text-xl font-bold text-gray-900">CV</h3>
+          <h3 className="text-lg font-semibold text-gray-900">CV Data</h3>
         </div>
         <span className="ml-2 text-xs text-gray-400">{isOpen ? '▲' : '▼'}</span>
       </button>
       {isOpen && (
-        <div className="px-6 pb-6 border-t border-gray-200">
+        <div className="p-4 rounded-b-xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {cvData.professionalSummary && (
               <div className="col-span-2 bg-white/70 rounded-lg p-4">
@@ -449,9 +572,7 @@ function BoardPageContent() {
     console.log('Applicant created:', applicantId);
   }, []);
 
-  const handleDeleteApplicant = async (applicantId: string, applicantName: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering the navigate click
-
+  const handleDeleteApplicant = async (applicantId: string, applicantName: string) => {
     setDeleteConfirmModal({
       isOpen: true,
       applicantId,
@@ -697,16 +818,9 @@ function BoardPageContent() {
 
   return (
     <>
-      <div className="min-h-screen flex bg-gradient-to-b from-white via-slate-50 to-white">
-        {/* Sidebar */}
-        <ApplicantSidebar
-          selectedId={selectedId || 'new'}
-          onSelectApplicant={navigateToApplicant}
-          onSelectNew={navigateToNew}
-          onDeleteApplicant={handleDeleteApplicant}
-        />
-      {/* Main Content */}
-      <main className="flex-1 p-10">
+      <div className="min-h-screen bg-white">
+        {/* Main Content */}
+        <main className="p-10">
         {isNewForm ? (
             <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
@@ -718,76 +832,120 @@ function BoardPageContent() {
                 applicant={selectedCandidate}
               />
             ) : (
-            <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-10 flex flex-col gap-8">
-              {/* Applicant Header */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-1">{selectedCandidate.name}</h2>
-                  <p className="text-lg text-gray-600">{selectedCandidate.role || 'Position not specified'}</p>
-                  {selectedCandidate.email && (
-                    <p className="text-sm text-gray-500">{selectedCandidate.email}</p>
-                  )}
-                </div>
-                <div className="flex flex-col md:items-end gap-2">
-                  <div className="flex gap-4">
-                    <span className="text-emerald-600">CV ✓</span>
-                    {selectedCandidate.linkedinData ? (
-                      <span className="text-blue-600">LinkedIn ✓</span>
-                    ) : (
-                      <span className="text-gray-400">LinkedIn</span>
-                    )}
-                    {selectedCandidate.githubData ? (
-                      <span className="text-purple-600">GitHub ✓</span>
-                    ) : (
-                      <span className="text-gray-400">GitHub</span>
+            <div className="max-w-4xl mx-auto">
+              {/* Compact Header */}
+              <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-2xl font-semibold text-gray-900">{selectedCandidate.name}</h2>
+                      <div className="flex items-center gap-2">
+                        {selectedCandidate.cvData && (
+                          <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full border border-green-200 font-medium">
+                            CV ✓
+                          </span>
+                        )}
+                        {selectedCandidate.linkedinData && (
+                          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium">
+                            LinkedIn ✓
+                          </span>
+                        )}
+                        {selectedCandidate.githubData && (
+                          <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200 font-medium">
+                            GitHub ✓
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-gray-600">{selectedCandidate.role || 'Position not specified'}</p>
+                    {selectedCandidate.email && (
+                      <p className="text-sm text-gray-500">{selectedCandidate.email}</p>
                     )}
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs font-medium ${
-                    selectedCandidate.status === 'completed' ? 'bg-green-100 text-green-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {selectedCandidate.status}
+                  
+                  {/* Actions Menu */}
+                  <div className="relative group">
+                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                      <MoreVertical className="h-5 w-5 text-gray-500" />
+                    </button>
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                      <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                        <Download className="h-4 w-4" />
+                        Export Profile
+                      </button>
+                      <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                        <Share2 className="h-4 w-4" />
+                        Share
+                      </button>
+                      <div className="border-t border-gray-100"></div>
+                      <button 
+                        onClick={() => handleDeleteApplicant(selectedCandidate.id, selectedCandidate.name)}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <Trash className="h-4 w-4" />
+                        Delete Candidate
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Credibility Analysis */}
               {selectedCandidate.analysisResult && (
-                <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
-              )}
-
-              {/* Core Profile from CV - Collapsible, collapsed by default, light grey bg */}
-              {selectedCandidate.cvData && (
-                <CollapsibleCVSection cvData={selectedCandidate.cvData} />
-              )}
-
-              {/* LinkedIn Data - Expandable Section */}
-              {selectedCandidate.linkedinData ? (
-                <LinkedInSection linkedinData={selectedCandidate.linkedinData} />
-              ) : (
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-2xl opacity-50">💼</span>
-                    <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
-                  </div>
-                  <p className="text-gray-500 text-sm">LinkedIn data not provided for this candidate.</p>
+                <div className="mb-6">
+                  <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
                 </div>
               )}
 
-              {/* GitHub Data - Expandable Section */}
-              {selectedCandidate.githubData ? (
-                <GitHubSection githubData={selectedCandidate.githubData} />
-              ) : (
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 opacity-60">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-2xl opacity-50">🐙</span>
-                    <h3 className="text-lg font-semibold text-gray-500">GitHub</h3>
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
+              {/* CV vs LinkedIn Comparison */}
+              <DataComparisonSection 
+                cvData={selectedCandidate.cvData} 
+                linkedinData={selectedCandidate.linkedinData} 
+              />
+
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* CV Section */}
+                {selectedCandidate.cvData && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <CollapsibleCVSection cvData={selectedCandidate.cvData} />
                   </div>
-                  <p className="text-gray-500 text-sm">GitHub data not provided for this candidate.</p>
+                )}
+
+                {/* LinkedIn Section */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                  {selectedCandidate.linkedinData ? (
+                    <LinkedInSection linkedinData={selectedCandidate.linkedinData} />
+                  ) : (
+                    <div className="p-6 opacity-60">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xl opacity-50">💼</span>
+                        <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
+                      </div>
+                      <p className="text-gray-500 text-sm">LinkedIn data not provided for this candidate.</p>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* GitHub Section - Full Width if available */}
+                {(selectedCandidate.githubData || !selectedCandidate.cvData) && (
+                  <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${selectedCandidate.githubData ? 'lg:col-span-2' : ''}`}>
+                    {selectedCandidate.githubData ? (
+                      <GitHubSection githubData={selectedCandidate.githubData} />
+                    ) : (
+                      <div className="p-6 opacity-60">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-xl opacity-50">🐙</span>
+                          <h3 className="text-lg font-semibold text-gray-500">GitHub</h3>
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
+                        </div>
+                        <p className="text-gray-500 text-sm">GitHub data not provided for this candidate.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Processing status message */}
               {selectedCandidate.status === 'failed' && (
@@ -798,11 +956,11 @@ function BoardPageContent() {
                 </div>
               )}
 
-              {/* Reference Calls */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">Reference Calls</h3>
-                  <Button size="sm" onClick={handleStartAddReference} className="bg-emerald-500 hover:bg-emerald-600 text-white" disabled={addingReference}>+ Add Reference</Button>
+              {/* Reference Calls & Start Interview */}
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Reference Calls</h3>
+                  <Button size="sm" onClick={handleStartAddReference} className="bg-purple-600 hover:bg-purple-700 text-white" disabled={addingReference}>+ Add Reference</Button>
                 </div>
                 <div className="space-y-4">
                   {addingReference && (
@@ -902,19 +1060,22 @@ function BoardPageContent() {
                     <div className="text-gray-400 text-center py-6">No references added yet.</div>
                   )}
                 </div>
+                
+                {/* Start Interview Button */}
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <Button
+                    size="lg"
+                    className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-4 text-lg font-medium shadow-sm transition-all duration-200"
+                  >
+                    Start Interview
+                  </Button>
+                </div>
               </div>
-              {/* Start Call Button */}
-              <Button
-                size="lg"
-                className="rounded-2xl shadow-sm bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-8 py-3 text-xl font-semibold mt-2"
-              >
-                Start Interview
-              </Button>
             </div>
             )
           ) : null}
         </main>
-      </div>
+        </div>
       {/* Transcript Modal */}
       <TranscriptModal
         isOpen={transcriptModal.isOpen}
