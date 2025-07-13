@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalNavbar from "../components/ConditionalNavbar";
 import { ApplicantProvider } from "../lib/contexts/ApplicantContext";
+import { GoogleTagManager } from '@next/third-parties/google'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,6 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <GoogleTagManager gtmId="GTM-KGC954TB" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
