@@ -76,7 +76,7 @@ function calculateCandidateScore(applicant: Applicant): CandidateScore {
     if (profileData?.skills && profileData.skills.length > 5) {
       techScore += 20; // Good skill set
     }
-    if (profileData?.experience && profileData.experience.length > 0) {
+    if (profileData?.professionalExperiences && profileData.professionalExperiences.length > 0) {
       techScore += 20; // Has experience
     }
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search } from 'lucide-react';
@@ -180,9 +181,11 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
       <header className="group relative h-6 flex shrink-0 items-center justify-between mb-8">
         {isCollapsed ? (
           <div className="flex items-center">
-            <img 
+            <Image 
               src="/unmask-logo.svg" 
               alt="Unmask" 
+              width={24}
+              height={24}
               className="mx-3 h-6 w-6"
             />
             <button
@@ -197,9 +200,11 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
         ) : (
           <>
             <div className="flex items-center">
-              <img 
+              <Image 
                 src="/unmask-logo.svg" 
                 alt="Unmask" 
+                width={24}
+                height={24}
                 className="mx-3 h-6 w-6"
               />
             </div>

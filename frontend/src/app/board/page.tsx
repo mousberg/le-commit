@@ -1062,14 +1062,16 @@ function BoardPageContent() {
                 </div>
                 
                 {/* Start Interview Button */}
-                <div className="mt-6 pt-6 border-t border-gray-100">
-                  <Button
-                    size="lg"
-                    className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-4 text-lg font-medium shadow-sm transition-all duration-200"
-                  >
-                    Start Interview
-                  </Button>
-                </div>
+                {selectedCandidate.status !== 'failed' && (
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    <Button
+                      size="lg"
+                      className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-4 text-lg font-medium shadow-sm transition-all duration-200"
+                    >
+                      Start Interview
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
             )

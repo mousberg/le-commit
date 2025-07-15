@@ -4,6 +4,7 @@ import { Trash2, LayoutDashboard, Users, Settings, CreditCard, Cog, ChevronRight
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
 interface ConsoleSidebarProps {
@@ -65,9 +66,11 @@ export default function ConsoleSidebar({
       {/* Logo Header */}
       <div className="p-6 border-b border-zinc-200/50">
         <Link href="/" className="flex items-center">
-          <img 
+          <Image 
             src="/Logo-full.svg" 
             alt="Unmask" 
+            width={120}
+            height={32}
             className="h-8 w-auto"
           />
         </Link>

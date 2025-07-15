@@ -1,12 +1,21 @@
 import { Applicant } from '@/lib/interfaces/applicant';
 
+export interface LinkedInProgress {
+  attempt: number;
+  maxAttempts: number;
+  status: 'starting' | 'polling' | 'running' | 'ready' | 'retrying' | 'error';
+  message: string;
+  percentage?: number;
+}
+
 interface ProcessingLoaderProps {
   status: 'uploading' | 'processing' | 'analyzing';
   fileName?: string;
   applicant?: Applicant;
+  linkedinProgress?: LinkedInProgress;
 }
 
-export default function ProcessingLoader({ status, fileName, applicant }: ProcessingLoaderProps) {
+export default function ProcessingLoader({ status, fileName, applicant, linkedinProgress }: ProcessingLoaderProps) {
   const getStatusText = () => {
     switch (status) {
       case 'uploading':
@@ -86,17 +95,49 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
               </div>
 
               {/* LinkedIn Analysis */}
-              {(applicant.linkedinData || status === 'processing') && (
+              {(applicant.linkedinData || status === 'processing' || linkedinProgress) && (
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-3 mb-2">
-                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.linkedinData ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                      applicant.linkedinData ? 'bg-blue-500' : 
+                      linkedinProgress?.status === 'error' ? 'bg-red-500' :
+                      linkedinProgress ? 'bg-blue-300 animate-pulse' : 'bg-gray-200'
+                    }`}></div>
                     <span className={`text-sm ${applicant.linkedinData ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
                     {applicant.linkedinData && (
                       <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
+                    {linkedinProgress?.status === 'error' && (
+                      <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    )}
                   </div>
+                  
+                  {/* LinkedIn Progress Details */}
+                  {linkedinProgress && !applicant.linkedinData && (
+                    <div className="text-xs text-gray-600 space-y-2">
+                      <p className={`${linkedinProgress.status === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
+                        {linkedinProgress.message}
+                      </p>
+                      {linkedinProgress.percentage && linkedinProgress.status !== 'error' && (
+                        <div className="w-full bg-gray-200 rounded-full h-1">
+                          <div 
+                            className="bg-blue-500 h-1 rounded-full transition-all duration-300"
+                            style={{ width: `${linkedinProgress.percentage}%` }}
+                          />
+                        </div>
+                      )}
+                      {linkedinProgress.status !== 'error' && (
+                        <p className="text-gray-500">
+                          {linkedinProgress.attempt}/{linkedinProgress.maxAttempts} attempts
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
                   {applicant.linkedinData && (
                     <div className="text-xs text-gray-600 space-y-1">
                       {applicant.linkedinData.jobTitle && (

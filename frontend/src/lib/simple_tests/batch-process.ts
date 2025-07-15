@@ -352,8 +352,9 @@ async function main() {
       results.push({ success: true, applicantId, row });
       console.log(`✅ Successfully processed applicant ${applicantId}`);
     } catch (error) {
-      results.push({ success: false, error: error.message, row });
-      console.error(`❌ Failed to process row:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      results.push({ success: false, error: errorMessage, row });
+      console.error(`❌ Failed to process row:`, errorMessage);
     }
   }
   

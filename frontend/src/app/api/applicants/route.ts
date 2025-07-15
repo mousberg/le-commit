@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Applicant } from '@/lib/interfaces/applicant';
 import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
-import { processCvPdf, validateAndCleanCvData, processLinkedInPdf, processLinkedInUrl } from '@/lib/cv';
+import { processCvPdf, validateAndCleanCvData, processLinkedInUrl } from '@/lib/cv';
 import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
 import * as fs from 'fs';
@@ -103,7 +103,6 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string, li
 
     // Generate unique temp directory suffixes to prevent race conditions
     const cvTempSuffix = `cv_${applicantId}_${Date.now()}`;
-    const linkedinTempSuffix = `linkedin_${applicantId}_${Date.now()}`;
 
         // Process CV, LinkedIn, and GitHub all in parallel
     console.log(`Processing all data sources for applicant ${applicantId}`);
