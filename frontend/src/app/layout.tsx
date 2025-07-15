@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalNavbar from "../components/ConditionalNavbar";
 import { ApplicantProvider } from "../lib/contexts/ApplicantContext";
+import { OverlayProvider } from "../lib/contexts/OverlayContext";
 import { GoogleTagManager } from '@next/third-parties/google'
 
 const geistSans = Geist({
@@ -33,8 +34,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ApplicantProvider>
-          <ConditionalNavbar />
-          {children}
+          <OverlayProvider>
+            <ConditionalNavbar />
+            {children}
+          </OverlayProvider>
         </ApplicantProvider>
       </body>
     </html>

@@ -1,23 +1,29 @@
 import Link from 'next/link';
 import { getSortedPostsData, getAllTags } from '../../lib/blog';
 import { Badge } from '../../components/ui/badge';
+import HeroBackground from '../../components/HeroBackground';
 
 export default function BlogPage() {
   const allPostsData = getSortedPostsData();
   const allTags = getAllTags();
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <HeroBackground className="pt-32 pb-16 sm:pt-40 sm:pb-20 lg:pt-48 lg:pb-24" cropped>
+        <div className="text-center mx-auto max-w-3xl">
+          <h1 className="text-4xl font-medium tracking-tight text-balance text-zinc-900 sm:text-6xl lg:text-7xl">
             Blog
           </h1>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mx-auto max-w-lg mt-5 text-lg/6 lg:text-xl/6 font-medium text-balance text-zinc-500">
             Insights, guides, and updates about AI-powered interview integrity
           </p>
         </div>
+      </HeroBackground>
+
+      {/* Content Section */}
+      <div className="bg-white">
+        <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
 
         {/* Tags */}
         <div className="mb-12">
@@ -91,6 +97,7 @@ export default function BlogPage() {
             <p className="text-gray-500">No blog posts available yet.</p>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

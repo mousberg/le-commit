@@ -113,7 +113,7 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
           {/* Desktop navigation */}
           <div className="hidden lg:flex lg:gap-x-12">
             <Link 
-              href="#features" 
+              href="/#features" 
               className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
             >
               How it works
@@ -125,7 +125,7 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
               Demo
             </button>
             <Link 
-              href="#testimonials" 
+              href="/#testimonials" 
               className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
             >
               Testimonials
@@ -156,7 +156,7 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
             <div className="p-6">
               <nav className="flex flex-col space-y-1">
                 <Link 
-                  href="#features" 
+                  href="/#features" 
                   className="text-base font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-3 px-4 rounded-lg hover:bg-pink-50"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -172,7 +172,7 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                   Demo
                 </button>
                 <Link 
-                  href="#testimonials" 
+                  href="/#testimonials" 
                   className="text-base font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-3 px-4 rounded-lg hover:bg-pink-50"
                   onClick={() => setIsMenuOpen(false)}
                 >

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPostData, getAllPostSlugs } from '../../../lib/blog';
 import { Badge } from '../../../components/ui/badge';
+import HeroBackground from '../../../components/HeroBackground';
 
 export async function generateStaticParams() {
   const posts = getAllPostSlugs();
@@ -16,49 +17,57 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
     const postData = await getPostData(slug);
 
     return (
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-          {/* Back link */}
-          <div className="mb-8">
-            <Link 
-              href="/blog"
-              className="inline-flex items-center text-sm font-medium text-pink-600 hover:text-pink-500 transition-colors"
-            >
-              <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Blog
-            </Link>
-          </div>
+      <div className="min-h-screen">
+        {/* Hero Section */}
+        <HeroBackground className="pt-32 pb-16 sm:pt-40 sm:pb-20 lg:pt-48 lg:pb-24" cropped>
+          <div className="text-center mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            {/* Back link */}
+            <div className="mb-8">
+              <Link 
+                href="/blog"
+                className="inline-flex items-center text-sm font-medium text-pink-600 hover:text-pink-500 transition-colors"
+              >
+                <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Blog
+              </Link>
+            </div>
 
-          {/* Article header */}
-          <header className="mb-12">
-            <div className="mb-4">
-              <div className="flex flex-wrap gap-2 mb-4">
-                {postData.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
+            {/* Article header */}
+            <header className="mb-12">
+              <div className="mb-6">
+                <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                  {postData.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-            
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-6">
-              {postData.title}
-            </h1>
-            
-            <div className="flex items-center space-x-4 text-gray-500">
-              <time dateTime={postData.date}>
-                {new Date(postData.date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </time>
-              <span>•</span>
-              <span>{postData.author}</span>
-            </div>
-          </header>
+              
+              <h1 className="text-4xl font-medium tracking-tight text-balance text-zinc-900 sm:text-5xl lg:text-6xl mb-6">
+                {postData.title}
+              </h1>
+              
+              <div className="flex items-center justify-center space-x-4 text-zinc-500">
+                <time dateTime={postData.date}>
+                  {new Date(postData.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </time>
+                <span>•</span>
+                <span>{postData.author}</span>
+              </div>
+            </header>
+          </div>
+        </HeroBackground>
+
+        {/* Content Section */}
+        <div className="bg-white">
+          <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
 
           {/* Article content */}
           <div 
@@ -85,6 +94,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
               </Link>
             </div>
           </footer>
+          </div>
         </div>
       </div>
     );

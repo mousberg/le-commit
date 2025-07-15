@@ -1,30 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import Features from "@/components/Features";
 import Testimonials from "@/components/Testimonials";
 import Footer from "@/components/Footer";
-import DemoOverlay from "@/components/DemoOverlay";
-import WaitlistOverlay from "@/components/WaitlistOverlay";
 
 export default function Home() {
   const [email, setEmail] = useState("");
-  const [isDemoOpen, setIsDemoOpen] = useState(false);
-  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
-
-  useEffect(() => {
-    const handleDemoOpen = () => setIsDemoOpen(true);
-    const handleWaitlistOpen = () => setIsWaitlistOpen(true);
-    
-    window.addEventListener('openDemo', handleDemoOpen);
-    window.addEventListener('openWaitlist', handleWaitlistOpen);
-    
-    return () => {
-      window.removeEventListener('openDemo', handleDemoOpen);
-      window.removeEventListener('openWaitlist', handleWaitlistOpen);
-    };
-  }, []);
   return (
     <main className="w-full">
       {/* Hero Section */}
@@ -92,7 +75,7 @@ export default function Home() {
                 <button 
                   onClick={() => {
                     if (email && email.includes('@')) {
-                      setIsWaitlistOpen(true);
+                      window.dispatchEvent(new CustomEvent('openWaitlist', { detail: { email } }));
                     } else {
                       alert('Please enter a valid email address');
                     }
@@ -119,19 +102,6 @@ export default function Home() {
       <Features />
       <Testimonials />
       <Footer />
-      
-      {/* Demo Overlay */}
-      <DemoOverlay 
-        isOpen={isDemoOpen} 
-        onClose={() => setIsDemoOpen(false)} 
-      />
-      
-      {/* Waitlist Overlay */}
-      <WaitlistOverlay 
-        isOpen={isWaitlistOpen} 
-        onClose={() => setIsWaitlistOpen(false)}
-        initialEmail={email}
-      />
     </main>
   );
 }
