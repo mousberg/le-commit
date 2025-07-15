@@ -138,8 +138,8 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
   };
 
   const handleCreateCandidate = async () => {
-    if (!cvFile) {
-      alert('Please select a CV file');
+    if (!linkedinFile && !githubUrl.trim()) {
+      alert('Please provide either a LinkedIn profile or GitHub URL');
       return;
     }
 
@@ -147,7 +147,7 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
 
     try {
       const applicantId = await createApplicant({
-        cvFile,
+        cvFile: cvFile || undefined,
         linkedinFile: linkedinFile || undefined,
         githubUrl: githubUrl.trim() || undefined
       });
@@ -169,27 +169,16 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
     }
   };
 
-  const isFormValid = cvFile && !isCreating && !isLoading;
+  const isFormValid = (linkedinFile || githubUrl.trim()) && !isCreating && !isLoading;
 
   return (
     <div className="min-h-screen bg-white">
       <div className="p-8">
         <h2 className="text-3xl font-medium text-zinc-900 mb-2">New Applicant</h2>
-        <p className="text-zinc-500 mb-8">Upload candidate information to begin analysis.</p>
+        <p className="text-zinc-500 mb-8">Provide LinkedIn profile or GitHub URL to begin analysis. CV is optional.</p>
         
         <div className="max-w-2xl mx-auto">
           <div className="flex flex-col gap-8">
-            {/* CV Upload */}
-            <DropZone
-              onDrop={setCvFile}
-              accept=".pdf,.doc,.docx"
-              label="CV"
-              description="PDF"
-              file={cvFile}
-              disabled={isCreating}
-              required={true}
-            />
-
             {/* LinkedIn Profile Upload */}
             <DropZone
               onDrop={setLinkedinFile}
@@ -198,11 +187,14 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
               description="Profile PDF Download"
               file={linkedinFile}
               disabled={isCreating}
+              required={!githubUrl.trim()}
             />
 
             {/* GitHub URL Input */}
             <div className="flex flex-col gap-3">
-              <label className="text-lg font-medium text-zinc-900">GitHub</label>
+              <label className="text-lg font-medium text-zinc-900">
+                GitHub {!linkedinFile && <span className="text-red-500">*</span>}
+              </label>
               <input
                 type="url"
                 value={githubUrl}
@@ -212,6 +204,17 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
                 className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
               />
             </div>
+
+            {/* CV Upload (Optional) */}
+            <DropZone
+              onDrop={setCvFile}
+              accept=".pdf,.doc,.docx"
+              label="CV (Optional)"
+              description="PDF - Additional information"
+              file={cvFile}
+              disabled={isCreating}
+              required={false}
+            />
 
             {/* Submit Button */}
             <Button

@@ -27,7 +27,7 @@ export interface Applicant {
 }
 
 export interface CreateApplicantRequest {
-  cvFile: File;
+  cvFile?: File;
   linkedinFile?: File;
   githubUrl?: string;
 }

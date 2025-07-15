@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     const linkedinFile = formData.get('linkedinFile') as File;
     const githubUrl = formData.get('githubUrl') as string;
 
-    if (!cvFile) {
+    if (!cvFile && !linkedinFile && !githubUrl) {
       return NextResponse.json(
-        { error: 'CV file is required', success: false },
+        { error: 'At least one of CV file, LinkedIn profile, or GitHub URL is required', success: false },
         { status: 400 }
       );
     }
@@ -65,9 +65,11 @@ export async function POST(request: NextRequest) {
     // Save initial record
     saveApplicant(applicant);
 
-    // Save CV file
-    const cvBuffer = Buffer.from(await cvFile.arrayBuffer());
-    saveApplicantFile(applicantId, cvBuffer, 'cv.pdf');
+    // Save CV file if provided
+    if (cvFile) {
+      const cvBuffer = Buffer.from(await cvFile.arrayBuffer());
+      saveApplicantFile(applicantId, cvBuffer, 'cv.pdf');
+    }
 
     // Save LinkedIn file if provided
     if (linkedinFile) {
@@ -113,13 +115,18 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
 
     const processingPromises = [];
 
-    // Always process CV (required)
-    processingPromises.push(
-      processCvPdf(paths.cvPdf, true, cvTempSuffix).then(rawCvData => ({
-        type: 'cv',
-        data: validateAndCleanCvData(rawCvData)
-      }))
-    );
+    // Process CV if file exists
+    if (fs.existsSync(paths.cvPdf)) {
+      processingPromises.push(
+        processCvPdf(paths.cvPdf, true, cvTempSuffix).then(rawCvData => ({
+          type: 'cv',
+          data: validateAndCleanCvData(rawCvData)
+        })).catch(error => {
+          console.warn(`CV processing failed for ${applicantId}:`, error);
+          return { type: 'cv', data: null, error: error.message };
+        })
+      );
+    }
 
     // Process LinkedIn if file exists
     if (paths.linkedinFile && fs.existsSync(paths.linkedinFile)) {
@@ -160,7 +167,6 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
     let cvData: CvData | null = null;
     let linkedinData: CvData | null = null;
     let githubData: GitHubData | null = null;
-    let hasErrors = false;
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
@@ -173,24 +179,28 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
         }
       } else {
         console.error(`Processing failed for ${applicantId}:`, result.reason);
-        if (result.reason?.message?.includes('CV')) {
-          hasErrors = true; // CV processing failure is critical
-        }
       }
     }
 
-    // CV processing is required for successful completion
-    if (!cvData || hasErrors) {
-      throw new Error('CV processing failed');
+    // At least one data source is required for successful completion
+    if (!cvData && !linkedinData && !githubData) {
+      throw new Error('All data processing failed - no usable data sources');
     }
 
     // Update applicant with all processed data at once
-    applicant.cvData = cvData;
+    applicant.cvData = cvData || undefined;
     applicant.linkedinData = linkedinData || undefined;
     applicant.githubData = githubData || undefined;
-    applicant.name = `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown';
-    applicant.email = cvData.email || '';
-    applicant.role = cvData.jobTitle || '';
+    
+    // Extract name and email from available data sources
+    const primaryData = cvData || linkedinData;
+    const githubName = githubData?.name || githubData?.username;
+    
+    applicant.name = primaryData 
+      ? `${primaryData.firstName} ${primaryData.lastName}`.trim() || 'Unknown'
+      : githubName || 'Unknown';
+    applicant.email = primaryData?.email || githubData?.email || '';
+    applicant.role = primaryData?.jobTitle || '';
     applicant.status = 'analyzing';
 
     // Save intermediate state before analysis

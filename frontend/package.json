@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:cv": "npx tsx src/lib/simple_tests/test-cv.ts",
-    "test:evaluation": "npx tsx src/lib/simple_tests/test-evaluation.ts"
+    "test:evaluation": "npx tsx src/lib/simple_tests/test-evaluation.ts",
+    "batch-process": "npx tsx src/lib/simple_tests/batch-process.ts"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.5.0",
