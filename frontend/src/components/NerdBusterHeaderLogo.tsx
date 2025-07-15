@@ -130,6 +130,12 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
             >
               Testimonials
             </Link>
+            <Link 
+              href="/blog" 
+              className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+            >
+              Blog
+            </Link>
           </div>
 
           {/* Desktop CTA buttons */}
@@ -171,6 +177,13 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Testimonials
+                </Link>
+                <Link 
+                  href="/blog" 
+                  className="text-base font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-3 px-4 rounded-lg hover:bg-pink-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Blog
                 </Link>
               </nav>
               <div className="mt-6 pt-6 border-t border-gray-200">
