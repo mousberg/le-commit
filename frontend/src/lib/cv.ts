@@ -607,6 +607,7 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     references: [],
     certifications: [],
     other: {},
+    source: 'cv',
   }
 
   // Merge data from all sources
@@ -745,7 +746,7 @@ export async function processCvPdf(
  * @param cvData - Raw CV data to validate
  * @returns Validated and cleaned CV data
  */
-export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
+export function validateAndCleanCvData(cvData: Partial<CvData>, source: 'cv' | 'linkedin' = 'cv'): CvData {
   const cleanData: CvData = {
     lastName: cvData.lastName || '',
     firstName: cvData.firstName || '',
@@ -768,6 +769,7 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
     references: cvData.references || [],
     certifications: cvData.certifications || [],
     other: cvData.other || {},
+    source: source,
   }
 
   // Validate email format
@@ -790,6 +792,7 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
 
   return cleanData
 }
+
 
 /**
  * Utility function to validate email format
@@ -821,4 +824,156 @@ export function saveCvDataToJson(cvData: CvData, outputPath: string): void {
     console.error('Error saving CV data:', error)
     throw new Error(`Failed to save CV data: ${error}`)
   }
+}
+
+// LinkedIn API Response interfaces
+interface LinkedInApiExperience {
+  company: string;
+  title: string;
+  location?: string;
+  start_date: string;
+  end_date: string;
+  description_html?: string;
+}
+
+interface LinkedInApiLanguage {
+  title: string;
+  subtitle?: string;
+}
+
+interface LinkedInApiResponse {
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  city?: string;
+  about?: string;
+  position?: string;
+  url?: string;
+  input_url?: string;
+  connections?: number;
+  followers?: number;
+  linkedin_id?: string;
+  country_code?: string;
+  current_company?: {
+    title?: string;
+    name?: string;
+  };
+  avatar?: string;
+  banner_image?: string;
+  experience?: LinkedInApiExperience[];
+  languages?: LinkedInApiLanguage[];
+}
+
+/**
+ * Convert LinkedIn API response to ProfileData format
+ * @param linkedinApiData - LinkedIn API response data
+ * @returns ProfileData compatible with our system
+ */
+export function convertLinkedInApiToProfileData(linkedinApiData: LinkedInApiResponse | LinkedInApiResponse[]): CvData {
+  const data = Array.isArray(linkedinApiData) ? linkedinApiData[0] : linkedinApiData;
+  
+  // Extract name parts
+  const firstName = data.first_name || '';
+  const lastName = data.last_name || '';
+  const fullName = data.name || '';
+  
+  // If we don't have first/last name but have full name, try to split
+  let finalFirstName = firstName;
+  let finalLastName = lastName;
+  
+  if (!firstName && !lastName && fullName) {
+    const nameParts = fullName.split(' ');
+    finalFirstName = nameParts[0] || '';
+    finalLastName = nameParts.slice(1).join(' ') || '';
+  }
+  
+  // Convert experience - simplified for now
+  const professionalExperiences: any[] = (data.experience || []).map((exp: LinkedInApiExperience) => ({
+    companyName: exp.company || '',
+    title: exp.title || '',
+    location: exp.location || '',
+    type: 'PERMANENT_CONTRACT', // Default, could be enhanced
+    startYear: parseLinkedInYear(exp.start_date) || 0,
+    startMonth: parseLinkedInMonth(exp.start_date),
+    endYear: exp.end_date === 'Present' ? undefined : parseLinkedInYear(exp.end_date),
+    endMonth: exp.end_date === 'Present' ? undefined : parseLinkedInMonth(exp.end_date),
+    ongoing: exp.end_date === 'Present',
+    description: exp.description_html || '',
+    associatedSkills: []
+  }));
+  
+  // Convert languages - simplified for now
+  const languages: any[] = (data.languages || []).map((lang: LinkedInApiLanguage) => ({
+    language: lang.title || '',
+    level: 'PROFESSIONAL' // Default level
+  }));
+  
+  // Extract skills from various sources
+  const skills: string[] = [];
+  if (data.position) skills.push(data.position);
+  
+  const profileData: CvData = {
+    firstName: finalFirstName,
+    lastName: finalLastName,
+    address: data.city || '',
+    email: '', // LinkedIn API doesn't typically provide email
+    phone: '',
+    linkedin: data.url || data.input_url || '',
+    github: '',
+    personalWebsite: '',
+    professionalSummary: data.about || '',
+    jobTitle: data.position || data.current_company?.title || '',
+    professionalExperiences,
+    otherExperiences: [],
+    educations: [], // Could be enhanced if education data is available
+    skills,
+    languages,
+    publications: [],
+    distinctions: [],
+    hobbies: [],
+    references: [],
+    certifications: [],
+    other: {
+      connections: data.connections,
+      followers: data.followers,
+      linkedinId: data.linkedin_id,
+      countryCode: data.country_code,
+      currentCompany: data.current_company,
+      avatar: data.avatar,
+      bannerImage: data.banner_image
+    },
+    source: 'linkedin'
+  };
+  
+  return profileData;
+}
+
+/**
+ * Helper function to parse year from LinkedIn date string
+ */
+function parseLinkedInYear(dateStr: string): number | undefined {
+  if (!dateStr || dateStr === 'Present') return undefined;
+  
+  // Try to extract year from various formats
+  const yearMatch = dateStr.match(/(\d{4})/);
+  return yearMatch ? parseInt(yearMatch[1]) : undefined;
+}
+
+/**
+ * Helper function to parse month from LinkedIn date string
+ */
+function parseLinkedInMonth(dateStr: string): number | undefined {
+  if (!dateStr || dateStr === 'Present') return undefined;
+  
+  const monthNames = [
+    'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+    'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+  ];
+  
+  const monthMatch = dateStr.toLowerCase().match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+  if (monthMatch) {
+    return monthNames.indexOf(monthMatch[1]) + 1;
+  }
+  
+  return undefined;
 }

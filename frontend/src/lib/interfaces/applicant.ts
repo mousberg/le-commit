@@ -1,4 +1,4 @@
-import { CvData } from './index';
+import { ProfileData } from './cv';
 import { GitHubData } from './github';
 import { AnalysisResult, CvAnalysis, LinkedInAnalysis, GitHubAnalysis, CrossReferenceAnalysis } from './analysis';
 
@@ -6,8 +6,8 @@ export interface Applicant {
   id: string;
   name: string;
   email: string;
-  cvData?: CvData;
-  linkedinData?: CvData;
+  cvData?: ProfileData;
+  linkedinData?: ProfileData;
   githubData?: GitHubData;
   status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
   createdAt: string;

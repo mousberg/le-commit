@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     const linkedinFile = formData.get('linkedinFile') as File;
     const githubUrl = formData.get('githubUrl') as string;
 
-    if (!cvFile && !linkedinFile && !githubUrl) {
+    if (!cvFile && !linkedinFile) {
       return NextResponse.json(
-        { error: 'At least one of CV file, LinkedIn profile, or GitHub URL is required', success: false },
+        { error: 'Either CV file or LinkedIn profile is required', success: false },
         { status: 400 }
       );
     }
@@ -120,7 +120,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
       processingPromises.push(
         processCvPdf(paths.cvPdf, true, cvTempSuffix).then(rawCvData => ({
           type: 'cv',
-          data: validateAndCleanCvData(rawCvData)
+          data: validateAndCleanCvData(rawCvData, 'cv')
         })).catch(error => {
           console.warn(`CV processing failed for ${applicantId}:`, error);
           return { type: 'cv', data: null, error: error.message };
@@ -133,7 +133,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
       processingPromises.push(
         processLinkedInPdf(paths.linkedinFile, true, linkedinTempSuffix).then(rawLinkedinData => ({
           type: 'linkedin',
-          data: validateAndCleanCvData(rawLinkedinData)
+          data: validateAndCleanCvData(rawLinkedinData, 'linkedin')
         })).catch(error => {
           console.warn(`LinkedIn processing failed for ${applicantId}:`, error);
           return { type: 'linkedin', data: null, error: error.message };
@@ -193,7 +193,8 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
     applicant.githubData = githubData || undefined;
     
     // Extract name and email from available data sources
-    const primaryData = cvData || linkedinData;
+    // Priority: LinkedIn > CV > GitHub
+    const primaryData = linkedinData || cvData;
     const githubName = githubData?.name || githubData?.username;
     
     applicant.name = primaryData 

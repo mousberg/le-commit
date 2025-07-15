@@ -1,4 +1,4 @@
-export interface CvData {
+export interface ProfileData {
   lastName: string
   firstName: string
   address: string
@@ -20,7 +20,11 @@ export interface CvData {
   references: string[]
   certifications: Certification[]
   other: Record<string, unknown> // Flexible field for any additional data
+  source: 'cv' | 'linkedin' // Track the source of this profile data
 }
+
+// Backward compatibility alias
+export type CvData = ProfileData;
 
 export interface Certification {
   title: string
