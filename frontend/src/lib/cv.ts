@@ -977,3 +977,108 @@ function parseLinkedInMonth(dateStr: string): number | undefined {
   
   return undefined;
 }
+
+/**
+ * Process LinkedIn URL using BrightData API
+ * @param linkedinUrl - LinkedIn profile URL
+ * @returns ProfileData from LinkedIn API
+ */
+export async function processLinkedInUrl(linkedinUrl: string): Promise<CvData> {
+  const apiKey = process.env.BRIGHTDATA_API_KEY;
+  const datasetId = process.env.BRIGHTDATA_DATASET_ID || 'gd_l1viktl72bvl7bjuj0';
+  
+  if (!apiKey) {
+    throw new Error('BRIGHTDATA_API_KEY environment variable is not set');
+  }
+  
+  try {
+    const response = await fetch('https://api.brightdata.com/datasets/v3/trigger', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([{ url: linkedinUrl }]),
+      // Add query parameters
+    });
+    
+    if (!response.ok) {
+      throw new Error(`LinkedIn API request failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // The API returns a snapshot_id, we need to poll for results
+    const snapshotId = data.snapshot_id;
+    
+    if (!snapshotId) {
+      throw new Error('No snapshot_id returned from LinkedIn API');
+    }
+    
+    // Poll for results
+    const results = await pollForLinkedInResults(snapshotId, apiKey);
+    
+    if (!results || results.length === 0) {
+      throw new Error('No LinkedIn data returned from API');
+    }
+    
+    // Convert the first result to our ProfileData format
+    return convertLinkedInApiToProfileData(results[0]);
+    
+  } catch (error) {
+    console.error('Error processing LinkedIn URL:', error);
+    throw new Error(`Failed to process LinkedIn URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Poll for LinkedIn API results
+ * @param snapshotId - Snapshot ID from initial API call
+ * @param apiKey - API key for authentication
+ * @returns LinkedIn API results
+ */
+async function pollForLinkedInResults(snapshotId: string, apiKey: string): Promise<any[]> {
+  const maxAttempts = 30; // 5 minutes with 10-second intervals
+  const pollInterval = 10000; // 10 seconds
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const response = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${snapshotId}`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Polling failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Check if the snapshot is ready
+      if (data.status === 'ready' && data.data && data.data.length > 0) {
+        return data.data;
+      }
+      
+      // If not ready, wait and try again
+      if (data.status === 'running') {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        continue;
+      }
+      
+      // If failed or other status
+      if (data.status === 'failed') {
+        throw new Error(`LinkedIn API processing failed: ${data.error || 'Unknown error'}`);
+      }
+      
+    } catch (error) {
+      if (attempt === maxAttempts - 1) {
+        throw error;
+      }
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+  
+  throw new Error('LinkedIn API polling timed out');
+}

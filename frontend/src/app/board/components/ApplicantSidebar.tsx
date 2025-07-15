@@ -57,7 +57,7 @@ export default function ApplicantSidebar({
                     {applicant.status === 'processing' && (
                       <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                     )}
-                    {applicant.status === 'analyzing' && (
+                    {applicant.status === 'analyzing' && (applicant.cvData || applicant.linkedinData || applicant.githubData) && (
                       <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
                     )}
                     {applicant.status === 'uploading' && (

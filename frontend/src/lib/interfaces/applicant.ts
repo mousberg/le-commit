@@ -13,6 +13,7 @@ export interface Applicant {
   createdAt: string;
   originalFileName?: string;
   originalGithubUrl?: string;
+  originalLinkedinUrl?: string;
   score?: number; // For compatibility with board page
   role?: string; // Job title from CV
 
@@ -24,10 +25,17 @@ export interface Applicant {
     github?: GitHubAnalysis;
   };
   crossReferenceAnalysis?: CrossReferenceAnalysis;
+
+  // Hackathon-specific data
+  hackathonData?: {
+    teamName?: string;
+    problemsInterested?: string;
+    hasTeam?: boolean;
+  };
 }
 
 export interface CreateApplicantRequest {
   cvFile?: File;
-  linkedinFile?: File;
+  linkedinUrl?: string;
   githubUrl?: string;
 }

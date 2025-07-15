@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Applicant } from '@/lib/interfaces/applicant';
 import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
-import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
+import { processCvPdf, validateAndCleanCvData, processLinkedInPdf, processLinkedInUrl } from '@/lib/cv';
 import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
 import * as fs from 'fs';
@@ -39,12 +39,12 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const cvFile = formData.get('cvFile') as File;
-    const linkedinFile = formData.get('linkedinFile') as File;
+    const linkedinUrl = formData.get('linkedinUrl') as string;
     const githubUrl = formData.get('githubUrl') as string;
 
-    if (!cvFile && !linkedinFile) {
+    if (!cvFile && !linkedinUrl) {
       return NextResponse.json(
-        { error: 'Either CV file or LinkedIn profile is required', success: false },
+        { error: 'Either CV file or LinkedIn profile URL is required', success: false },
         { status: 400 }
       );
     }
@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
       email: '',
       status: 'uploading',
       createdAt: new Date().toISOString(),
-      originalFileName: cvFile.name,
-      originalGithubUrl: githubUrl
+      originalFileName: cvFile?.name,
+      originalGithubUrl: githubUrl,
+      originalLinkedinUrl: linkedinUrl
     };
 
     // Save initial record
@@ -71,15 +72,9 @@ export async function POST(request: NextRequest) {
       saveApplicantFile(applicantId, cvBuffer, 'cv.pdf');
     }
 
-    // Save LinkedIn file if provided
-    if (linkedinFile) {
-      const linkedinBuffer = Buffer.from(await linkedinFile.arrayBuffer());
-      const linkedinExt = linkedinFile.name.endsWith('.html') ? 'html' : 'pdf';
-      saveApplicantFile(applicantId, linkedinBuffer, `linkedin.${linkedinExt}`);
-    }
 
     // Process asynchronously
-    processApplicantAsync(applicantId, githubUrl);
+    processApplicantAsync(applicantId, githubUrl, linkedinUrl);
 
     return NextResponse.json({
       applicant,
@@ -95,7 +90,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processApplicantAsync(applicantId: string, githubUrl?: string) {
+async function processApplicantAsync(applicantId: string, githubUrl?: string, linkedinUrl?: string) {
   try {
     const paths = getApplicantPaths(applicantId);
     const applicant = loadApplicant(applicantId);
@@ -128,14 +123,15 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
       );
     }
 
-    // Process LinkedIn if file exists
-    if (paths.linkedinFile && fs.existsSync(paths.linkedinFile)) {
+    
+    // Process LinkedIn URL if provided
+    if (linkedinUrl) {
       processingPromises.push(
-        processLinkedInPdf(paths.linkedinFile, true, linkedinTempSuffix).then(rawLinkedinData => ({
+        processLinkedInUrl(linkedinUrl).then(linkedinData => ({
           type: 'linkedin',
-          data: validateAndCleanCvData(rawLinkedinData, 'linkedin')
+          data: linkedinData
         })).catch(error => {
-          console.warn(`LinkedIn processing failed for ${applicantId}:`, error);
+          console.warn(`LinkedIn URL processing failed for ${applicantId}:`, error);
           return { type: 'linkedin', data: null, error: error.message };
         })
       );

@@ -12,6 +12,9 @@ interface CsvRow {
   linkedin?: string;
   github?: string;
   cv?: string;
+  team_name?: string;
+  problems_interested?: string;
+  no_team?: string;
 }
 
 function parseCsv(content: string): CsvRow[] {
@@ -33,13 +36,27 @@ function parseCsv(content: string): CsvRow[] {
             row.email = values[index];
             break;
           case 'linkedin':
+          case 'what is your linkedin profile?':
             row.linkedin = values[index];
             break;
           case 'github':
+          case 'github repo':
             row.github = values[index];
             break;
           case 'cv':
             row.cv = values[index];
+            break;
+          case 'team name':
+          case 'team name - make sure your whole team signs up using the same team name!':
+            row.team_name = values[index];
+            break;
+          case 'problems':
+          case 'what problems are you interested in solving?':
+            row.problems_interested = values[index];
+            break;
+          case 'no team':
+          case 'i don\'t have a team':
+            row.no_team = values[index];
             break;
         }
       }
@@ -65,8 +82,8 @@ async function processApplicantFromCsv(row: CsvRow): Promise<string> {
   const applicantId = crypto.randomUUID();
   
   // Validate required fields
-  if (!row.linkedin && !row.github) {
-    throw new Error('At least one of LinkedIn or GitHub is required');
+  if (!row.linkedin && !row.cv) {
+    throw new Error('At least one of LinkedIn or CV is required');
   }
   
   // Create initial applicant record
@@ -77,7 +94,13 @@ async function processApplicantFromCsv(row: CsvRow): Promise<string> {
     status: 'uploading',
     createdAt: new Date().toISOString(),
     originalFileName: row.cv ? path.basename(row.cv) : undefined,
-    originalGithubUrl: row.github
+    originalGithubUrl: row.github,
+    originalLinkedinUrl: (row.linkedin && row.linkedin.startsWith('http')) ? row.linkedin : undefined,
+    hackathonData: {
+      teamName: row.team_name,
+      problemsInterested: row.problems_interested,
+      hasTeam: row.no_team?.toLowerCase() === 'no'
+    }
   };
   
   // Save initial record
@@ -150,6 +173,20 @@ async function processApplicantData(applicantId: string, row: CsvRow): Promise<v
       );
     }
     
+    // Process LinkedIn URL if provided
+    if (row.linkedin && row.linkedin.startsWith('http')) {
+      console.log(`  - Processing LinkedIn URL: ${row.linkedin}`);
+      processingPromises.push(
+        cvModule.processLinkedInUrl(row.linkedin).then(linkedinData => ({
+          type: 'linkedin',
+          data: linkedinData
+        })).catch(error => {
+          console.warn(`LinkedIn URL processing failed for ${applicantId}:`, error);
+          return { type: 'linkedin', data: null, error: error.message };
+        })
+      );
+    }
+    
     // Process GitHub if URL is provided
     if (row.github && row.github.startsWith('http')) {
       console.log(`  - Processing GitHub: ${row.github}`);
@@ -192,9 +229,9 @@ async function processApplicantData(applicantId: string, row: CsvRow): Promise<v
       }
     }
     
-    // At least one data source is required for successful completion
-    if (!cvData && !linkedinData && !githubData) {
-      throw new Error('All data processing failed - no usable data sources');
+    // At least CV or LinkedIn data is required for successful completion
+    if (!cvData && !linkedinData) {
+      throw new Error('Both CV and LinkedIn processing failed - no usable profile data');
     }
     
     // Update applicant with all processed data
@@ -268,16 +305,22 @@ async function main() {
   if (args.length === 0) {
     console.log('Usage: npx tsx batch-process.ts <csv-file>');
     console.log('');
-    console.log('CSV format:');
+    console.log('Hackathon CSV format:');
+    console.log('email,phone_number,Team Name,What is your LinkedIn profile?,Github Repo,What problems are you interested in solving?,I don\'t have a team');
+    console.log('');
+    console.log('Standard CSV format:');
     console.log('name,email,linkedin,github,cv');
     console.log('John Doe,john@example.com,https://linkedin.com/in/johndoe,https://github.com/johndoe,/path/to/cv.pdf');
-    console.log('Jane Smith,,jane-smith-profile.pdf,https://github.com/janesmith,');
     console.log('');
     console.log('Notes:');
-    console.log('- At least one of linkedin or github is required');
+    console.log('- At least one of linkedin or cv is required');
     console.log('- linkedin can be a URL or file path to downloaded profile');
-    console.log('- cv can be a file path (optional)');
+    console.log('- cv must be a file path (PDF, DOC, or DOCX)');
+    console.log('- github is optional (provide URL if available)');
     console.log('- name and email are optional (will be extracted from other sources)');
+    console.log('');
+    console.log('After processing, run hackathon analysis:');
+    console.log('npx tsx hackathon-analysis.ts');
     process.exit(1);
   }
   

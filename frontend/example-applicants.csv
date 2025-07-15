@@ -1,6 +1,6 @@
 name,email,linkedin,github,cv
 John Doe,john@example.com,https://linkedin.com/in/johndoe,https://github.com/johndoe,
-Jane Smith,jane@example.com,,https://github.com/janesmith,
+Jane Smith,jane@example.com,jane-linkedin-profile.pdf,https://github.com/janesmith,
 Bob Johnson,,https://linkedin.com/in/bobjohnson,https://github.com/bobjohnson,
-Alice Brown,alice@example.com,,https://github.com/alicebrown,
-Charlie Wilson,,https://linkedin.com/in/charliewilson,https://github.com/charliewilson,
+Alice Brown,alice@example.com,,,/path/to/alice-cv.pdf
+Charlie Wilson,,https://linkedin.com/in/charliewilson,,

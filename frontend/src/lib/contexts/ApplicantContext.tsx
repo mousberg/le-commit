@@ -81,8 +81,9 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
         formData.append('cvFile', request.cvFile);
       }
 
-      if (request.linkedinFile) {
-        formData.append('linkedinFile', request.linkedinFile);
+
+      if (request.linkedinUrl) {
+        formData.append('linkedinUrl', request.linkedinUrl);
       }
 
       if (request.githubUrl) {

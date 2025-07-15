@@ -128,18 +128,22 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
   // Form state
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState<string>('');
   const [githubUrl, setGithubUrl] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showLinkedinOptions, setShowLinkedinOptions] = useState(false);
 
   const resetForm = () => {
     setCvFile(null);
     setLinkedinFile(null);
+    setLinkedinUrl('');
     setGithubUrl('');
+    setShowLinkedinOptions(false);
   };
 
   const handleCreateCandidate = async () => {
-    if (!linkedinFile && !cvFile) {
-      alert('Please provide either a LinkedIn profile or CV file');
+    if (!linkedinUrl.trim() && !cvFile) {
+      alert('Please provide either a LinkedIn profile URL or CV file');
       return;
     }
 
@@ -148,7 +152,7 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
     try {
       const applicantId = await createApplicant({
         cvFile: cvFile || undefined,
-        linkedinFile: linkedinFile || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
         githubUrl: githubUrl.trim() || undefined
       });
 
@@ -169,36 +173,61 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
     }
   };
 
-  const isFormValid = (linkedinFile || cvFile) && !isCreating && !isLoading;
+  const isFormValid = (linkedinUrl.trim() || cvFile) && !isCreating && !isLoading;
 
   return (
     <div className="min-h-screen bg-white">
       <div className="p-8">
         <h2 className="text-3xl font-medium text-zinc-900 mb-2">New Applicant</h2>
-        <p className="text-zinc-500 mb-8">Provide LinkedIn profile or CV file to begin analysis. GitHub URL is optional.</p>
+        <p className="text-zinc-500 mb-8">Provide LinkedIn profile URL or CV file to begin analysis. GitHub URL is optional.</p>
         
         <div className="max-w-2xl mx-auto">
           <div className="flex flex-col gap-8">
-            {/* LinkedIn Profile Upload */}
-            <DropZone
-              onDrop={setLinkedinFile}
-              accept=".pdf,.html,.txt"
-              label="LinkedIn Profile"
-              description="Profile PDF Download (preferred for name extraction)"
-              file={linkedinFile}
-              disabled={isCreating}
-              required={!cvFile}
-            />
+            {/* LinkedIn Profile Section */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <label className="text-lg font-medium text-zinc-900">
+                  LinkedIn Profile {!cvFile ? <span className="text-red-500">*</span> : <span className="text-zinc-500">(Optional)</span>}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowLinkedinOptions(!showLinkedinOptions)}
+                  className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors px-3 py-1 rounded-md border border-zinc-200 bg-zinc-50 hover:bg-zinc-100"
+                >
+                  {showLinkedinOptions ? 'Use URL instead' : 'Upload file instead'}
+                </button>
+              </div>
+              
+              {!showLinkedinOptions ? (
+                <input
+                  type="url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="https://linkedin.com/in/username"
+                  disabled={isCreating}
+                  className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+                />
+              ) : (
+                <DropZone
+                  onDrop={setLinkedinFile}
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  label=""
+                  description="Upload LinkedIn PDF export or screenshot"
+                  file={linkedinFile}
+                  disabled={isCreating}
+                />
+              )}
+            </div>
 
             {/* CV Upload */}
             <DropZone
               onDrop={setCvFile}
               accept=".pdf,.doc,.docx"
-              label="CV"
-              description="PDF, DOC, or DOCX file"
+              label={`CV${!linkedinUrl.trim() && !linkedinFile ? '' : ' (Optional)'}`}
+              description="PDF, DOC, or DOCX file (alternative to LinkedIn)"
               file={cvFile}
               disabled={isCreating}
-              required={!linkedinFile}
+              required={!linkedinUrl.trim() && !linkedinFile}
             />
 
             {/* GitHub URL Input (Optional) */}
@@ -227,7 +256,9 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
                   : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
               }`}
             >
-              {isCreating ? 'Creating...' : 'Unmask'}
+              {isCreating ? 
+                (linkedinUrl.trim() || linkedinFile ? 'LinkedIn Analysis...' : 'CV Analysis...') 
+                : 'Unmask'}
             </Button>
           </div>
         </div>

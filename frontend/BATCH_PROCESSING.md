@@ -10,28 +10,28 @@ npm run batch-process <csv-file>
 
 ## CSV Format
 
-The CSV file should have the following columns (all optional except at least one of `linkedin` or `github`):
+The CSV file should have the following columns (all optional except at least one of `linkedin` or `cv`):
 
 - `name`: Applicant's full name (optional - will be extracted from other sources)
 - `email`: Applicant's email address (optional - will be extracted from other sources)
 - `linkedin`: LinkedIn profile URL or path to downloaded profile file (PDF, HTML, or TXT)
-- `github`: GitHub profile URL (e.g., https://github.com/username)
-- `cv`: Path to CV file (PDF, DOC, or DOCX) - optional
+- `github`: GitHub profile URL (e.g., https://github.com/username) - optional
+- `cv`: Path to CV file (PDF, DOC, or DOCX)
 
 ### Example CSV:
 
 ```csv
 name,email,linkedin,github,cv
-John Doe,john@example.com,https://linkedin.com/in/johndoe,https://github.com/johndoe,/path/to/johns-cv.pdf
+John Doe,john@example.com,https://linkedin.com/in/johndoe,https://github.com/johndoe,
 Jane Smith,jane@example.com,jane-linkedin-profile.pdf,https://github.com/janesmith,
-Bob Johnson,,https://linkedin.com/in/bobjohnson,https://github.com/bobjohnson,/path/to/bobs-resume.pdf
-Alice Brown,alice@example.com,alice-profile.html,https://github.com/alicebrown,
-Charlie Wilson,,https://linkedin.com/in/charliewilson,https://github.com/charliewilson,
+Bob Johnson,,https://linkedin.com/in/bobjohnson,https://github.com/bobjohnson,
+Alice Brown,alice@example.com,,,/path/to/alice-cv.pdf
+Charlie Wilson,,https://linkedin.com/in/charliewilson,,
 ```
 
 ## Requirements
 
-- At least one of `linkedin` or `github` must be provided for each row
+- At least one of `linkedin` or `cv` must be provided for each row
 - LinkedIn can be:
   - A URL to the LinkedIn profile
   - A file path to a downloaded LinkedIn profile (PDF, HTML, or TXT)
