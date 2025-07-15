@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const ArrowIcon = () => (
   <svg 
@@ -43,6 +45,7 @@ interface HeaderProps {
 export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, signOut, loading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -70,6 +73,10 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
       // Dispatch custom event to open demo overlay
       window.dispatchEvent(new CustomEvent('openDemo'));
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   return (
@@ -133,14 +140,49 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
           </div>
 
           {/* Desktop CTA buttons */}
-          <div className="hidden lg:flex lg:flex-1 lg:justify-end items-center gap-x-5">
-            <button 
-              onClick={handleWaitlistClick}
-              className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
-            >
-              Try Unmask
-              <ArrowIcon />
-            </button>
+          <div className="hidden lg:flex lg:flex-1 lg:justify-end items-center gap-x-3">
+            {loading ? (
+              <div className="text-sm text-gray-500">Loading...</div>
+            ) : user ? (
+              <>
+                <div className="flex items-center gap-x-2 text-sm text-gray-700">
+                  <User className="w-4 h-4" />
+                  <span>{user.email}</span>
+                </div>
+                <Link
+                  href="/board"
+                  className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                >
+                  Dashboard
+                  <ArrowIcon />
+                </Link>
+                <Button
+                  onClick={handleSignOut}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-x-1"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+                >
+                  Sign In
+                </Link>
+                <button 
+                  onClick={handleWaitlistClick}
+                  className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                >
+                  Try Unmask
+                  <ArrowIcon />
+                </button>
+              </>
+            )}
           </div>
         </nav>
 
@@ -174,16 +216,55 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                 </Link>
               </nav>
               <div className="mt-6 pt-6 border-t border-gray-200">
-                <button 
-                  onClick={() => {
-                    handleWaitlistClick();
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-x-1 px-6 py-3 text-base font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
-                >
-                  Try Unmask
-                  <ArrowIcon />
-                </button>
+                {loading ? (
+                  <div className="text-center text-gray-500">Loading...</div>
+                ) : user ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-x-2 text-sm text-gray-700 px-4">
+                      <User className="w-4 h-4" />
+                      <span>{user.email}</span>
+                    </div>
+                    <Link
+                      href="/board"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="w-full flex items-center justify-center gap-x-1 px-6 py-3 text-base font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                    >
+                      Dashboard
+                      <ArrowIcon />
+                    </Link>
+                    <Button
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMenuOpen(false);
+                      }}
+                      variant="outline"
+                      className="w-full flex items-center justify-center gap-x-1"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Link
+                      href="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="w-full flex items-center justify-center px-6 py-3 text-base font-semibold rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300"
+                    >
+                      Sign In
+                    </Link>
+                    <button 
+                      onClick={() => {
+                        handleWaitlistClick();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-center gap-x-1 px-6 py-3 text-base font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                    >
+                      Try Unmask
+                      <ArrowIcon />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
