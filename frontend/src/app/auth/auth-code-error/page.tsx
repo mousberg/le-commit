@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -8,7 +9,7 @@ export default function AuthCodeErrorPage() {
       <Card className="w-full max-w-md p-8 space-y-6 text-center">
         <div className="space-y-2">
           <div className="flex justify-center mb-6">
-            <img src="/unmask-logo.svg" alt="Unmask" className="h-12" />
+            <Image src="/unmask-logo.svg" alt="Unmask" width={48} height={48} className="h-12" />
           </div>
           <h1 className="text-2xl font-bold text-red-600">Authentication Error</h1>
           <p className="text-gray-600">

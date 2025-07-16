@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 
 export default function Testimonials() {
   const [showConfetti, setShowConfetti] = useState(false);
@@ -140,9 +141,11 @@ export default function Testimonials() {
                 Recognized as the top project at the RAISE summit hackathon in Paris, July 8-9, 2025.
               </p>
               <div className="mb-6">
-                <img 
+                <Image 
                   src="/team-win.png" 
                   alt="Unmask team winning at RAISE YOUR HACK 2025"
+                  width={600}
+                  height={400}
                   className="rounded-lg mx-auto max-w-xl w-full"
                 />
               </div>
@@ -167,9 +170,11 @@ export default function Testimonials() {
 &quot;Great presentation, and implementation. Real business value for filtering out prospects for People Operations. Job well done.&quot;
               </blockquote>
               <div className="flex items-center justify-center gap-4">
-                <img 
+                <Image 
                   src="https://storage.googleapis.com/lablab-static-eu/images/midjourney/profile/profile%20(102).png"
                   alt="Mayank Debnath"
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-full"
                 />
                 <div>

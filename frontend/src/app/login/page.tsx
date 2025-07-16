@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +47,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md p-8 space-y-6">
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-6">
-            <img src="/unmask-logo.svg" alt="Unmask" className="h-12" />
+            <Image src="/unmask-logo.svg" alt="Unmask" width={48} height={48} className="h-12" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
             {isSignUp ? 'Create Account' : 'Welcome Back'}

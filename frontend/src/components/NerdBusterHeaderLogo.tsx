@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -93,9 +94,11 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
               href="/" 
               className="flex items-center"
             >
-              <img 
+              <Image 
                 src="/Logo-full.svg" 
                 alt="Unmask" 
+                width={150}
+                height={32}
                 className="h-8 w-auto"
               />
             </Link>
