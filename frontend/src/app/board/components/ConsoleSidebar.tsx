@@ -1,6 +1,7 @@
 'use client';
 
 import { Trash2, LayoutDashboard, Users, Settings, CreditCard, Cog, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
 import Link from 'next/link';
@@ -65,9 +66,11 @@ export default function ConsoleSidebar({
       {/* Logo Header */}
       <div className="p-6 border-b border-zinc-200/50">
         <Link href="/" className="flex items-center">
-          <img 
+          <Image 
             src="/Logo-full.svg" 
             alt="Unmask" 
+            width={150}
+            height={32}
             className="h-8 w-auto"
           />
         </Link>
