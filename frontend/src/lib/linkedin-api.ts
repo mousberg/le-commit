@@ -1,4 +1,4 @@
-import { CvData, Experience, Language, ContractType } from './interfaces/cv';
+import { CvData, Experience, Language, ContractType, LanguageLevel } from './interfaces/applicant';
 
 // LinkedIn API Response interfaces
 interface LinkedInApiExperience {
@@ -109,7 +109,7 @@ export function convertLinkedInApiToProfileData(linkedinApiData: LinkedInApiResp
   // Convert languages - simplified for now
   const languages: Language[] = (data.languages || []).map((lang: LinkedInApiLanguage) => ({
     language: lang.title || '',
-    level: 'PROFESSIONAL' // Default level
+    level: LanguageLevel.PROFESSIONAL // Default level
   }));
   
   // Extract skills from various sources
@@ -300,7 +300,10 @@ export async function processLinkedInUrl(
     // Poll for results with progress updates
     const results = await pollForLinkedInResults(snapshotId, apiKey, (pollProgress) => {
       onProgress?.({
-        ...pollProgress,
+        attempt: pollProgress.attempt,
+        maxAttempts: pollProgress.maxAttempts,
+        status: pollProgress.status as 'starting' | 'polling' | 'running' | 'ready' | 'retrying' | 'error',
+        message: pollProgress.message,
         percentage: 10 + (pollProgress.attempt / pollProgress.maxAttempts) * 80 // 10% to 90%
       });
     });
@@ -318,7 +321,7 @@ export async function processLinkedInUrl(
     });
     
     // Convert the first result to our ProfileData format
-    const profileData = convertLinkedInApiToProfileData(results[0]);
+    const profileData = convertLinkedInApiToProfileData(results[0] as LinkedInApiResponse);
 
     onProgress?.({
       attempt: 30,

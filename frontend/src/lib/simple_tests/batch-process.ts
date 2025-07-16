@@ -3,7 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Applicant } from '../interfaces/applicant';
-import type { CvData } from '../interfaces/cv';
+import type { CvData } from '../interfaces/applicant';
 import type { GitHubData } from '../interfaces/github';
 
 interface CsvRow {
@@ -140,7 +140,7 @@ async function processApplicantData(applicantId: string, row: CsvRow): Promise<v
     console.log(`Processing applicant ${applicantId} (${applicant.name})`);
     
     // Import all modules upfront
-    const cvModule = await import('../cv');
+    const cvModule = await import('../profile-pdf');
     const githubModule = await import('../github');
     
     const processingPromises = [];

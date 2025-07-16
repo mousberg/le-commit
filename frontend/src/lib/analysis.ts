@@ -1,6 +1,6 @@
 import { Groq } from 'groq-sdk';
 import { Applicant } from './interfaces/applicant';
-import { CvData } from './interfaces/cv';
+import { CvData } from './interfaces/applicant';
 import { GitHubData } from './interfaces/github';
 import { AnalysisResult } from './interfaces/analysis';
 

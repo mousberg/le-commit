@@ -44,15 +44,14 @@ export default function LinkedInProgressDemo() {
         applicant={{
           id: 'demo',
           name: 'Demo User',
+          email: 'demo@test.com',
           status: 'processing',
-          cvData: null,
+          cvData: undefined,
           linkedinData: result,
-          githubData: null,
-          analysis: null,
+          githubData: undefined,
           originalLinkedinUrl: testLinkedInUrl,
-          originalGithubUrl: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          originalGithubUrl: undefined,
+          createdAt: new Date().toISOString()
         }}
         linkedinProgress={progress}
       />

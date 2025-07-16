@@ -1,4 +1,4 @@
-import { CvData, ContractType, LanguageLevel, Experience, Language } from './interfaces/cv'
+import { CvData, ContractType, LanguageLevel } from './interfaces/applicant'
 import { Groq } from 'groq-sdk'
 import * as fs from 'fs'
 import * as path from 'path'

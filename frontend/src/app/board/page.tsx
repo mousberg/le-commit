@@ -9,7 +9,7 @@ import ProcessingLoader from '../../components/ProcessingLoader';
 import CredibilityScore from '../../components/credibility-score';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
 import NewApplicantForm from './components/NewApplicantForm';
-import { CvData, Experience, Education } from '../../lib/interfaces/cv';
+import { CvData, Experience, Education } from '../../lib/interfaces/applicant';
 import { GitHubData } from '../../lib/interfaces/github';
 
 // Data Comparison Component

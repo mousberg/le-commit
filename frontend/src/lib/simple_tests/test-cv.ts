@@ -1,5 +1,5 @@
-import { processCvPdf } from '../cv.js'
-import { Experience } from '../interfaces/cv'
+import { processCvPdf } from '../profile-pdf'
+import { Experience } from '../interfaces/applicant'
 import * as path from 'path'
 
 /**
