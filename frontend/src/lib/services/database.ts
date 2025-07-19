@@ -526,6 +526,108 @@ export class SupabaseDatabaseService implements DatabaseService {
     }
   }
 
+  // Workspace access control validation functions
+  async validateWorkspaceAccess(workspaceId: string, userId: string, requiredRole?: WorkspaceRole): Promise<boolean> {
+    try {
+      const userRole = await this.getUserWorkspaceRole(workspaceId, userId);
+
+      if (!userRole) {
+        return false;
+      }
+
+      if (!requiredRole) {
+        return true; // User has some access
+      }
+
+      // Check role hierarchy: owner > admin > read_only
+      const roleHierarchy: Record<WorkspaceRole, number> = {
+        'owner': 3,
+        'admin': 2,
+        'read_only': 1
+      };
+
+      return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'validateWorkspaceAccess');
+      return false;
+    }
+  }
+
+  async validateWorkspaceOwnership(workspaceId: string, userId: string): Promise<boolean> {
+    try {
+      const workspace = await this.getWorkspace(workspaceId);
+      return workspace?.ownerId === userId;
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'validateWorkspaceOwnership');
+      return false;
+    }
+  }
+
+  async validateApplicantAccess(applicantId: string, userId: string, requiredRole?: WorkspaceRole): Promise<boolean> {
+    try {
+      const applicant = await this.getApplicant(applicantId);
+      if (!applicant) {
+        return false;
+      }
+
+      return await this.validateWorkspaceAccess(applicant.workspaceId, userId, requiredRole);
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'validateApplicantAccess');
+      return false;
+    }
+  }
+
+  async validateWorkspaceMemberManagement(workspaceId: string, userId: string, targetUserId: string): Promise<boolean> {
+    try {
+      // Only owners and admins can manage members
+      const hasPermission = await this.validateWorkspaceAccess(workspaceId, userId, 'admin');
+      if (!hasPermission) {
+        return false;
+      }
+
+      // Owners can manage anyone, admins cannot manage owners
+      const userRole = await this.getUserWorkspaceRole(workspaceId, userId);
+      const targetRole = await this.getUserWorkspaceRole(workspaceId, targetUserId);
+
+      if (userRole === 'owner') {
+        return true;
+      }
+
+      if (userRole === 'admin' && targetRole !== 'owner') {
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'validateWorkspaceMemberManagement');
+      return false;
+    }
+  }
+
+  async canUserModifyWorkspace(workspaceId: string, userId: string): Promise<boolean> {
+    return await this.validateWorkspaceAccess(workspaceId, userId, 'admin');
+  }
+
+  async canUserDeleteWorkspace(workspaceId: string, userId: string): Promise<boolean> {
+    return await this.validateWorkspaceOwnership(workspaceId, userId);
+  }
+
+  async canUserInviteMembers(workspaceId: string, userId: string): Promise<boolean> {
+    return await this.validateWorkspaceAccess(workspaceId, userId, 'admin');
+  }
+
+  async canUserRemoveMembers(workspaceId: string, userId: string, targetUserId: string): Promise<boolean> {
+    return await this.validateWorkspaceMemberManagement(workspaceId, userId, targetUserId);
+  }
+
+  async canUserModifyApplicant(applicantId: string, userId: string): Promise<boolean> {
+    return await this.validateApplicantAccess(applicantId, userId, 'admin');
+  }
+
+  async canUserViewApplicant(applicantId: string, userId: string): Promise<boolean> {
+    return await this.validateApplicantAccess(applicantId, userId);
+  }
+
   // User operations
   async createUser(authUserId: string, email: string, fullName?: string): Promise<User> {
     try {

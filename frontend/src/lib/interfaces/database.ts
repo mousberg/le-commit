@@ -132,6 +132,18 @@ export interface DatabaseService {
   getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMember[]>;
   getUserWorkspaceRole(workspaceId: string, userId: string): Promise<WorkspaceRole | null>;
 
+  // Workspace access control validation functions
+  validateWorkspaceAccess(workspaceId: string, userId: string, requiredRole?: WorkspaceRole): Promise<boolean>;
+  validateWorkspaceOwnership(workspaceId: string, userId: string): Promise<boolean>;
+  validateApplicantAccess(applicantId: string, userId: string, requiredRole?: WorkspaceRole): Promise<boolean>;
+  validateWorkspaceMemberManagement(workspaceId: string, userId: string, targetUserId: string): Promise<boolean>;
+  canUserModifyWorkspace(workspaceId: string, userId: string): Promise<boolean>;
+  canUserDeleteWorkspace(workspaceId: string, userId: string): Promise<boolean>;
+  canUserInviteMembers(workspaceId: string, userId: string): Promise<boolean>;
+  canUserRemoveMembers(workspaceId: string, userId: string, targetUserId: string): Promise<boolean>;
+  canUserModifyApplicant(applicantId: string, userId: string): Promise<boolean>;
+  canUserViewApplicant(applicantId: string, userId: string): Promise<boolean>;
+
   // User operations
   createUser(authUserId: string, email: string, fullName?: string): Promise<User>;
   getUser(id: string): Promise<User | null>;
