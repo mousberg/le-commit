@@ -3,3 +3,6 @@ export * from './cv';
 
 // Applicant-related interfaces
 export * from './applicant';
+
+// Database-related interfaces
+export * from './database';

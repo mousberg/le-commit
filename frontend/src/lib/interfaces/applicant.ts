@@ -4,6 +4,7 @@ import { AnalysisResult, CvAnalysis, LinkedInAnalysis, GitHubAnalysis, CrossRefe
 
 export interface Applicant {
   id: string;
+  workspaceId: string; // New field for workspace association
   name: string;
   email: string;
   cvData?: CvData;
@@ -11,6 +12,7 @@ export interface Applicant {
   githubData?: GitHubData;
   status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
   createdAt: string;
+  updatedAt: string; // New field for tracking updates
   originalFileName?: string;
   originalGithubUrl?: string;
   score?: number; // For compatibility with board page
