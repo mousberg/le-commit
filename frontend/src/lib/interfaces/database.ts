@@ -2,6 +2,9 @@
 
 import { Applicant } from './applicant';
 
+// Re-export Applicant interface for database service
+export type { Applicant } from './applicant';
+
 // Workspace-related interfaces
 export interface Workspace {
   id: string;
@@ -154,5 +157,10 @@ export interface DatabaseService {
   createFileRecord(data: CreateFileData): Promise<FileRecord>;
   getFileRecord(id: string): Promise<FileRecord | null>;
   getApplicantFiles(applicantId: string): Promise<FileRecord[]>;
+  getWorkspaceFiles(workspaceId: string): Promise<FileRecord[]>;
+  getUserFiles(userId: string): Promise<FileRecord[]>;
   deleteFileRecord(id: string): Promise<boolean>;
+
+  // Additional workspace member operations for access control
+  getWorkspaceMember(workspaceId: string, userId: string): Promise<WorkspaceMember | null>;
 }

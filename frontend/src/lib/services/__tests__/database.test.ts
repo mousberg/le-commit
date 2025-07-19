@@ -338,7 +338,7 @@ describe('SupabaseDatabaseService - Applicant Operations', () => {
         });
 
         it('should apply limit and offset', async () => {
-            const mockDbApplicants = [];
+            const mockDbApplicants: any[] = [];
             mockQuery.range.mockResolvedValue(mockDbApplicants);
 
             await service.listApplicants({
@@ -381,7 +381,7 @@ describe('SupabaseDatabaseService - Applicant Operations', () => {
 
     describe('searchApplicants', () => {
         it('should search applicants by term', async () => {
-            const mockDbApplicants = [];
+            const mockDbApplicants: any[] = [];
             mockQuery.order.mockResolvedValue(mockDbApplicants);
 
             await service.searchApplicants('workspace-1', 'engineer');
@@ -392,7 +392,7 @@ describe('SupabaseDatabaseService - Applicant Operations', () => {
         });
 
         it('should apply limit when provided', async () => {
-            const mockDbApplicants = [];
+            const mockDbApplicants: any[] = [];
             mockQuery.limit.mockReturnValue(mockDbApplicants);
 
             await service.searchApplicants('workspace-1', 'engineer', 5);

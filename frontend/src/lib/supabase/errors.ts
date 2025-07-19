@@ -136,11 +136,12 @@ export function handleDatabaseError(error: any): DatabaseError {
 
 // Utility function to safely execute database operations
 export async function safeExecute<T>(
-  operation: () => Promise<{ data: T | null; error: any }>,
+  operation: () => any,
   context?: string
 ): Promise<T> {
   try {
-    const { data, error } = await operation();
+    const result = await operation();
+    const { data, error } = result;
 
     if (error) {
       throw handleDatabaseError(error);
@@ -161,11 +162,12 @@ export async function safeExecute<T>(
 
 // Utility function for operations that may return null (like optional gets)
 export async function safeExecuteOptional<T>(
-  operation: () => Promise<{ data: T | null; error: any }>,
+  operation: () => any,
   context?: string
 ): Promise<T | null> {
   try {
-    const { data, error } = await operation();
+    const result = await operation();
+    const { data, error } = result;
 
     if (error) {
       throw handleDatabaseError(error);
@@ -182,11 +184,12 @@ export async function safeExecuteOptional<T>(
 
 // Utility function for operations that return arrays
 export async function safeExecuteArray<T>(
-  operation: () => Promise<{ data: T[] | null; error: any }>,
+  operation: () => any,
   context?: string
 ): Promise<T[]> {
   try {
-    const { data, error } = await operation();
+    const result = await operation();
+    const { data, error } = result;
 
     if (error) {
       throw handleDatabaseError(error);

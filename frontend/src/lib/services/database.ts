@@ -196,25 +196,25 @@ export class SupabaseDatabaseService implements DatabaseService {
     }
   }
 
-  private transformDatabaseApplicantToInterface(dbApplicant: Record<string, unknown>): Applicant {
+  private transformDatabaseApplicantToInterface(dbApplicant: any): Applicant {
     return {
-      id: dbApplicant.id,
-      workspaceId: dbApplicant.workspace_id,
-      name: dbApplicant.name,
-      email: dbApplicant.email,
-      status: dbApplicant.status,
-      createdAt: dbApplicant.created_at,
-      updatedAt: dbApplicant.updated_at,
-      originalFileName: dbApplicant.original_filename,
-      originalGithubUrl: dbApplicant.original_github_url,
-      score: dbApplicant.score,
-      role: dbApplicant.role,
-      cvData: dbApplicant.cv_data,
-      linkedinData: dbApplicant.linkedin_data,
-      githubData: dbApplicant.github_data,
-      analysisResult: dbApplicant.analysis_result,
-      individualAnalysis: dbApplicant.individual_analysis,
-      crossReferenceAnalysis: dbApplicant.cross_reference_analysis
+      id: dbApplicant.id as string,
+      workspaceId: dbApplicant.workspace_id as string,
+      name: dbApplicant.name as string,
+      email: dbApplicant.email as string,
+      status: dbApplicant.status as 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed',
+      createdAt: dbApplicant.created_at as string,
+      updatedAt: dbApplicant.updated_at as string,
+      originalFileName: dbApplicant.original_filename as string | undefined,
+      originalGithubUrl: dbApplicant.original_github_url as string | undefined,
+      score: dbApplicant.score as number | undefined,
+      role: dbApplicant.role as string | undefined,
+      cvData: dbApplicant.cv_data as any,
+      linkedinData: dbApplicant.linkedin_data as any,
+      githubData: dbApplicant.github_data as any,
+      analysisResult: dbApplicant.analysis_result as any,
+      individualAnalysis: dbApplicant.individual_analysis as any,
+      crossReferenceAnalysis: dbApplicant.cross_reference_analysis as any
     };
   }
 
@@ -263,7 +263,7 @@ export class SupabaseDatabaseService implements DatabaseService {
     try {
       this.validateApplicantStatus(status);
 
-      return await this.updateApplicant(id, { status });
+      return await this.updateApplicant(id, { status: status as 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed' });
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'updateApplicantStatus');
       throw error;
@@ -403,8 +403,8 @@ export class SupabaseDatabaseService implements DatabaseService {
       const result = await safeExecuteArray(() => query, 'User workspaces');
 
       // Transform the result to match Workspace interface
-      return result.map((item: Record<string, unknown>) => ({
-        ...item.workspaces,
+      return result.map((item: any) => ({
+        ...(item.workspaces as any),
         role: item.role
       }));
     } catch (error) {
@@ -519,7 +519,7 @@ export class SupabaseDatabaseService implements DatabaseService {
           .single(),
         'Workspace member role'
       );
-      return result?.role || null;
+      return (result as any)?.role || null;
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'getUserWorkspaceRole');
       throw error;
@@ -772,6 +772,75 @@ export class SupabaseDatabaseService implements DatabaseService {
       return true;
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'deleteFileRecord');
+      throw error;
+    }
+  }
+
+  async getWorkspaceFiles(workspaceId: string): Promise<FileRecord[]> {
+    try {
+      return await safeExecuteArray(
+        () => this.dbClient.from(TABLES.FILES)
+          .select(`
+            *,
+            applicants!inner (
+              workspace_id
+            )
+          `)
+          .eq('applicants.workspace_id', workspaceId)
+          .order('uploaded_at', { ascending: false }),
+        'Workspace files'
+      );
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'getWorkspaceFiles');
+      throw error;
+    }
+  }
+
+  async getUserFiles(userId: string): Promise<FileRecord[]> {
+    try {
+      return await safeExecuteArray(
+        () => this.dbClient.from(TABLES.FILES)
+          .select(`
+            *,
+            applicants!inner (
+              workspace_id,
+              workspaces!inner (
+                workspace_members!inner (
+                  user_id
+                )
+              )
+            )
+          `)
+          .eq('applicants.workspaces.workspace_members.user_id', userId)
+          .order('uploaded_at', { ascending: false }),
+        'User files'
+      );
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'getUserFiles');
+      throw error;
+    }
+  }
+
+  async getWorkspaceMember(workspaceId: string, userId: string): Promise<WorkspaceMember | null> {
+    try {
+      return await safeExecuteOptional(
+        () => this.dbClient.from(TABLES.WORKSPACE_MEMBERS)
+          .select(`
+            *,
+            users (
+              id,
+              email,
+              full_name,
+              avatar_url
+            )
+          `)
+          .eq('workspace_id', workspaceId)
+          .eq('user_id', userId)
+          .single(),
+        'Workspace member'
+      );
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'getWorkspaceMember');
       throw error;
     }
   }
