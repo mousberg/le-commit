@@ -52,8 +52,11 @@ export class SupabaseDatabaseService implements DatabaseService {
   // Applicant operations
   async createApplicant(data: CreateApplicantData): Promise<Applicant> {
     try {
+      // Validate status
+      this.validateApplicantStatus(data.status);
+
       return await withRetry(async () => {
-        return await safeExecute(
+        const result = await safeExecute(
           () => this.dbClient.from(TABLES.APPLICANTS).insert({
             name: data.name,
             email: data.email,
@@ -67,6 +70,8 @@ export class SupabaseDatabaseService implements DatabaseService {
           }).select().single(),
           'Applicant'
         );
+
+        return this.transformDatabaseApplicantToInterface(result);
       });
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'createApplicant');
@@ -76,13 +81,15 @@ export class SupabaseDatabaseService implements DatabaseService {
 
   async getApplicant(id: string): Promise<Applicant | null> {
     try {
-      return await safeExecuteOptional(
+      const result = await safeExecuteOptional(
         () => this.dbClient.from(TABLES.APPLICANTS)
           .select('*')
           .eq('id', id)
           .single(),
         'Applicant'
       );
+
+      return result ? this.transformDatabaseApplicantToInterface(result) : null;
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'getApplicant');
       throw error;
@@ -91,9 +98,14 @@ export class SupabaseDatabaseService implements DatabaseService {
 
   async updateApplicant(id: string, data: UpdateApplicantData): Promise<Applicant> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString()
       };
+
+      // Validate status if provided
+      if (data.status !== undefined) {
+        this.validateApplicantStatus(data.status);
+      }
 
       // Map interface fields to database columns
       if (data.name !== undefined) updateData.name = data.name;
@@ -102,14 +114,14 @@ export class SupabaseDatabaseService implements DatabaseService {
       if (data.cvData !== undefined) updateData.cv_data = data.cvData;
       if (data.linkedinData !== undefined) updateData.linkedin_data = data.linkedinData;
       if (data.githubData !== undefined) updateData.github_data = data.githubData;
-      if (data.analysisResult !== undefined) updateData.analysis_re = data.analysisResult;
+      if (data.analysisResult !== undefined) updateData.analysis_result = data.analysisResult;
       if (data.individualAnalysis !== undefined) updateData.individual_analysis = data.individualAnalysis;
       if (data.crossReferenceAnalysis !== undefined) updateData.cross_reference_analysis = data.crossReferenceAnalysis;
       if (data.score !== undefined) updateData.score = data.score;
       if (data.role !== undefined) updateData.role = data.role;
 
       return await withRetry(async () => {
-        return await safeExecute(
+        const result = await safeExecute(
           () => this.dbClient.from(TABLES.APPLICANTS)
             .update(updateData)
             .eq('id', id)
@@ -117,6 +129,8 @@ export class SupabaseDatabaseService implements DatabaseService {
             .single(),
           'Applicant'
         );
+
+        return this.transformDatabaseApplicantToInterface(result);
       });
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'updateApplicant');
@@ -149,11 +163,13 @@ export class SupabaseDatabaseService implements DatabaseService {
         .order('created_at', { ascending: false });
 
       if (options.status) {
+        this.validateApplicantStatus(options.status);
         query = query.eq('status', options.status);
       }
 
       if (options.search) {
-        query = query.or(`name.ilike.%${options.search}%,email.ilike.%${options.search}%`);
+        // Enhanced search to include role and JSONB data
+        query = query.or(`name.ilike.%${options.search}%,email.ilike.%${options.search}%,role.ilike.%${options.search}%`);
       }
 
       if (options.limit) {
@@ -164,9 +180,113 @@ export class SupabaseDatabaseService implements DatabaseService {
         query = query.range(options.offset, options.offset + (options.limit || 50) - 1);
       }
 
-      return await safeExecuteArray(() => query, 'Applicants');
+      const results = await safeExecuteArray(() => query, 'Applicants');
+      return results.map(result => this.transformDatabaseApplicantToInterface(result));
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'listApplicants');
+      throw error;
+    }
+  }
+
+  // Helper methods for applicant operations
+  private validateApplicantStatus(status: string): void {
+    const validStatuses = ['uploading', 'processing', 'analyzing', 'completed', 'failed'];
+    if (!validStatuses.includes(status)) {
+      throw new Error(`Invalid applicant status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+    }
+  }
+
+  private transformDatabaseApplicantToInterface(dbApplicant: Record<string, unknown>): Applicant {
+    return {
+      id: dbApplicant.id,
+      workspaceId: dbApplicant.workspace_id,
+      name: dbApplicant.name,
+      email: dbApplicant.email,
+      status: dbApplicant.status,
+      createdAt: dbApplicant.created_at,
+      updatedAt: dbApplicant.updated_at,
+      originalFileName: dbApplicant.original_filename,
+      originalGithubUrl: dbApplicant.original_github_url,
+      score: dbApplicant.score,
+      role: dbApplicant.role,
+      cvData: dbApplicant.cv_data,
+      linkedinData: dbApplicant.linkedin_data,
+      githubData: dbApplicant.github_data,
+      analysisResult: dbApplicant.analysis_result,
+      individualAnalysis: dbApplicant.individual_analysis,
+      crossReferenceAnalysis: dbApplicant.cross_reference_analysis
+    };
+  }
+
+  // Additional applicant query methods for enhanced filtering
+  async getApplicantsByStatus(workspaceId: string, status: string): Promise<Applicant[]> {
+    try {
+      this.validateApplicantStatus(status);
+
+      const results = await safeExecuteArray(
+        () => this.dbClient.from(TABLES.APPLICANTS)
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .eq('status', status)
+          .order('created_at', { ascending: false }),
+        'Applicants by status'
+      );
+
+      return results.map(result => this.transformDatabaseApplicantToInterface(result));
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'getApplicantsByStatus');
+      throw error;
+    }
+  }
+
+  async searchApplicants(workspaceId: string, searchTerm: string, limit?: number): Promise<Applicant[]> {
+    try {
+      let query = this.dbClient.from(TABLES.APPLICANTS)
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,role.ilike.%${searchTerm}%`)
+        .order('created_at', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const results = await safeExecuteArray(() => query, 'Search applicants');
+      return results.map(result => this.transformDatabaseApplicantToInterface(result));
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'searchApplicants');
+      throw error;
+    }
+  }
+
+  async updateApplicantStatus(id: string, status: string): Promise<Applicant> {
+    try {
+      this.validateApplicantStatus(status);
+
+      return await this.updateApplicant(id, { status });
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'updateApplicantStatus');
+      throw error;
+    }
+  }
+
+  async bulkUpdateApplicantStatus(ids: string[], status: string): Promise<void> {
+    try {
+      this.validateApplicantStatus(status);
+
+      await withRetry(async () => {
+        await safeExecute(
+          () => this.dbClient.from(TABLES.APPLICANTS)
+            .update({
+              status,
+              updated_at: new Date().toISOString()
+            })
+            .in('id', ids),
+          'Bulk applicant status update'
+        );
+      });
+    } catch (error) {
+      logDatabaseError(handleDatabaseError(error), 'bulkUpdateApplicantStatus');
       throw error;
     }
   }
@@ -214,7 +334,7 @@ export class SupabaseDatabaseService implements DatabaseService {
 
   async updateWorkspace(id: string, data: Partial<CreateWorkspaceData>): Promise<Workspace> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString()
       };
 
@@ -283,7 +403,7 @@ export class SupabaseDatabaseService implements DatabaseService {
       const result = await safeExecuteArray(() => query, 'User workspaces');
 
       // Transform the result to match Workspace interface
-      return result.map((item: any) => ({
+      return result.map((item: Record<string, unknown>) => ({
         ...item.workspaces,
         role: item.role
       }));
@@ -459,7 +579,7 @@ export class SupabaseDatabaseService implements DatabaseService {
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString()
       };
 

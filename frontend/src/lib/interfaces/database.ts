@@ -69,12 +69,12 @@ export interface UpdateApplicantData {
   name?: string;
   email?: string;
   status?: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
-  cvData?: any;
-  linkedinData?: any;
-  githubData?: any;
-  analysisResult?: any;
-  individualAnalysis?: any;
-  crossReferenceAnalysis?: any;
+  cvData?: Record<string, unknown>;
+  linkedinData?: Record<string, unknown>;
+  githubData?: Record<string, unknown>;
+  analysisResult?: Record<string, unknown>;
+  individualAnalysis?: Record<string, unknown>;
+  crossReferenceAnalysis?: Record<string, unknown>;
   score?: number;
   role?: string;
 }

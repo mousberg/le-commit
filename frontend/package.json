@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest",
+    "test:run": "vitest run",
     "test:cv": "npx tsx src/lib/simple_tests/test-cv.ts",
     "test:evaluation": "npx tsx src/lib/simple_tests/test-evaluation.ts"
   },
@@ -50,12 +52,14 @@
     "@types/node": "^20.19.8",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/ui": "^3.2.4",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "supabase": "^2.31.4",
     "ts-node": "^10.9.1",
     "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
