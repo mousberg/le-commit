@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Applicant } from '@/lib/interfaces/applicant';
 import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest) {
     // List applicants with filtering
     const applicants = await dbService.listApplicants({
       workspaceId,
-      status: status as any,
+      status: status as 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed' | undefined,
       search: search || undefined,
       limit,
       offset

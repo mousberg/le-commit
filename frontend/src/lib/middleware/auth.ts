@@ -79,7 +79,7 @@ export async function withAuth(
 
       if (authError || !user) {
         return {
- null,
+          context: null,
           error: NextResponse.json(
             { error: 'Authentication required', success: false },
             { status: 401 }
