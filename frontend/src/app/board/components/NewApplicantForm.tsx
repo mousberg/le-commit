@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
+import { useWorkspace } from '../../../lib/contexts/WorkspaceContext';
 
 interface NewApplicantFormProps {
   onSuccess?: (applicantId: string) => void;
@@ -121,8 +122,9 @@ function DropZone({ onDrop, accept, label, description, file, disabled = false, 
   );
 }
 
-export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
-  const { createApplicant, isLoading } = useApplicants();
+export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
+  const { createApplicant, isLoading: applicantLoading } = useApplicants();
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
   const router = useRouter();
 
   // Form state
@@ -130,104 +132,142 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
   const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
   const [githubUrl, setGithubUrl] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<string>('');
+
+  const isLoading = applicantLoading || workspaceLoading;
 
   const resetForm = () => {
     setCvFile(null);
     setLinkedinFile(null);
     setGithubUrl('');
+    setRole('');
+    setError(null);
   };
 
   const handleCreateCandidate = async () => {
     if (!cvFile) {
-      alert('Please select a CV file');
+      setError('Please select a CV file');
       return;
     }
 
+    if (!currentWorkspace) {
+      setError('No workspace selected. Please select a workspace first.');
+      return;
+    }
+
+    setError(null);
     setIsCreating(true);
 
     try {
       const applicantId = await createApplicant({
         cvFile,
         linkedinFile: linkedinFile || undefined,
-        githubUrl: githubUrl.trim() || undefined
+        githubUrl: githubUrl.trim() || undefined,
+        role: role.trim() || undefined
       });
 
       if (applicantId) {
         resetForm();
 
-        // Navigate immediately with replace to avoid back button issues
-        router.replace(`/board?id=${applicantId}`);
-
         // Call success callback if provided
         onSuccess?.(applicantId);
       }
-    } catch (error) {
-      console.error('Failed to create applicant:', error);
-      alert('Failed to create applicant. Please try again.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Failed to create applicant:', err);
     } finally {
       setIsCreating(false);
     }
   };
 
-  const isFormValid = cvFile && !isCreating && !isLoading;
+  const isFormValid = cvFile && !isCreating && !isLoading && !!currentWorkspace;
+
+  if (!currentWorkspace && !workspaceLoading) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-zinc-900 mb-2">No Workspace Selected</h3>
+        <p className="text-zinc-600 mb-4">Please select or create a workspace to add applicants.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="p-8">
-        <h2 className="text-3xl font-medium text-zinc-900 mb-2">New Applicant</h2>
-        <p className="text-zinc-500 mb-8">Upload candidate information to begin analysis.</p>
-        
-        <div className="max-w-2xl mx-auto">
-          <div className="flex flex-col gap-8">
-            {/* CV Upload */}
-            <DropZone
-              onDrop={setCvFile}
-              accept=".pdf,.doc,.docx"
-              label="CV"
-              description="PDF"
-              file={cvFile}
-              disabled={isCreating}
-              required={true}
-            />
+    <div className="bg-white">
+      <div className="flex flex-col gap-8">
+        {/* CV Upload */}
+        <DropZone
+          onDrop={setCvFile}
+          accept=".pdf,.doc,.docx"
+          label="CV"
+          description="PDF, DOC, or DOCX format"
+          file={cvFile}
+          disabled={isCreating || isLoading}
+          required={true}
+        />
 
-            {/* LinkedIn Profile Upload */}
-            <DropZone
-              onDrop={setLinkedinFile}
-              accept=".pdf,.html,.txt"
-              label="LinkedIn"
-              description="Profile PDF Download"
-              file={linkedinFile}
-              disabled={isCreating}
-            />
-
-            {/* GitHub URL Input */}
-            <div className="flex flex-col gap-3">
-              <label className="text-lg font-medium text-zinc-900">GitHub</label>
-              <input
-                type="url"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/username"
-                disabled={isCreating}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
-              />
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleCreateCandidate}
-              disabled={!isFormValid}
-              size="lg"
-              className={`rounded-lg shadow-sm text-lg font-medium px-8 py-4 mt-4 transition-all duration-200 ${
-                isFormValid
-                  ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
-                  : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
-              }`}
-            >
-              {isCreating ? 'Creating...' : 'Unmask'}
-            </Button>
-          </div>
+        {/* Role Input */}
+        <div className="flex flex-col gap-3">
+          <label className="text-lg font-medium text-zinc-900">Role</label>
+          <input
+            type="text"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            placeholder="e.g. Software Engineer, Product Manager"
+            disabled={isCreating || isLoading}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+          />
         </div>
+
+        {/* LinkedIn Profile Upload */}
+        <DropZone
+          onDrop={setLinkedinFile}
+          accept=".pdf,.html,.txt"
+          label="LinkedIn"
+          description="Profile PDF Download (optional)"
+          file={linkedinFile}
+          disabled={isCreating || isLoading}
+        />
+
+        {/* GitHub URL Input */}
+        <div className="flex flex-col gap-3">
+          <label className="text-lg font-medium text-zinc-900">GitHub (optional)</label>
+          <input
+            type="url"
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+            placeholder="https://github.com/username"
+            disabled={isCreating || isLoading}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+          />
+        </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <Button
+          onClick={handleCreateCandidate}
+          disabled={!isFormValid}
+          size="lg"
+          className={`rounded-lg shadow-sm text-lg font-medium px-8 py-4 mt-4 transition-all duration-200 ${
+            isFormValid
+              ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
+              : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
+          }`}
+        >
+          {isCreating ? 'Creating...' : 'Unmask'}
+        </Button>
       </div>
     </div>
   );

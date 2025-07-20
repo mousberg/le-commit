@@ -1,21 +1,30 @@
 'use client';
 
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
+import { useWorkspace } from '../../../lib/contexts/WorkspaceContext';
 import { useEffect, useState, Suspense } from 'react';
-import { Plus, Search, Filter, Users, UserCheck, Clock, UserX } from 'lucide-react';
+import { Plus, Search, Filter, Users, UserCheck, Clock, UserX, Briefcase } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { NewApplicantForm } from '../components/NewApplicantForm';
 
 function ApplicantsPageContent() {
-  const { applicants, fetchApplicants } = useApplicants();
+  const { applicants, fetchApplicants, isLoading: applicantsLoading } = useApplicants();
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
   const [searchTerm, setSearchTerm] = useState('');
   const searchParams = useSearchParams();
+  const router = useRouter();
   const statusFilter = searchParams.get('status');
   const showNew = searchParams.get('new') === 'true';
 
+  const isLoading = applicantsLoading || workspaceLoading;
+
+  // Fetch applicants when workspace changes
   useEffect(() => {
-    fetchApplicants();
-  }, [fetchApplicants]);
+    if (currentWorkspace) {
+      fetchApplicants();
+    }
+  }, [currentWorkspace, fetchApplicants]);
 
   const filteredApplicants = applicants.filter(applicant => {
     const matchesSearch = applicant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,23 +70,36 @@ function ApplicantsPageContent() {
     }
   };
 
+  const handleApplicantCreated = (applicantId: string) => {
+    router.push(`/board?id=${applicantId}`);
+  };
+
+  if (!currentWorkspace) {
+    return (
+      <div className="p-8 text-center">
+        <Briefcase className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
+        <h2 className="text-xl font-medium text-zinc-900 mb-2">No Workspace Selected</h2>
+        <p className="text-zinc-600 mb-4">Please select or create a workspace to manage applicants.</p>
+        <Link
+          href="/board/setup-workspace"
+          className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
+        >
+          Create Workspace
+        </Link>
+      </div>
+    );
+  }
+
   if (showNew) {
     return (
       <div className="p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">Add New Applicant</h1>
-          <p className="text-zinc-600">Upload a new candidate resume for analysis.</p>
+          <p className="text-zinc-600">Upload a new candidate resume for analysis in workspace: <span className="font-medium">{currentWorkspace.name}</span></p>
         </div>
-        
+
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-zinc-200/50 shadow-sm max-w-2xl">
-          <div className="border-2 border-dashed border-zinc-300 rounded-lg p-12 text-center">
-            <Plus className="h-12 w-12 text-zinc-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-zinc-900 mb-2">Upload Resume</h3>
-            <p className="text-zinc-600 mb-4">Drag and drop a resume file here, or click to browse</p>
-            <button className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors">
-              Choose File
-            </button>
-          </div>
+          <NewApplicantForm onSuccess={handleApplicantCreated} />
         </div>
       </div>
     );
@@ -91,9 +113,11 @@ function ApplicantsPageContent() {
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">
             {statusFilter ? `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Applicants` : 'All Applicants'}
           </h1>
-          <p className="text-zinc-600">Manage and review candidate applications.</p>
+          <p className="text-zinc-600">
+            Manage and review candidate applications in workspace: <span className="font-medium">{currentWorkspace.name}</span>
+          </p>
         </div>
-        <Link 
+        <Link
           href="/board/applicants?new=true"
           className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
         >
@@ -175,7 +199,12 @@ function ApplicantsPageContent() {
 
       {/* Applicants List */}
       <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-zinc-200/50 shadow-sm overflow-hidden">
-        {filteredApplicants.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="w-12 h-12 border-4 border-zinc-200 border-t-zinc-800 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-zinc-600">Loading applicants...</p>
+          </div>
+        ) : filteredApplicants.length > 0 ? (
           <div className="divide-y divide-zinc-200/50">
             {filteredApplicants.map((applicant) => (
               <div key={applicant.id} className="p-6 hover:bg-zinc-50/50 transition-colors">
@@ -199,9 +228,12 @@ function ApplicantsPageContent() {
                       {getStatusIcon(applicant.status)}
                       {applicant.status}
                     </div>
-                    <button className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
+                    <Link
+                      href={`/board?id=${applicant.id}`}
+                      className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors"
+                    >
                       View Details
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -211,9 +243,9 @@ function ApplicantsPageContent() {
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
             <p className="text-zinc-500 mb-4">
-              {searchTerm || statusFilter ? 'No applicants match your criteria' : 'No applicants yet'}
+              {searchTerm || statusFilter ? 'No applicants match your criteria' : 'No applicants yet in this workspace'}
             </p>
-            <Link 
+            <Link
               href="/board/applicants?new=true"
               className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
             >

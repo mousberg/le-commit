@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { Applicant, CreateApplicantRequest } from '@/lib/interfaces/applicant';
+import { useWorkspace } from './WorkspaceContext';
 
 interface ApplicantContextType {
   applicants: Applicant[];
@@ -20,17 +21,32 @@ interface ApplicantContextType {
 const ApplicantContext = createContext<ApplicantContextType | undefined>(undefined);
 
 export function ApplicantProvider({ children }: { children: ReactNode }) {
+  const { currentWorkspace } = useWorkspace();
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset applicants when workspace changes
+  useEffect(() => {
+    setApplicants([]);
+    setSelectedApplicant(null);
+
+    if (currentWorkspace) {
+      fetchApplicants();
+    }
+  }, [currentWorkspace?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchApplicants = useCallback(async () => {
+    if (!currentWorkspace) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/applicants');
+      const response = await fetch(`/api/applicants?workspaceId=${currentWorkspace.id}`);
       const data = await response.json();
 
       if (data.success) {
@@ -43,7 +59,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentWorkspace]);
 
   const selectApplicant = useCallback(async (id: string | null) => {
     if (!id) {
@@ -71,12 +87,18 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createApplicant = useCallback(async (request: CreateApplicantRequest): Promise<string | null> => {
+    if (!currentWorkspace) {
+      setError('No workspace selected');
+      return null;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
       const formData = new FormData();
       formData.append('cvFile', request.cvFile);
+      formData.append('workspaceId', currentWorkspace.id);
 
       if (request.linkedinFile) {
         formData.append('linkedinFile', request.linkedinFile);
@@ -111,7 +133,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentWorkspace]);
 
   const refreshApplicant = useCallback(async (id: string) => {
     try {
