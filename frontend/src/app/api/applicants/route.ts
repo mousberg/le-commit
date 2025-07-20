@@ -5,7 +5,7 @@ import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/
 import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
 import { getServerDatabaseService } from '@/lib/services/database';
-import { SupabaseStorageService } from '@/lib/services/storage';
+import { createStorageService } from '@/lib/services/storage';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Get storage service
-    const storageService = new SupabaseStorageService(dbService);
+    const storageService = await createStorageService(dbService);
 
     // Upload CV file
     await storageService.uploadApplicantFile(
@@ -170,7 +170,7 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
   try {
     // Get database and storage services
     const dbService = await getServerDatabaseService();
-    const storageService = new SupabaseStorageService(dbService);
+    const storageService = await createStorageService(dbService);
 
     // Get current applicant
     const applicant = await dbService.getApplicant(applicantId);

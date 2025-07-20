@@ -47,22 +47,9 @@ export class SupabaseStorageService implements StorageService {
     maxWorkspaceStorage: 1024 * 1024 * 1024, // 1GB
   };
 
-  constructor(dbService?: SupabaseDatabaseService) {
-    // Initialize with temp values - will be properly set in initializeClients
-    this.supabase = {} as SupabaseClient;
-    this.dbService = {} as SupabaseDatabaseService;
-    this.initializeClients(dbService);
-  }
-
-  private async initializeClients(dbService?: SupabaseDatabaseService) {
-    this.supabase = await createClient();
-    if (dbService) {
-      this.dbService = dbService;
-    } else {
-      const { getServerDatabaseClient } = await import('../supabase/database');
-      const dbClient = await getServerDatabaseClient();
-      this.dbService = new SupabaseDatabaseService(dbClient);
-    }
+  constructor(supabase: SupabaseClient, dbService: SupabaseDatabaseService) {
+    this.supabase = supabase;
+    this.dbService = dbService;
   }
 
   /**
@@ -248,5 +235,16 @@ export class SupabaseStorageService implements StorageService {
   }
 }
 
-// Export singleton instance
-export const storageService = new SupabaseStorageService();
+// Factory function to create storage service instance within request context
+export async function createStorageService(dbService?: SupabaseDatabaseService): Promise<SupabaseStorageService> {
+  const supabase = await createClient();
+
+  if (dbService) {
+    return new SupabaseStorageService(supabase, dbService);
+  } else {
+    const { getServerDatabaseClient } = await import('../supabase/database');
+    const dbClient = await getServerDatabaseClient();
+    const databaseService = new SupabaseDatabaseService(dbClient);
+    return new SupabaseStorageService(supabase, databaseService);
+  }
+}

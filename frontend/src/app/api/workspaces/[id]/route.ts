@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerDatabaseService } from '@/lib/services/database';
-import { SupabaseStorageService } from '@/lib/services/storage';
+import { createStorageService } from '@/lib/services/storage';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
@@ -177,7 +177,7 @@ export async function DELETE(
     const applicants = await dbService.listApplicants({ workspaceId });
 
     // Delete all files for all applicants in the workspace
-    const storageService = new SupabaseStorageService(dbService);
+    const storageService = await createStorageService(dbService);
     for (const applicant of applicants) {
       try {
         await storageService.deleteAllApplicantFiles(applicant.id);
