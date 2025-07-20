@@ -8,6 +8,7 @@ import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, Log
 import { useApplicants } from '../lib/contexts/ApplicantContext';
 import { useAuth } from '../lib/contexts/AuthContext';
 import { Button } from './ui/button';
+import WorkspaceSelector from './WorkspaceSelector';
 
 const ANIMATION_DURATION = {
     SIDEBAR: 500,
@@ -108,7 +109,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
 
   const filteredApplicants = useMemo(() => {
     if (!searchQuery.trim()) return applicants;
-    return applicants.filter(applicant => 
+    return applicants.filter(applicant =>
       applicant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (applicant.role && applicant.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (applicant.email && applicant.email.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -143,8 +144,8 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
       `;
 
       const getStateClasses = (isActive: boolean) =>
-        isActive 
-          ? 'bg-[#f2f2f2] text-[#282828]' 
+        isActive
+          ? 'bg-[#f2f2f2] text-[#282828]'
           : 'text-[#282828] hover:text-[#282828] hover:bg-[#f7f7f7]';
 
       return (
@@ -181,12 +182,12 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
       role="navigation"
       aria-label="board navigation"
     >
-      <header className="group relative h-6 flex shrink-0 items-center justify-between mb-8">
+      <header className="group relative h-6 flex shrink-0 items-center justify-between mb-4">
         {isCollapsed ? (
           <div className="flex items-center">
-            <Image 
-              src="/unmask-logo.svg" 
-              alt="Unmask" 
+            <Image
+              src="/unmask-logo.svg"
+              alt="Unmask"
               width={24}
               height={24}
               className="mx-3 h-6 w-6"
@@ -203,9 +204,9 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
         ) : (
           <>
             <div className="flex items-center">
-              <Image 
-                src="/unmask-logo.svg" 
-                alt="Unmask" 
+              <Image
+                src="/unmask-logo.svg"
+                alt="Unmask"
                 width={24}
                 height={24}
                 className="mx-3 h-6 w-6"
@@ -223,6 +224,15 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
         )}
       </header>
 
+      {/* Workspace Selector */}
+      <div className="mb-4 px-2">
+        <WorkspaceSelector
+          isCollapsed={isCollapsed}
+          getTextContainerStyle={getTextContainerStyle}
+          getUniformTextStyle={getUniformTextStyle}
+        />
+      </div>
+
       <nav className="flex flex-1 flex-col" role="navigation" aria-label="Main menu">
         <ul role="list" className="flex flex-1 flex-col">
           <li>
@@ -235,8 +245,8 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
           {!isCollapsed && (
             <li className="mt-6">
               <div className={`relative transition-all duration-200 ${
-                searchFocused 
-                  ? 'bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-1' 
+                searchFocused
+                  ? 'bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-1'
                   : 'bg-gray-50 border border-gray-200 rounded-lg'
               }`}>
                 <div className="relative">
@@ -251,8 +261,8 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                     onFocus={() => setSearchFocused(true)}
                     onBlur={() => setSearchFocused(false)}
                     className={`w-full pl-10 pr-8 py-2.5 text-sm rounded-lg border-0 focus:ring-0 focus:outline-none transition-all duration-200 ${
-                      searchFocused 
-                        ? 'bg-white shadow-sm text-gray-900 placeholder-gray-500' 
+                      searchFocused
+                        ? 'bg-white shadow-sm text-gray-900 placeholder-gray-500'
                         : 'bg-transparent text-gray-700 placeholder-gray-400'
                     }`}
                   />
@@ -269,7 +279,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
               </div>
             </li>
           )}
-          
+
           {/* Applicants Section */}
           <li className="mt-6">
             <div className="space-y-1">
@@ -292,7 +302,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                   </span>
                 </div>
                 <div className="shrink-0" style={getTextContainerStyle()}>
-                  <ChevronDown 
+                  <ChevronDown
                     className={`h-4 w-4 transition-transform duration-200 ${applicantsDropdownOpen ? 'rotate-180' : ''}`}
                     style={getUniformTextStyle()}
                   />
@@ -353,7 +363,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                       No applicants yet
                     </div>
                   )}
-                  
+
                   {applicants.length > 0 && filteredApplicants.length === 0 && searchQuery && (
                     <div className="px-[12px] py-[8px] text-xs text-gray-500">
                       No applicants match &quot;{searchQuery}&quot;
@@ -367,7 +377,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
 
         <div className="mt-auto space-y-4">
           <div className="h-px bg-[#d9d9d9]"></div>
-          
+
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex items-center min-w-0 flex-1">
               <div className="w-8 h-8 bg-[#f2f2f2] border border-[#8d8d8d] rounded-full flex items-center justify-center">
@@ -381,7 +391,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                 </span>
               </div>
             </div>
-            
+
             {!isCollapsed && (
               <Button
                 variant="ghost"
