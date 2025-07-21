@@ -556,7 +556,10 @@ function BoardPageContent() {
   useEffect(() => {
     const interval = setInterval(() => {
       applicants.forEach(applicant => {
-        if (applicant.status === 'processing' || applicant.status === 'uploading' || applicant.status === 'analyzing') {
+        if (applicant.status === 'processing' || 
+            applicant.status === 'uploading' || 
+            applicant.status === 'analyzing' ||
+            (applicant.linkedinJobStatus === 'running' && applicant.originalLinkedinUrl)) {
           refreshApplicant(applicant.id);
         }
       });
@@ -564,6 +567,8 @@ function BoardPageContent() {
 
     return () => clearInterval(interval);
   }, [applicants, refreshApplicant]);
+
+  // No timeout needed - LinkedIn processing now waits for completion
 
   // Handle successful applicant creation from NewApplicantForm
   const handleApplicantCreated = useCallback((applicantId: string) => {
@@ -824,8 +829,11 @@ function BoardPageContent() {
         {isNewForm ? (
             <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
-            // Show processing loader for uploading/processing/analyzing states
-            selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' ? (
+            // Show processing loader for uploading/processing/analyzing states OR if LinkedIn is still running
+            (selectedCandidate.status === 'uploading' || 
+             selectedCandidate.status === 'processing' || 
+             selectedCandidate.status === 'analyzing' ||
+             (selectedCandidate.linkedinJobStatus === 'running' && selectedCandidate.originalLinkedinUrl)) ? (
               <ProcessingLoader
                 status={selectedCandidate.status}
                 fileName={selectedCandidate.originalFileName}
@@ -916,6 +924,32 @@ function BoardPageContent() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                   {selectedCandidate.linkedinData ? (
                     <LinkedInSection linkedinData={selectedCandidate.linkedinData} />
+                  ) : selectedCandidate.linkedinJobId && selectedCandidate.linkedinJobStatus === 'running' ? (
+                    <div className="p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xl">💼</span>
+                        <h3 className="text-lg font-semibold text-gray-700">LinkedIn</h3>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium animate-pulse">
+                          Processing...
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-3">LinkedIn data is being processed in the background.</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        <span>Job ID: {selectedCandidate.linkedinJobId.slice(0, 8)}...</span>
+                      </div>
+                    </div>
+                  ) : selectedCandidate.linkedinJobStatus === 'failed' ? (
+                    <div className="p-6 opacity-60">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xl opacity-50">💼</span>
+                        <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full border border-red-200 font-medium">
+                          Failed
+                        </span>
+                      </div>
+                      <p className="text-gray-500 text-sm">LinkedIn processing failed.</p>
+                    </div>
                   ) : (
                     <div className="p-6 opacity-60">
                       <div className="flex items-center gap-3 mb-2">

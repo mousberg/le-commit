@@ -164,8 +164,8 @@ async function pollForLinkedInResults(
   apiKey: string,
   onProgress?: (progress: { attempt: number; maxAttempts: number; status: string; message: string }) => void
 ): Promise<unknown[]> {
-  const maxAttempts = 30; // 5 minutes with 10-second intervals
-  const pollInterval = 10000; // 10 seconds
+  const maxAttempts = 60; // 5 minutes with 5-second intervals
+  const pollInterval = 5000; // 5 seconds
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -176,7 +176,7 @@ async function pollForLinkedInResults(
         message: `Checking LinkedIn data... (${attempt + 1}/${maxAttempts})`
       });
 
-      const response = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${snapshotId}`, {
+      const response = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${snapshotId}?format=json`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
@@ -186,35 +186,45 @@ async function pollForLinkedInResults(
         throw new Error(`Polling failed: ${response.status} ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const statusData = await response.json();
+      const status = statusData.status || statusData.state || statusData.job_status;
+      const isRunning = status === 'running' || status === 'processing' || status === 'building' || status === 'in_progress';
       
-      // Check if the snapshot is ready
-      if (data.status === 'ready' && data.data && data.data.length > 0) {
+      // If not running (including undefined), try to download
+      if (!isRunning) {
         onProgress?.({
           attempt: attempt + 1,
           maxAttempts,
           status: 'ready',
-          message: 'LinkedIn data retrieved successfully!'
+          message: 'LinkedIn job done, downloading data...'
         });
-        return data.data;
+        
+        // Wait 1 second then download
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const downloadResponse = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${snapshotId}?format=json`, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          },
+        });
+        
+        if (downloadResponse.ok) {
+          const data = await downloadResponse.json();
+          if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+            return Array.isArray(data) ? data : [data];
+          }
+        }
       }
       
-      // If not ready, wait and try again
-      if (data.status === 'running') {
-        onProgress?.({
-          attempt: attempt + 1,
-          maxAttempts,
-          status: 'running',
-          message: `LinkedIn processing in progress... (${Math.round(((attempt + 1) / maxAttempts) * 100)}%)`
-        });
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        continue;
-      }
+      // Still running or no data yet
+      onProgress?.({
+        attempt: attempt + 1,
+        maxAttempts,
+        status: 'running',
+        message: `LinkedIn processing... (${Math.round(((attempt + 1) / maxAttempts) * 100)}%)`
+      });
       
-      // If failed or other status
-      if (data.status === 'failed') {
-        throw new Error(`LinkedIn API processing failed: ${data.error || 'Unknown error'}`);
-      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
       
     } catch (error) {
       if (attempt === maxAttempts - 1) {
@@ -224,9 +234,8 @@ async function pollForLinkedInResults(
         attempt: attempt + 1,
         maxAttempts,
         status: 'retrying',
-        message: `Retrying LinkedIn request... (${attempt + 1}/${maxAttempts})`
+        message: `Retrying... (${attempt + 1}/${maxAttempts})`
       });
-      // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
   }
@@ -241,6 +250,31 @@ export type LinkedInProgress = {
   message: string;
   percentage?: number;
 };
+
+/**
+ * Process raw LinkedIn data from BrightData API
+ * @param linkedinRawData - Raw data from BrightData API
+ * @returns ProfileData from LinkedIn API
+ */
+export function processLinkedInData(linkedinRawData: unknown): CvData {
+  try {
+    // Handle array of results (common case)
+    const dataArray = Array.isArray(linkedinRawData) ? linkedinRawData : [linkedinRawData];
+    
+    if (dataArray.length === 0) {
+      throw new Error('No LinkedIn data to process');
+    }
+    
+    // Process the first result
+    const result = dataArray[0];
+    
+    // Convert using existing function
+    return convertLinkedInApiToProfileData(result as LinkedInApiResponse);
+  } catch (error) {
+    console.error('Error processing LinkedIn data:', error);
+    throw new Error(`Failed to process LinkedIn data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 /**
  * Process LinkedIn URL using BrightData API with progress tracking
@@ -320,8 +354,8 @@ export async function processLinkedInUrl(
       percentage: 95
     });
     
-    // Convert the first result to our ProfileData format
-    const profileData = convertLinkedInApiToProfileData(results[0] as LinkedInApiResponse);
+    // Convert the results to our ProfileData format
+    const profileData = processLinkedInData(results);
 
     onProgress?.({
       attempt: 30,
@@ -343,5 +377,273 @@ export async function processLinkedInUrl(
     });
     console.error('Error processing LinkedIn URL:', error);
     throw new Error(`Failed to process LinkedIn URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Start a LinkedIn job and return the job ID
+ * @param linkedinUrl - LinkedIn profile URL
+ * @returns Job ID and any immediate data
+ */
+export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: string; data?: unknown }> {
+  const apiKey = process.env.BRIGHTDATA_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('BRIGHTDATA_API_KEY environment variable is not set');
+  }
+  
+  console.log(`🚀 Starting LinkedIn job for URL: ${linkedinUrl}`);
+  
+  try {
+    const response = await fetch('https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_l1viktl72bvl7bjuj0&format=json&uncompressed_webhook=true', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([{ url: linkedinUrl }]),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`LinkedIn API error:`, errorText);
+      throw new Error(`LinkedIn API request failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log(`LinkedIn API response:`, data);
+    const jobId = data.snapshot_id;
+    
+    if (!jobId) {
+      throw new Error('No snapshot_id returned from LinkedIn API');
+    }
+    
+    console.log(`✅ LinkedIn job started with ID: ${jobId}`);
+    return { jobId, data: data.data || null };
+    
+  } catch (error) {
+    console.error(`Error starting LinkedIn job:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Check LinkedIn job status and download data if ready
+ * @param jobId - Job ID from startLinkedInJob
+ * @returns Job status and data if available
+ */
+export async function checkLinkedInJob(jobId: string): Promise<{
+  status: 'running' | 'completed' | 'failed';
+  data?: unknown;
+}> {
+  const apiKey = process.env.BRIGHTDATA_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('BRIGHTDATA_API_KEY environment variable is not set');
+  }
+  
+  try {
+    // Check job status
+    const response = await fetch(`https://api.brightdata.com/datasets/v3/progress/${jobId}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to check job status: ${response.status}`);
+    }
+
+    const statusData = await response.json();
+    const status = statusData.status || statusData.state || statusData.job_status;
+    
+    console.log(`LinkedIn job ${jobId} full response:`, statusData);
+    console.log(`LinkedIn job ${jobId} extracted status: ${status}`);
+    
+    // Map BrightData statuses to our internal ones
+    if (status === 'failed' || status === 'error' || status === 'cancelled') {
+      return { status: 'failed' };
+    }
+    
+    const isRunning = status === 'running' || status === 'processing' || status === 'building' || status === 'in_progress';
+    const isReady = status === 'ready' || status === 'completed' || status === 'complete';
+
+    if (isReady || !isRunning) {
+      // Job is done, try to download data
+      console.log(`Job ${jobId} is ready (status: ${status}), attempting download...`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      
+      const downloadResponse = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${jobId}?format=json`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
+
+      if (downloadResponse.ok) {
+        const data = await downloadResponse.json();
+        console.log(`Downloaded data for job ${jobId}:`, Array.isArray(data) ? `Array with ${data.length} items` : typeof data);
+        if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+          return { status: 'completed', data };
+        }
+      } else {
+        console.error(`Failed to download LinkedIn data: ${downloadResponse.status} ${downloadResponse.statusText}`);
+        const errorText = await downloadResponse.text();
+        console.error(`Error response:`, errorText);
+      }
+      
+      // If download failed but status was ready, still mark as completed
+      return { status: 'completed' };
+    }
+
+    return { status: 'running' };
+    
+  } catch (error) {
+    console.error(`Error checking LinkedIn job ${jobId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Poll LinkedIn job until completion
+ * @param jobId - Job ID to poll
+ * @param onProgress - Progress callback
+ * @returns LinkedIn data when ready
+ */
+export async function pollLinkedInJob(
+  jobId: string,
+  onProgress?: (progress: LinkedInProgress) => void
+): Promise<CvData> {
+  const maxAttempts = 60; // 5 minutes with 5-second intervals
+  const pollInterval = 5000; // 5 seconds
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      onProgress?.({
+        attempt: attempt + 1,
+        maxAttempts,
+        status: 'polling',
+        message: `Checking LinkedIn data... (${attempt + 1}/${maxAttempts})`,
+        percentage: (attempt / maxAttempts) * 100
+      });
+
+      const result = await checkLinkedInJob(jobId);
+      
+      if (result.status === 'completed' && result.data) {
+        onProgress?.({
+          attempt: maxAttempts,
+          maxAttempts,
+          status: 'ready',
+          message: 'LinkedIn data ready!',
+          percentage: 100
+        });
+        return processLinkedInData(result.data);
+      }
+      
+      if (result.status === 'failed') {
+        throw new Error('LinkedIn job failed');
+      }
+      
+      // Still running, wait and retry
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+    } catch (error) {
+      if (attempt === maxAttempts - 1) {
+        throw error;
+      }
+      // Retry on error
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+  
+  throw new Error('LinkedIn job polling timed out');
+}
+
+/**
+ * Test function to check a specific job ID with detailed debugging
+ * @param jobId - Job ID to test
+ * @returns Job status and data
+ */
+export async function testLinkedInJobId(jobId: string) {
+  const apiKey = process.env.BRIGHTDATA_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('BRIGHTDATA_API_KEY environment variable is not set');
+  }
+  
+  console.log(`🔍 Testing LinkedIn job ID: ${jobId}`);
+  
+  try {
+    // First, check progress status
+    console.log(`1️⃣ Checking progress...`);
+    const progressResponse = await fetch(`https://api.brightdata.com/datasets/v3/progress/${jobId}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+    
+    const progressData = await progressResponse.json();
+    console.log(`Progress response (${progressResponse.status}):`, JSON.stringify(progressData, null, 2));
+    
+    // Try different download endpoints
+    const downloadEndpoints = [
+      `https://api.brightdata.com/datasets/v3/snapshot/${jobId}/download?format=json`,
+      `https://api.brightdata.com/datasets/v3/snapshot/${jobId}?format=json`,
+      `https://api.brightdata.com/datasets/v3/snapshot/${jobId}/download`,
+      `https://api.brightdata.com/datasets/v3/snapshot/${jobId}`
+    ];
+    
+    for (let i = 0; i < downloadEndpoints.length; i++) {
+      const endpoint = downloadEndpoints[i];
+      console.log(`${i + 2}️⃣ Trying download endpoint: ${endpoint}`);
+      
+      try {
+        const downloadResponse = await fetch(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          },
+        });
+        
+        console.log(`Download response ${i + 1} (${downloadResponse.status}):`);
+        
+        if (downloadResponse.ok) {
+          const data = await downloadResponse.json();
+          console.log(`Data type:`, typeof data);
+          console.log(`Data length:`, Array.isArray(data) ? data.length : Object.keys(data || {}).length);
+          console.log(`Raw data sample:`, JSON.stringify(data, null, 2).substring(0, 500) + '...');
+          
+          if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+            console.log(`✅ Found data with endpoint ${i + 1}!`);
+            
+            try {
+              const processedData = processLinkedInData(data);
+              console.log(`✅ Processed LinkedIn data:`, {
+                name: `${processedData.firstName} ${processedData.lastName}`,
+                jobTitle: processedData.jobTitle,
+                location: processedData.address,
+                experienceCount: processedData.professionalExperiences?.length || 0,
+                skillsCount: processedData.skills?.length || 0
+              });
+              return { success: true, data: processedData, endpoint: endpoint };
+            } catch (processError) {
+              console.error(`Error processing data:`, processError);
+              return { success: false, rawData: data, endpoint: endpoint, error: 'Processing failed' };
+            }
+          } else {
+            console.log(`No usable data from endpoint ${i + 1}`);
+          }
+        } else {
+          const errorText = await downloadResponse.text();
+          console.log(`Error response:`, errorText);
+        }
+      } catch (endpointError) {
+        console.error(`Endpoint ${i + 1} failed:`, endpointError);
+      }
+    }
+    
+    return { success: false, message: 'No data found from any endpoint', progressData };
+    
+  } catch (error) {
+    console.error(`❌ Test failed for ${jobId}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }

@@ -169,6 +169,12 @@ export interface Applicant {
   score?: number; // For compatibility with board page
   role?: string; // Job title from CV
 
+  // LinkedIn job tracking
+  linkedinJobId?: string; // BrightData snapshot ID
+  linkedinJobStatus?: 'pending' | 'running' | 'completed' | 'failed';
+  linkedinJobStartedAt?: string;
+  linkedinJobCompletedAt?: string;
+
   // New analysis fields
   analysisResult?: AnalysisResult;
   individualAnalysis?: {

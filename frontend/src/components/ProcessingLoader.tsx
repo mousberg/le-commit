@@ -1,4 +1,5 @@
 import { Applicant } from '@/lib/interfaces/applicant';
+import { useState, useEffect } from 'react';
 
 export interface LinkedInProgress {
   attempt: number;
@@ -17,6 +18,11 @@ interface ProcessingLoaderProps {
 
 export default function ProcessingLoader({ status, fileName, applicant, linkedinProgress }: ProcessingLoaderProps) {
   const getStatusText = () => {
+    // Show LinkedIn-specific status if available
+    if (applicant?.linkedinJobStatus === 'running' && applicant?.originalLinkedinUrl) {
+      return 'Processing LinkedIn profile...';
+    }
+    
     switch (status) {
       case 'uploading':
         return 'Processing...';
@@ -27,6 +33,31 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
       default:
         return 'Processing...';
     }
+  };
+
+  const getProgressInfo = () => {
+    // If LinkedIn job is running, show indeterminate progress
+    if (applicant?.linkedinJobStatus === 'running' && applicant?.originalLinkedinUrl) {
+      return {
+        showBar: false,
+        message: 'Waiting for LinkedIn data...'
+      };
+    }
+    
+    // If we have LinkedIn progress data, use it
+    if (linkedinProgress?.percentage) {
+      return {
+        showBar: true,
+        percentage: linkedinProgress.percentage,
+        message: linkedinProgress.message
+      };
+    }
+    
+    // Default indeterminate progress
+    return {
+      showBar: false,
+      message: 'Processing data...'
+    };
   };
 
   const getCompletedSteps = () => {
@@ -95,11 +126,13 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
               </div>
 
               {/* LinkedIn Analysis */}
-              {(applicant.linkedinData || status === 'processing' || linkedinProgress) && (
+              {(applicant.linkedinData || applicant.originalLinkedinUrl || applicant.linkedinJobId || status === 'processing' || linkedinProgress) && (
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-3 mb-2">
                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                       applicant.linkedinData ? 'bg-blue-500' : 
+                      applicant.linkedinJobStatus === 'failed' ? 'bg-red-500' :
+                      applicant.linkedinJobStatus === 'running' ? 'bg-blue-300 animate-pulse' :
                       linkedinProgress?.status === 'error' ? 'bg-red-500' :
                       linkedinProgress ? 'bg-blue-300 animate-pulse' : 'bg-gray-200'
                     }`}></div>
@@ -109,15 +142,39 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
-                    {linkedinProgress?.status === 'error' && (
+                    {(applicant.linkedinJobStatus === 'failed' || linkedinProgress?.status === 'error') && (
                       <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     )}
                   </div>
                   
-                  {/* LinkedIn Progress Details */}
-                  {linkedinProgress && !applicant.linkedinData && (
+                  {/* LinkedIn Job Status */}
+                  {applicant.linkedinJobId && !applicant.linkedinData && (
+                    <div className="text-xs text-gray-600 space-y-2">
+                      <p className={`${
+                        applicant.linkedinJobStatus === 'failed' ? 'text-red-600' :
+                        applicant.linkedinJobStatus === 'running' ? 'text-blue-600' :
+                        'text-gray-600'
+                      }`}>
+                        {applicant.linkedinJobStatus === 'running' ? 'LinkedIn processing in progress...' :
+                         applicant.linkedinJobStatus === 'failed' ? 'LinkedIn processing failed' :
+                         applicant.linkedinJobStatus === 'completed' ? 'LinkedIn processing completed' :
+                         'LinkedIn job started'}
+                      </p>
+                      {applicant.linkedinJobStatus === 'running' && (
+                        <div className="w-full bg-gray-200 rounded-full h-1">
+                          <div className="bg-blue-500 h-1 rounded-full animate-pulse w-1/2" />
+                        </div>
+                      )}
+                      {applicant.linkedinJobId && (
+                        <p className="text-gray-500 text-xs">Job ID: {applicant.linkedinJobId.slice(0, 8)}...</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* LinkedIn Progress Details (for real-time processing) */}
+                  {linkedinProgress && !applicant.linkedinData && !applicant.linkedinJobId && (
                     <div className="text-xs text-gray-600 space-y-2">
                       <p className={`${linkedinProgress.status === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
                         {linkedinProgress.message}
@@ -178,16 +235,35 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
           </div>
         )}
 
-        {/* Elegant Progress Bar */}
-        <div className="w-full max-w-xs">
-          <div className="w-full bg-gray-100 rounded-full h-1">
-            <div
-              className="bg-gradient-to-r from-emerald-500 to-blue-500 h-1 rounded-full transition-all duration-500 ease-out"
-              style={{
-                width: applicant ? `${(getCompletedSteps() / 3) * 100}%` : '30%'
-              }}
-            ></div>
-          </div>
+        {/* Progress Indicator */}
+        <div className="w-full max-w-xs space-y-2">
+          {getProgressInfo().showBar ? (
+            // Determinate progress bar
+            <>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-emerald-500 to-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${getProgressInfo().percentage}%`
+                  }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>{getProgressInfo().message}</span>
+                <span>{Math.round(getProgressInfo().percentage || 0)}%</span>
+              </div>
+            </>
+          ) : (
+            // Indeterminate progress - pulsing bar
+            <>
+              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div className="h-2 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full animate-pulse"></div>
+              </div>
+              <div className="text-center text-xs text-gray-500">
+                <span>{getProgressInfo().message}</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Simple Status Message */}

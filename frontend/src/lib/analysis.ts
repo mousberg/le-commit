@@ -15,6 +15,37 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
   console.log(`Starting comprehensive analysis for applicant ${applicant.id}`);
 
   try {
+    // Count available data sources
+    const availableDataSources = [
+      applicant.cvData,
+      applicant.linkedinData,
+      applicant.githubData
+    ].filter(Boolean).length;
+
+    // Check if we have at least 2 data sources for credibility analysis
+    if (availableDataSources < 2) {
+      console.log(`Insufficient data sources (${availableDataSources}/3) for credibility analysis for applicant ${applicant.id}. Waiting for more data.`);
+      
+      // Return applicant with pending analysis
+      return {
+        ...applicant,
+        analysisResult: {
+          credibilityScore: 50,
+          summary: 'Waiting for additional data sources to perform credibility analysis.',
+          flags: [{
+            type: 'yellow',
+            category: 'verification',
+            message: 'Credibility analysis requires at least 2 data sources (CV, LinkedIn, or GitHub)',
+            severity: 3
+          }],
+          suggestedQuestions: ['Could you provide additional information sources (CV, LinkedIn, or GitHub)?'],
+          analysisDate: new Date().toISOString(),
+          sources: []
+        },
+        score: 50
+      };
+    }
+
     const analysisResult = await performComprehensiveAnalysis(
       applicant.cvData,
       applicant.linkedinData,
@@ -65,10 +96,14 @@ async function performComprehensiveAnalysis(
   email?: string,
   role?: string
 ): Promise<AnalysisResult> {
+  const availableSourcesCount = [cvData, linkedinData, githubData].filter(Boolean).length;
+  
   const prompt = `
 You are a credibility-checking assistant inside Unmask, a tool used by hiring managers to verify whether candidates are being honest and consistent in their job applications.
 
 Your job is to review structured data about a candidate and assess the overall *authenticity* of the profile. You are not scoring technical ability — only consistency and believability.
+
+**Important:** You are analyzing a candidate with ${availableSourcesCount} data sources available. This analysis is performed because we have sufficient data sources to perform cross-verification.
 
 **Candidate Information:**
 - Name: ${name || 'Not provided'}

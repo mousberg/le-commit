@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Applicant } from '@/lib/interfaces/applicant';
-import { CvData } from '@/lib/interfaces/cv';
-import { GitHubData } from '@/lib/interfaces/github';
-import { processCvPdf, validateAndCleanCvData, processLinkedInUrl } from '@/lib/cv';
-import { processGitHubAccount } from '@/lib/github';
-import { analyzeApplicant } from '@/lib/analysis';
-import * as fs from 'fs';
 import {
   loadAllApplicants,
   loadApplicant,
   saveApplicant,
   saveApplicantFile,
-  getApplicantPaths,
-  ensureDataDir
+  ensureDataDir,
+  saveLinkedInRawData,
+  getApplicantPaths
 } from '@/lib/fileStorage';
+import { startLinkedInJob, checkLinkedInJob, processLinkedInData, pollLinkedInJob } from '@/lib/linkedin-api';
+import { processCvPdf, validateAndCleanCvData } from '@/lib/profile-pdf';
+import { processGitHubAccount } from '@/lib/github';
+import { analyzeApplicant } from '@/lib/analysis';
 
 export async function GET() {
   try {
     const applicants = loadAllApplicants();
-
     return NextResponse.json({
       applicants,
       total: applicants.length,
@@ -72,9 +70,8 @@ export async function POST(request: NextRequest) {
       saveApplicantFile(applicantId, cvBuffer, 'cv.pdf');
     }
 
-
-    // Process asynchronously
-    processApplicantAsync(applicantId, githubUrl, linkedinUrl);
+    // Start async processing
+    processApplicantAsync(applicantId);
 
     return NextResponse.json({
       applicant,
@@ -90,155 +87,123 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processApplicantAsync(applicantId: string, githubUrl?: string, linkedinUrl?: string) {
+async function processApplicantAsync(applicantId: string) {
   try {
-    const paths = getApplicantPaths(applicantId);
     const applicant = loadApplicant(applicantId);
-
-    if (!applicant) return;
+    if (!applicant) {
+      console.error(`Applicant ${applicantId} not found`);
+      return;
+    }
 
     // Update status to processing
     applicant.status = 'processing';
     saveApplicant(applicant);
 
-    // Generate unique temp directory suffixes to prevent race conditions
-    const cvTempSuffix = `cv_${applicantId}_${Date.now()}`;
+    // Process LinkedIn FIRST if URL provided
+    if (applicant.originalLinkedinUrl) {
+      try {
+        console.log(`🚀 Starting LinkedIn job for ${applicantId}`);
+        const { jobId } = await startLinkedInJob(applicant.originalLinkedinUrl);
+        
+        // Update applicant with job ID
+        applicant.linkedinJobId = jobId;
+        applicant.linkedinJobStatus = 'running';
+        applicant.linkedinJobStartedAt = new Date().toISOString();
+        saveApplicant(applicant);
 
-        // Process CV, LinkedIn, and GitHub all in parallel
-    console.log(`Processing all data sources for applicant ${applicantId}`);
-
-    const processingPromises = [];
-
-    // Process CV if file exists
-    if (fs.existsSync(paths.cvPdf)) {
-      processingPromises.push(
-        processCvPdf(paths.cvPdf, true, cvTempSuffix).then(rawCvData => ({
-          type: 'cv',
-          data: validateAndCleanCvData(rawCvData, 'cv')
-        })).catch(error => {
-          console.warn(`CV processing failed for ${applicantId}:`, error);
-          return { type: 'cv', data: null, error: error.message };
-        })
-      );
-    }
-
-    
-    // Process LinkedIn URL if provided
-    if (linkedinUrl) {
-      processingPromises.push(
-        processLinkedInUrl(linkedinUrl).then(linkedinData => ({
-          type: 'linkedin',
-          data: linkedinData
-        })).catch(error => {
-          console.warn(`LinkedIn URL processing failed for ${applicantId}:`, error);
-          return { type: 'linkedin', data: null, error: error.message };
-        })
-      );
-    }
-
-    // Process GitHub if URL is provided
-    if (githubUrl) {
-      processingPromises.push(
-        processGitHubAccount(githubUrl, {
-          maxRepos: 50,
-          includeOrganizations: true,
-          analyzeContent: true,
-          maxContentAnalysis: 3,  // Reduced from 10 to 3 for API efficiency
-          includeActivity: true
-        }).then(githubData => ({
-          type: 'github',
-          data: githubData
-        })).catch(error => {
-          console.warn(`GitHub processing failed for ${applicantId}:`, error);
-          return { type: 'github', data: null, error: error.message };
-        })
-      );
-    }
-
-    // Wait for all processing to complete
-    const results = await Promise.allSettled(processingPromises);
-
-    // Process results
-    let cvData: CvData | null = null;
-    let linkedinData: CvData | null = null;
-    let githubData: GitHubData | null = null;
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        if (result.value.type === 'cv') {
-          cvData = result.value.data as CvData;
-        } else if (result.value.type === 'linkedin') {
-          linkedinData = result.value.data as CvData;
-        } else if (result.value.type === 'github') {
-          githubData = result.value.data as GitHubData;
-        }
-      } else {
-        console.error(`Processing failed for ${applicantId}:`, result.reason);
+        // Poll until complete
+        console.log(`⏳ Waiting for LinkedIn job ${jobId} to complete...`);
+        const linkedinData = await pollLinkedInJob(jobId);
+        
+        // Save LinkedIn data
+        applicant.linkedinData = linkedinData;
+        applicant.linkedinJobStatus = 'completed';
+        applicant.linkedinJobCompletedAt = new Date().toISOString();
+        
+        // Update name/email from LinkedIn
+        applicant.name = `${linkedinData.firstName} ${linkedinData.lastName}`.trim() || 'Unknown';
+        applicant.email = linkedinData.email || applicant.email;
+        applicant.role = linkedinData.jobTitle || applicant.role;
+        
+        saveApplicant(applicant);
+        console.log(`✅ LinkedIn processing completed for ${applicantId}`);
+        
+      } catch (error) {
+        console.error(`LinkedIn processing failed for ${applicantId}:`, error);
+        applicant.linkedinJobStatus = 'failed';
+        saveApplicant(applicant);
       }
     }
 
-    // At least one data source is required for successful completion
-    if (!cvData && !linkedinData && !githubData) {
-      throw new Error('All data processing failed - no usable data sources');
+    // Process CV if available (after LinkedIn)
+    let cvData = null;
+    if (applicant.originalFileName) {
+      try {
+        const paths = getApplicantPaths(applicantId);
+        const fs = await import('fs');
+        if (fs.existsSync(paths.cvPdf)) {
+          console.log(`📄 Processing CV for ${applicantId}`);
+          const rawCvData = await processCvPdf(paths.cvPdf, true, `cv_${applicantId}`);
+          cvData = validateAndCleanCvData(rawCvData, 'cv');
+          applicant.cvData = cvData;
+          
+          // Update name/email if not set by LinkedIn
+          if (!applicant.linkedinData && cvData) {
+            applicant.name = `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown';
+            applicant.email = cvData.email || applicant.email;
+            applicant.role = cvData.jobTitle || applicant.role;
+          }
+          
+          saveApplicant(applicant);
+        }
+      } catch (error) {
+        console.error(`CV processing failed for ${applicantId}:`, error);
+      }
     }
 
-    // Update applicant with all processed data at once
-    applicant.cvData = cvData || undefined;
-    applicant.linkedinData = linkedinData || undefined;
-    applicant.githubData = githubData || undefined;
-    
-    // Extract name and email from available data sources
-    // Priority: LinkedIn > CV > GitHub
-    const primaryData = linkedinData || cvData;
-    const githubName = githubData?.name || githubData?.username;
-    
-    applicant.name = primaryData 
-      ? `${primaryData.firstName} ${primaryData.lastName}`.trim() || 'Unknown'
-      : githubName || 'Unknown';
-    applicant.email = primaryData?.email || githubData?.email || '';
-    applicant.role = primaryData?.jobTitle || '';
-    applicant.status = 'analyzing';
+    // Process GitHub if available (after LinkedIn and CV)
+    if (applicant.originalGithubUrl) {
+      try {
+        console.log(`🐙 Processing GitHub for ${applicantId}`);
+        const githubData = await processGitHubAccount(applicant.originalGithubUrl, {
+          maxRepos: 50,
+          includeOrganizations: true,
+          analyzeContent: true,
+          maxContentAnalysis: 3,
+          includeActivity: true
+        });
+        
+        applicant.githubData = githubData;
+        
+        // Update email if still not set
+        if (!applicant.email && githubData.email) {
+          applicant.email = githubData.email;
+        }
+        
+        saveApplicant(applicant);
+      } catch (error) {
+        console.error(`GitHub processing failed for ${applicantId}:`, error);
+      }
+    }
 
-    // Save intermediate state before analysis
+    // Update status to analyzing
+    applicant.status = 'analyzing';
     saveApplicant(applicant);
 
-    console.log(`Data processing completed for applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}${githubData ? ' (with GitHub data)' : ''}, starting analysis...`);
-
-    // Perform comprehensive analysis
+    // Run analysis
     try {
       const analyzedApplicant = await analyzeApplicant(applicant);
-
-      // Save final results with analysis
       analyzedApplicant.status = 'completed';
       saveApplicant(analyzedApplicant);
-
-      console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysisResult?.credibilityScore || 'N/A'}`);
-    } catch (analysisError) {
-      console.error(`Analysis failed for applicant ${applicantId}:`, analysisError);
-
-      // Even if analysis fails, we can still mark as completed with the data we have
+      console.log(`✅ Analysis completed for ${applicantId}`);
+    } catch (error) {
+      console.error(`Analysis failed for ${applicantId}:`, error);
       applicant.status = 'completed';
-      applicant.analysisResult = {
-        credibilityScore: 50,
-        summary: 'Analysis could not be completed due to technical error.',
-        flags: [{
-          type: 'yellow',
-          category: 'verification',
-          message: 'Credibility analysis failed',
-          severity: 5
-        }],
-        suggestedQuestions: ['Could you provide additional information to verify your background?'],
-        analysisDate: new Date().toISOString(),
-        sources: []
-      };
       saveApplicant(applicant);
-
-      console.log(`Applicant ${applicantId} marked as completed despite analysis failure`);
     }
 
   } catch (error) {
     console.error(`Error processing applicant ${applicantId}:`, error);
-
     const applicant = loadApplicant(applicantId);
     if (applicant) {
       applicant.status = 'failed';
@@ -246,3 +211,4 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string, li
     }
   }
 }
+
