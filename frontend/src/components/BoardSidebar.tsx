@@ -8,7 +8,6 @@ import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, Log
 import { useApplicants } from '../lib/contexts/ApplicantContext';
 import { useAuth } from '../lib/contexts/AuthContext';
 import { Button } from './ui/button';
-import WorkspaceSelector from './WorkspaceSelector';
 
 const ANIMATION_DURATION = {
     SIDEBAR: 500,
@@ -224,14 +223,6 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
         )}
       </header>
 
-      {/* Workspace Selector */}
-      <div className="mb-4 px-2">
-        <WorkspaceSelector
-          isCollapsed={isCollapsed}
-          getTextContainerStyle={getTextContainerStyle}
-          getUniformTextStyle={getUniformTextStyle}
-        />
-      </div>
 
       <nav className="flex flex-1 flex-col" role="navigation" aria-label="Main menu">
         <ul role="list" className="flex flex-1 flex-col">

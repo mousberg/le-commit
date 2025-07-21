@@ -4,8 +4,6 @@ import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
 import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
-import { getServerDatabaseService } from '@/lib/services/database.server';
-import { createStorageService } from '@/lib/services/storage';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
@@ -23,39 +21,41 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspaceId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
 
-    if (!workspaceId) {
-      return NextResponse.json(
-        { error: 'Workspace ID is required', success: false },
-        { status: 400 }
-      );
+    // List user's applicants with filtering using server-side client
+    let query = supabase
+      .from('applicants')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
     }
 
-    // Get database service
-    const dbService = await getServerDatabaseService();
-
-    // Validate workspace access
-    const hasAccess =await dbService.validateWorkspaceAccess(workspaceId, user.id);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Access denied to workspace', success: false },
-        { status: 403 }
-      );
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
-    // List applicants with filtering
-    const applicants = await dbService.listApplicants({
-      workspaceId,
-      status: status as 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed' | undefined,
-      search: search || undefined,
-      limit,
-      offset
-    });
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    if (offset) {
+      query = query.range(offset, offset + (limit || 50) - 1);
+    }
+
+    const applicantsResult = await query;
+
+    if (applicantsResult.error) {
+      throw new Error(`Failed to fetch applicants: ${applicantsResult.error.message}`);
+    }
+
+    const applicants = applicantsResult.data;
 
     return NextResponse.json({
       applicants,
@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
     const cvFile = formData.get('cvFile') as File;
     const linkedinFile = formData.get('linkedinFile') as File;
     const githubUrl = formData.get('githubUrl') as string;
-    const workspaceId = formData.get('workspaceId') as string;
 
     if (!cvFile) {
       return NextResponse.json(
@@ -97,60 +96,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!workspaceId) {
-      return NextResponse.json(
-        { error: 'Workspace ID is required', success: false },
-        { status: 400 }
-      );
+    // Create initial applicant record in database using server-side client
+    const serverSupabase = await createClient();
+    const applicantResult = await serverSupabase
+      .from('applicants')
+      .insert({
+        user_id: user.id,
+        name: 'Processing...',
+        email: '',
+        status: 'uploading',
+        original_filename: cvFile.name,
+        original_github_url: githubUrl || null
+      })
+      .select()
+      .single();
+
+    if (applicantResult.error) {
+      throw new Error(`Failed to create applicant: ${applicantResult.error.message}`);
     }
+    
+    const applicant = applicantResult.data;
 
-    // Get database service
-    const dbService = await getServerDatabaseService();
-
-    // Validate workspace access (admin or owner required for creating applicants)
-    const hasAccess = await dbService.validateWorkspaceAccess(workspaceId, user.id, 'admin');
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Access denied to workspace', success: false },
-        { status: 403 }
-      );
-    }
-
-    // Create initial applicant record in database
-    const applicant = await dbService.createApplicant({
-      name: 'Processing...',
-      email: '',
-      workspaceId,
-      status: 'uploading',
-      originalFileName: cvFile.name,
-      originalGithubUrl: githubUrl
-    });
-
-    // Get storage service
-    const storageService = await createStorageService(dbService);
-
-    // Upload CV file
-    await storageService.uploadApplicantFile(
-      workspaceId,
-      applicant.id,
-      cvFile,
-      'cv',
-      cvFile.name
-    );
-
-    // Upload LinkedIn file if provided
-    if (linkedinFile) {
-      await storageService.uploadApplicantFile(
-        workspaceId,
-        applicant.id,
-        linkedinFile,
-        'linkedin',
-        linkedinFile.name
-      );
-    }
+    // TODO: Implement file storage for simplified architecture
+    // For now, we'll process the files directly without storage
 
     // Process asynchronously
-    processApplicantAsync(applicant.id, workspaceId, githubUrl);
+    processApplicantAsync(applicant.id, cvFile, linkedinFile, githubUrl);
 
     return NextResponse.json({
       applicant,
@@ -166,18 +137,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processApplicantAsync(applicantId: string, workspaceId: string, githubUrl?: string) {
+async function processApplicantAsync(applicantId: string, cvFile: File, linkedinFile?: File, githubUrl?: string) {
   try {
-    // Get database and storage services
-    const dbService = await getServerDatabaseService();
-    const storageService = await createStorageService(dbService);
-
+    // Get server-side Supabase client
+    const serverSupabase = await createClient();
+    
     // Get current applicant
-    const applicant = await dbService.getApplicant(applicantId);
-    if (!applicant) return;
+    const applicantResult = await serverSupabase
+      .from('applicants')
+      .select('*')
+      .eq('id', applicantId)
+      .single();
+      
+    if (applicantResult.error || !applicantResult.data) {
+      console.error('Failed to get applicant:', applicantResult.error);
+      return;
+    }
+    
+    const applicant = applicantResult.data;
 
     // Update status to processing
-    await dbService.updateApplicantStatus(applicantId, 'processing');
+    await serverSupabase
+      .from('applicants')
+      .update({ status: 'processing' })
+      .eq('id', applicantId);
 
     // Generate unique temp directory suffixes to prevent race conditions
     const cvTempSuffix = `cv_${applicantId}_${Date.now()}`;
@@ -187,37 +170,52 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
 
     const processingPromises = [];
 
-    // Get file URLs for processing
-    const fileRecords = await dbService.getApplicantFiles(applicantId);
-    const cvFile = fileRecords.find(f => f.fileType === 'cv');
-    const linkedinFile = fileRecords.find(f => f.fileType === 'linkedin');
-
     // Always process CV (required)
-    if (cvFile) {
-      processingPromises.push(
-        (async () => {
-          try {
-            const cvUrl = await storageService.getSignedUrl(cvFile.storageBucket, cvFile.storagePath, 3600);
-            const rawCvData = await processCvPdf(cvUrl, true, cvTempSuffix);
-            return {
-              type: 'cv',
-              data: validateAndCleanCvData(rawCvData)
-            };
-          } catch (error) {
-            console.error(`CV processing failed for ${applicantId}:`, error);
-            throw error;
-          }
-        })()
-      );
-    }
+    processingPromises.push(
+      (async () => {
+        try {
+          // Convert File to buffer for processing
+          const arrayBuffer = await cvFile.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          
+          // For now, we'll need to save to temp file since processCvPdf expects a file path
+          // TODO: Update processCvPdf to accept buffer directly
+          const tempFilePath = `/tmp/cv_${applicantId}_${Date.now()}.pdf`;
+          const fs = require('fs');
+          fs.writeFileSync(tempFilePath, buffer);
+          
+          const rawCvData = await processCvPdf(tempFilePath, true, cvTempSuffix);
+          
+          // Clean up temp file
+          fs.unlinkSync(tempFilePath);
+          
+          return {
+            type: 'cv',
+            data: validateAndCleanCvData(rawCvData)
+          };
+        } catch (error) {
+          console.error(`CV processing failed for ${applicantId}:`, error);
+          throw error;
+        }
+      })()
+    );
 
     // Process LinkedIn if file exists
     if (linkedinFile) {
       processingPromises.push(
         (async () => {
           try {
-            const linkedinUrl = await storageService.getSignedUrl(linkedinFile.storageBucket, linkedinFile.storagePath, 3600);
-            const rawLinkedinData = await processLinkedInPdf(linkedinUrl, true, linkedinTempSuffix);
+            const arrayBuffer = await linkedinFile.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            
+            const tempFilePath = `/tmp/linkedin_${applicantId}_${Date.now()}.pdf`;
+            const fs = require('fs');
+            fs.writeFileSync(tempFilePath, buffer);
+            
+            const rawLinkedinData = await processLinkedInPdf(tempFilePath, true, linkedinTempSuffix);
+            
+            fs.unlinkSync(tempFilePath);
+            
             return {
               type: 'linkedin',
               data: validateAndCleanCvData(rawLinkedinData)
@@ -237,7 +235,7 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
           maxRepos: 50,
           includeOrganizations: true,
           analyzeContent: true,
-          maxContentAnalysis: 3,  // Reduced from 10 to 3 for API efficiency
+          maxContentAnalysis: 3,
           includeActivity: true
         }).then(githubData => ({
           type: 'github',
@@ -270,7 +268,7 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
       } else {
         console.error(`Processing failed for ${applicantId}:`, result.reason);
         if (result.reason?.message?.includes('CV')) {
-          hasErrors = true; // CV processing failure is critical
+          hasErrors = true;
         }
       }
     }
@@ -281,52 +279,69 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
     }
 
     // Update applicant with all processed data at once
-    const updatedApplicant = await dbService.updateApplicant(applicantId, {
-      cvData: cvData as unknown as Record<string, unknown>,
-      linkedinData: (linkedinData as unknown as Record<string, unknown>) || undefined,
-      githubData: (githubData as unknown as Record<string, unknown>) || undefined,
-      name: `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown',
-      email: cvData.email || '',
-      role: cvData.jobTitle || '',
-      status: 'analyzing'
-    });
+    const updateResult = await serverSupabase
+      .from('applicants')
+      .update({
+        cv_data: cvData,
+        linkedin_data: linkedinData || null,
+        github_data: githubData || null,
+        name: `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown',
+        email: cvData.email || '',
+        role: cvData.jobTitle || '',
+        status: 'analyzing'
+      })
+      .eq('id', applicantId)
+      .select()
+      .single();
+      
+    if (updateResult.error) {
+      throw new Error(`Failed to update applicant: ${updateResult.error.message}`);
+    }
+    
+    const updatedApplicant = updateResult.data;
 
-    console.log(`Data processing completed for applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}${githubData ? ' (with GitHub data)' : ''}, starting analysis...`);
+    console.log(`Data processing completed for applicant ${applicantId}, starting analysis...`);
 
     // Perform comprehensive analysis
     try {
       const analyzedApplicant = await analyzeApplicant(updatedApplicant);
 
       // Save final results with analysis
-      await dbService.updateApplicant(applicantId, {
-        status: 'completed',
-        analysisResult: analyzedApplicant.analysisResult,
-        individualAnalysis: analyzedApplicant.individualAnalysis,
-        crossReferenceAnalysis: analyzedApplicant.crossReferenceAnalysis,
-        score: analyzedApplicant.analysisResult?.credibilityScore
-      });
+      await serverSupabase
+        .from('applicants')
+        .update({
+          status: 'completed',
+          analysis_result: analyzedApplicant.analysisResult,
+          individual_analysis: analyzedApplicant.individualAnalysis,
+          cross_reference_analysis: analyzedApplicant.crossReferenceAnalysis,
+          score: analyzedApplicant.analysisResult?.credibilityScore
+        })
+        .eq('id', applicantId);
 
       console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysisResult?.credibilityScore || 'N/A'}`);
     } catch (analysisError) {
       console.error(`Analysis failed for applicant ${applicantId}:`, analysisError);
 
       // Even if analysis fails, we can still mark as completed with the data we have
-      await dbService.updateApplicant(applicantId, {
-        status: 'completed',
-        analysisResult: {
-          credibilityScore: 50,
-          summary: 'Analysis could not be completed due to technical error.',
-          flags: [{
-            type: 'yellow',
-            category: 'verification',
-            message: 'Credibility analysis failed',
-            severity: 5
-          }],
-          suggestedQuestions: ['Could you provide additional information to verify your background?'],
-          analysisDate: new Date().toISOString(),
-          sources: []
-        }
-      });
+      await serverSupabase
+        .from('applicants')
+        .update({
+          status: 'completed',
+          analysis_result: {
+            credibilityScore: 50,
+            summary: 'Analysis could not be completed due to technical error.',
+            flags: [{
+              type: 'yellow',
+              category: 'verification',
+              message: 'Credibility analysis failed',
+              severity: 5
+            }],
+            suggestedQuestions: ['Could you provide additional information to verify your background?'],
+            analysisDate: new Date().toISOString(),
+            sources: []
+          }
+        })
+        .eq('id', applicantId);
 
       console.log(`Applicant ${applicantId} marked as completed despite analysis failure`);
     }
@@ -335,8 +350,11 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
     console.error(`Error processing applicant ${applicantId}:`, error);
 
     try {
-      const dbService = await getServerDatabaseService();
-      await dbService.updateApplicantStatus(applicantId, 'failed');
+      const serverSupabase = await createClient();
+      await serverSupabase
+        .from('applicants')
+        .update({ status: 'failed' })
+        .eq('id', applicantId);
     } catch (updateError) {
       console.error(`Failed to update applicant status to failed:`, updateError);
     }

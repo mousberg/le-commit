@@ -3,7 +3,6 @@
 import { Trash2, Check, Briefcase, RefreshCw } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
-import { useWorkspace } from '../../../lib/contexts/WorkspaceContext';
 import { useState } from 'react';
 
 interface ApplicantSidebarProps {
@@ -20,10 +19,9 @@ export default function ApplicantSidebar({
   onDeleteApplicant
 }: ApplicantSidebarProps) {
   const { applicants, fetchApplicants, isLoading: applicantsLoading } = useApplicants();
-  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const isLoading = applicantsLoading || workspaceLoading;
+  const isLoading = applicantsLoading;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

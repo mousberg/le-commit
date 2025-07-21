@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Plus, Search, Users, UserCheck, Clock, UserX } from 'lucide-react';
 import { Applicant } from '@/lib/interfaces/applicant';
-import { simpleDatabaseService } from '@/lib/services/database';
+import { simpleDatabaseService } from '@/lib/services/simple-database';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
-export default function ApplicantsPage() {
+export default function SimpleApplicantsPage() {
   const { user, loading: authLoading } = useAuth();
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);

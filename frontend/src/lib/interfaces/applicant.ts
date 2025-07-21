@@ -4,7 +4,7 @@ import { AnalysisResult, CvAnalysis, LinkedInAnalysis, GitHubAnalysis, CrossRefe
 
 export interface Applicant {
   id: string;
-  workspaceId: string; // New field for workspace association
+  userId: string; // Direct user ownership (simplified from workspace)
   name: string;
   email: string;
   cvData?: CvData;
