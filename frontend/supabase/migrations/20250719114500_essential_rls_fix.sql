@@ -17,15 +17,12 @@ drop policy if exists "files_manage_policy" on files;
 
 -- Simple, secure policies with TO authenticated clauses
 
--- Workspaces
+-- Workspaces (fixed: no reference to workspace_members to avoid recursion)
 create policy "workspaces_select" on workspaces
   for select
   to authenticated
   using (
-    id in (
-      select workspace_id from workspace_members
-      where user_id = (select id from users where auth_user_id = (select auth.uid()))
-    )
+    owner_id = (select id from users where auth_user_id = (select auth.uid()))
   );
 
 create policy "workspaces_manage" on workspaces
@@ -35,15 +32,12 @@ create policy "workspaces_manage" on workspaces
     owner_id = (select id from users where auth_user_id = (select auth.uid()))
   );
 
--- Workspace members
+-- Workspace members (fixed: no self-reference)
 create policy "workspace_members_select" on workspace_members
   for select
   to authenticated
   using (
-    workspace_id in (
-      select workspace_id from workspace_members
-      where user_id = (select id from users where auth_user_id = (select auth.uid()))
-    )
+    user_id = (select id from users where auth_user_id = (select auth.uid()))
   );
 
 create policy "workspace_members_manage" on workspace_members

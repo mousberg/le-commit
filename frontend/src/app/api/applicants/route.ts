@@ -4,7 +4,7 @@ import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
 import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
-import { getServerDatabaseService } from '@/lib/services/database';
+import { getServerDatabaseService } from '@/lib/services/database.server';
 import { createStorageService } from '@/lib/services/storage';
 import { createClient } from '@/lib/supabase/server';
 
@@ -224,7 +224,7 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
             };
           } catch (error) {
             console.warn(`LinkedIn processing failed for ${applicantId}:`, error);
-            return { type: 'linkedin', data: null, error: error.message };
+            return { type: 'linkedin', data: null, error: error instanceof Error ? error.message : String(error) };
           }
         })()
       );
@@ -282,9 +282,9 @@ async function processApplicantAsync(applicantId: string, workspaceId: string, g
 
     // Update applicant with all processed data at once
     const updatedApplicant = await dbService.updateApplicant(applicantId, {
-      cvData,
-      linkedinData: linkedinData || undefined,
-      githubData: githubData || undefined,
+      cvData: cvData as unknown as Record<string, unknown>,
+      linkedinData: (linkedinData as unknown as Record<string, unknown>) || undefined,
+      githubData: (githubData as unknown as Record<string, unknown>) || undefined,
       name: `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown',
       email: cvData.email || '',
       role: cvData.jobTitle || '',

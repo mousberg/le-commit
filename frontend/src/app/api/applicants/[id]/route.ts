@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerDatabaseService } from '@/lib/services/database';
+import { getServerDatabaseService } from '@/lib/services/database.server';
 import { createStorageService } from '@/lib/services/storage';
 import { createClient } from '@/lib/supabase/server';
 

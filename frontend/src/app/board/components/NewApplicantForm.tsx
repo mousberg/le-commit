@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
 import { useWorkspace } from '../../../lib/contexts/WorkspaceContext';
@@ -125,7 +124,6 @@ function DropZone({ onDrop, accept, label, description, file, disabled = false, 
 export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
   const { createApplicant, isLoading: applicantLoading } = useApplicants();
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
-  const router = useRouter();
 
   // Form state
   const [cvFile, setCvFile] = useState<File | null>(null);

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getServerDatabaseService } from '@/lib/services/database';
+// Remove static import to prevent client-side bundling issues
+import { getServerDatabaseService } from '@/lib/services/database.server';
 
 // Simple auth helper for API routes
-export async function getAuthenticatedUser(request: NextRequest) {
+export async function getAuthenticatedUser() {
   try {
+    // Dynamic import to avoid pulling server code into client bundles
+    const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
 
@@ -106,7 +108,7 @@ export function createErrorResponse(message: string, status: number = 400) {
 }
 
 // Simple success response helper
-export function createSuccessResponse(data: any, status: number = 200) {
+export function createSuccessResponse(data: Record<string, unknown>, status: number = 200) {
   return NextResponse.json(
     { ...data, success: true },
     { status }

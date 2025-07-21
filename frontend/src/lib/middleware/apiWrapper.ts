@@ -13,8 +13,8 @@ import {
 
 export interface ApiHandlerOptions extends AuthMiddlewareOptions {
     validation?: {
-        body?: any;
-        query?: any;
+        body?: Record<string, unknown>;
+        query?: Record<string, unknown>;
     };
     sanitizeInput?: boolean;
     enableCors?: boolean;
@@ -24,12 +24,12 @@ export interface ApiHandlerOptions extends AuthMiddlewareOptions {
 
 export interface ApiHandlerContext extends AuthContext {
     request: NextRequest;
-    params?: any;
+    params?: Record<string, string>;
 }
 
 export type ApiHandler = (
     context: ApiHandlerContext,
-    params?: any
+    params?: Record<string, string>
 ) => Promise<NextResponse>;
 
 /**
@@ -39,7 +39,7 @@ export function withApiMiddleware(
     handler: ApiHandler,
     options: ApiHandlerOptions = {}
 ) {
-    return async (request: NextRequest, routeParams?: any): Promise<NextResponse> => {
+    return async (request: NextRequest, routeParams: { params: Promise<Record<string, string>> }): Promise<NextResponse> => {
         const startTime = Date.now();
 
         try {
@@ -57,14 +57,14 @@ export function withApiMiddleware(
             }
 
             // Parse request body if present
-            let body: any = null;
+            let body: Record<string, unknown> | FormData | null = null;
             if (request.method !== 'GET' && request.method !== 'DELETE') {
                 const contentType = request.headers.get('content-type') || '';
 
                 if (contentType.includes('application/json')) {
                     try {
                         body = await request.json();
-                    } catch (error) {
+                    } catch {
                         return NextResponse.json(
                             { error: 'Invalid JSON in request body', success: false },
                             { status: 400 }
@@ -73,7 +73,7 @@ export function withApiMiddleware(
                 } else if (contentType.includes('multipart/form-data')) {
                     try {
                         body = await request.formData();
-                    } catch (error) {
+                    } catch {
                         return NextResponse.json(
                             { error: 'Invalid form data in request body', success: false },
                             { status: 400 }
@@ -119,21 +119,24 @@ export function withApiMiddleware(
 
             // Input sanitization
             if (options.sanitizeInput && body && !(body instanceof FormData)) {
-                body = sanitizeInput(body);
+                body = sanitizeInput(body) as Record<string, unknown>;
             }
 
             // Create enhanced request with parsed body
             const enhancedRequest = Object.assign(request, { body });
 
+            // Extract params from Next.js route context
+            const params = await routeParams.params;
+
             // Create handler context
             const handlerContext: ApiHandlerContext = {
                 ...authContext!,
                 request: enhancedRequest,
-                params: routeParams
+                params: params
             };
 
             // Call the actual handler
-            const response = await handler(handlerContext, routeParams);
+            const response = await handler(handlerContext, params);
 
             // Add security headers
             if (options.enableSecurityHeaders) {
@@ -169,7 +172,7 @@ export function withApiMiddleware(
 export function withGetMiddleware(
     handler: ApiHandler,
     options: Omit<ApiHandlerOptions, 'validation'> & {
-        validation?: { query?: any }
+        validation?: { query?: Record<string, unknown> }
     } = {}
 ) {
     return withApiMiddleware(handler, {
@@ -212,7 +215,7 @@ export function withPutMiddleware(
 export function withDeleteMiddleware(
     handler: ApiHandler,
     options: Omit<ApiHandlerOptions, 'validation'> & {
-        validation?: { query?: any }
+        validation?: { query?: Record<string, unknown> }
     } = {}
 ) {
     return withApiMiddleware(handler, {

@@ -6,7 +6,7 @@ import {
   createSuccessResponse
 } from '@/lib/helpers/auth';
 import { createWorkspaceSchema, paginationSchema } from '@/lib/schemas/simple-validation';
-import { getServerDatabaseService } from '@/lib/services/database';
+import { getServerDatabaseService } from '@/lib/services/database.server';
 
 // GET /api/workspaces - Simplified version
 export async function GET(request: NextRequest) {

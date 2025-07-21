@@ -112,10 +112,10 @@ CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON workspaces
 
 CREATE TRIGGER update_applicants_updated_at BEFORE UPDATE ON applicants
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
--- Enable Row Level Security
+-- Enable Row Level Security (disabled for workspaces/workspace_members for MVP)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;
-ALTER TABLE workspace_members ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;  -- Disabled for MVP
+-- ALTER TABLE workspace_members ENABLE ROW LEVEL SECURITY;  -- Disabled for MVP
 ALTER TABLE applicants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE files ENABLE ROW LEVEL SECURITY;
 
@@ -147,11 +147,7 @@ CREATE POLICY "Workspace owners can update their workspaces" ON workspaces
     );
 
 CREATE POLICY "Users can create workspaces" ON workspaces
-    FOR INSERT WITH CHECK (
-        owner_id IN (
-            SELECT id FROM users WHERE auth_user_id = auth.uid()
-        )
-    );
+    FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "Workspace owners can delete their workspaces" ON workspaces
     FOR DELETE USING (

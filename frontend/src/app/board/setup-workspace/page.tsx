@@ -32,15 +32,6 @@ export default function SetupWorkspacePage() {
         description: description.trim() || undefined
       });
 
-      // Add the current user as owner
-      if (user) {
-        await browserDatabaseService.addWorkspaceMember(
-          workspace.id,
-          user.id,
-          'owner'
-        );
-      }
-
       // Redirect to dashboard
       router.push('/board/dashboard');
     } catch (err) {

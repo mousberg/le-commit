@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createClient as createBrowserClient } from './client';
-import { createClient as createServerClient } from './server';
+// Remove static import of server client to prevent client-side bundling issues
 
 // Database table names
 export const TABLES = {
@@ -31,10 +31,6 @@ export class DatabaseClient {
     return new DatabaseClient(createBrowserClient());
   }
 
-  static async createServerClient(): Promise<DatabaseClient> {
-    const client = await createServerClient();
-    return new DatabaseClient(client);
-  }
 
   // Get the underlying Supabase client
   getClient(): SupabaseClient {
@@ -96,7 +92,3 @@ export function getBrowserDatabaseClient(): DatabaseClient {
   return browserClientInstance;
 }
 
-// Server-side client should be created fresh each time
-export async function getServerDatabaseClient(): Promise<DatabaseClient> {
-  return await DatabaseClient.createServerClient();
-}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getServerDatabaseService } from '@/lib/services/database';
+// Remove static import to prevent client-side bundling issues
+import { getServerDatabaseService } from '@/lib/services/database.server';
 import { WorkspaceRole } from '@/lib/interfaces/database';
 
 export interface AuthContext {
@@ -8,7 +8,7 @@ export interface AuthContext {
     id: string;
     email: string;
   };
-  dbService: any;
+  dbService: Awaited<ReturnType<typeof getServerDatabaseService>>;
 }
 
 export interface AuthMiddlewareOptions {
@@ -74,6 +74,8 @@ export async function withAuth(
 
     // Authentication check
     if (options.requireAuth !== false) {
+      // Dynamic import to avoid pulling server code into client bundles
+      const { createClient } = await import('@/lib/supabase/server');
       const supabase = await createClient();
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -205,8 +207,15 @@ function extractParamFromRequest(request: NextRequest, paramName: string): strin
 /**
  * Input validation middleware
  */
-export function validateInput(schema: any) {
-  return async (data: any): Promise<{ isValid: boolean; errors: string[] }> => {
+interface ValidationSchema {
+  required?: string[];
+  types?: Record<string, string>;
+  patterns?: Record<string, RegExp>;
+  lengths?: Record<string, { min?: number; max?: number }>;
+}
+
+export function validateInput(schema: ValidationSchema) {
+  return async (data: Record<string, unknown>): Promise<{ isValid: boolean; errors: string[] }> => {
     const errors: string[] = [];
 
     // Basic validation - in a real app, you'd use a library like Zod or Joi
@@ -228,7 +237,7 @@ export function validateInput(schema: any) {
 
     if (schema.patterns) {
       for (const [field, pattern] of Object.entries(schema.patterns)) {
-        if (data[field] && !(pattern as RegExp).test(data[field])) {
+        if (data[field] && typeof data[field] === 'string' && !pattern.test(data[field] as string)) {
           errors.push(`${field} format is invalid`);
         }
       }
@@ -260,7 +269,7 @@ export function validateInput(schema: any) {
 /**
  * Sanitize input data
  */
-export function sanitizeInput(data: any): any {
+export function sanitizeInput(data: unknown): unknown {
   if (typeof data === 'string') {
     // Basic HTML/script tag removal
     return data
@@ -274,7 +283,7 @@ export function sanitizeInput(data: any): any {
   }
 
   if (typeof data === 'object' && data !== null) {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       sanitized[key] = sanitizeInput(value);
     }
@@ -287,25 +296,27 @@ export function sanitizeInput(data: any): any {
 /**
  * Error handler for API routes
  */
-export function handleApiError(error: any, operation: string): NextResponse {
+export function handleApiError(error: unknown, operation: string): NextResponse {
   console.error(`API Error in ${operation}:`, error);
 
+  const errorObj = error as { message?: string; code?: string };
+
   // Database errors
-  if (error.message?.includes('duplicate key') || error.code === '23505') {
+  if (errorObj.message?.includes('duplicate key') || errorObj.code === '23505') {
     return NextResponse.json(
       { error: 'Resource already exists', success: false },
       { status: 409 }
     );
   }
 
-  if (error.message?.includes('foreign key') || error.code === '23503') {
+  if (errorObj.message?.includes('foreign key') || errorObj.code === '23503') {
     return NextResponse.json(
       { error: 'Referenced resource not found', success: false },
       { status: 400 }
     );
   }
 
-  if (error.message?.includes('not found') || error.code === 'PGRST116') {
+  if (errorObj.message?.includes('not found') || errorObj.code === 'PGRST116') {
     return NextResponse.json(
       { error: 'Resource not found', success: false },
       { status: 404 }
@@ -313,14 +324,14 @@ export function handleApiError(error: any, operation: string): NextResponse {
   }
 
   // Authentication/Authorization errors
-  if (error.message?.includes('Authentication') || error.message?.includes('auth')) {
+  if (errorObj.message?.includes('Authentication') || errorObj.message?.includes('auth')) {
     return NextResponse.json(
       { error: 'Authentication required', success: false },
       { status: 401 }
     );
   }
 
-  if (error.message?.includes('Access denied') || error.message?.includes('permission')) {
+  if (errorObj.message?.includes('Access denied') || errorObj.message?.includes('permission')) {
     return NextResponse.json(
       { error: 'Access denied', success: false },
       { status: 403 }
@@ -328,15 +339,15 @@ export function handleApiError(error: any, operation: string): NextResponse {
   }
 
   // Validation errors
-  if (error.message?.includes('validation') || error.message?.includes('invalid')) {
+  if (errorObj.message?.includes('validation') || errorObj.message?.includes('invalid')) {
     return NextResponse.json(
-      { error: error.message || 'Validation failed', success: false },
+      { error: errorObj.message || 'Validation failed', success: false },
       { status: 400 }
     );
   }
 
   // Storage errors
-  if (error.message?.includes('storage') || error.message?.includes('file')) {
+  if (errorObj.message?.includes('storage') || errorObj.message?.includes('file')) {
     return NextResponse.json(
       { error: 'File operation failed', success: false },
       { status: 500 }
@@ -380,7 +391,7 @@ export function logApiRequest(request: NextRequest, startTime: number): void {
   const method = request.method;
   const url = request.nextUrl.pathname;
   const userAgent = request.headers.get('user-agent') || 'unknown';
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
 
   console.log(`[API] ${method} ${url} - ${duration}ms - ${ip} - ${userAgent}`);
 }

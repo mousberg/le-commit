@@ -8,7 +8,7 @@ import TranscriptModal from '../../components/TranscriptModal';
 import ProcessingLoader from '../../components/ProcessingLoader';
 import CredibilityScore from '../../components/credibility-score';
 import { useApplicants } from '../../lib/contexts/ApplicantContext';
-import NewApplicantForm from './components/NewApplicantForm';
+import { NewApplicantForm } from './components/NewApplicantForm';
 import { CvData, Experience, Education } from '../../lib/interfaces/cv';
 import { GitHubData } from '../../lib/interfaces/github';
 

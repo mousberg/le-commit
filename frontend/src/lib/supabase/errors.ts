@@ -162,8 +162,7 @@ export async function safeExecute<T>(
 
 // Utility function for operations that may return null (like optional gets)
 export async function safeExecuteOptional<T>(
-  operation: () => any,
-  context?: string
+  operation: () => any
 ): Promise<T | null> {
   try {
     const result = await operation();
@@ -184,8 +183,7 @@ export async function safeExecuteOptional<T>(
 
 // Utility function for operations that return arrays
 export async function safeExecuteArray<T>(
-  operation: () => any,
-  context?: string
+  operation: () => any
 ): Promise<T[]> {
   try {
     const result = await operation();

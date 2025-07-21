@@ -11,13 +11,10 @@ DROP POLICY IF EXISTS "Workspace admins and owners can manage files" ON files;
 
 -- Create simple, non-recursive policies
 
--- Workspaces: Users can see workspaces where they are members
+-- Workspaces: Users can see workspaces they own (simplified for MVP)
 CREATE POLICY "workspace_select_policy" ON workspaces
     FOR SELECT USING (
-        id IN (
-            SELECT workspace_id FROM workspace_members
-            WHERE user_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
-        )
+        owner_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
     );
 
 CREATE POLICY "workspace_owner_policy" ON workspaces
@@ -25,13 +22,10 @@ CREATE POLICY "workspace_owner_policy" ON workspaces
         owner_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
     );
 
--- Workspace members: Users can see members of workspaces they belong to
+-- Workspace members: Users can see their own membership records only (no recursion)
 CREATE POLICY "workspace_members_select_policy" ON workspace_members
     FOR SELECT USING (
-        workspace_id IN (
-            SELECT workspace_id FROM workspace_members
-            WHERE user_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
-        )
+        user_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
     );
 
 CREATE POLICY "workspace_members_manage_policy" ON workspace_members

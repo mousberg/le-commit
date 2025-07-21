@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWorkspace } from '@/lib/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
-import { Users, Loader2, ArrowLeft, UserPlus, MoreHorizontal, Check, X } from 'lucide-react';
+import { Users, Loader2, ArrowLeft, UserPlus, MoreHorizontal } from 'lucide-react';
 import { WorkspaceMember, WorkspaceRole } from '@/lib/interfaces/database';
 
 export default function WorkspaceMembersPage() {
@@ -13,7 +13,6 @@ export default function WorkspaceMembersPage() {
     workspaceMembers,
     refreshWorkspaceMembers,
     inviteMember,
-    removeMember,
     updateMemberRole,
     userRole,
     canCurrentUserInviteMembers
@@ -69,26 +68,6 @@ export default function WorkspaceMembersPage() {
     } catch (err) {
       console.error('Failed to invite member:', err);
       setError('Failed to invite member. Please check the email address and try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const hRemoveMember = async (userId: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      await removeMember(userId);
-
-      // Close actions menu
-      setMemberActionsOpen(null);
-
-      // Refresh members list
-      await refreshWorkspaceMembers();
-    } catch (err) {
-      console.error('Failed to remove member:', err);
-      setError('Failed to remove member. Please try again.');
     } finally {
       setIsLoading(false);
     }

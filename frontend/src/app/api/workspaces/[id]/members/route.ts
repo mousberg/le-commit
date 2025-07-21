@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerDatabaseService } from '@/lib/services/database';
-import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { getServerDatabaseService } from '@/lib/services/database.server';
 import { withGetMiddleware, withPostMiddleware, ValidationSchemas } from '@/lib/middleware/apiWrapper';
 import { ApiHandlerContext } from '@/lib/middleware/apiWrapper';
+import { createClient } from '@/lib/supabase/server';
 
 export const GET = withGetMiddleware(
   async (context: ApiHandlerContext) => {

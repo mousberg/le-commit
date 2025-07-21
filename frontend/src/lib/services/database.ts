@@ -17,11 +17,12 @@ import {
 } from '../interfaces/database';
 
 import {
-  DatabaseClient,
   TABLES,
-  getBrowserDatabaseClient,
-  getServerDatabaseClient
+  getBrowserDatabaseClient
 } from '../supabase/database';
+
+// Import DatabaseClient type only
+import type { DatabaseClient } from '../supabase/database';
 
 import {
   handleDatabaseError,
@@ -44,10 +45,6 @@ export class SupabaseDatabaseService implements DatabaseService {
     return new SupabaseDatabaseService(getBrowserDatabaseClient());
   }
 
-  static async createServerService(): Promise<SupabaseDatabaseService> {
-    const dbClient = await getServerDatabaseClient();
-    return new SupabaseDatabaseService(dbClient);
-  }
 
   // Applicant operations
   async createApplicant(data: CreateApplicantData): Promise<Applicant> {
@@ -294,13 +291,24 @@ export class SupabaseDatabaseService implements DatabaseService {
   // Workspace operations
   async createWorkspace(data: CreateWorkspaceData): Promise<Workspace> {
     try {
-      const user = await this.dbClient.getCurrentUser();
-      if (!user) {
+      const authUser = await this.dbClient.getCurrentUser();
+      if (!authUser) {
         throw new Error('User must be authenticated to create workspace');
       }
 
+      // Get the user record from the users table
+      const { data: user } = await this.dbClient.from(TABLES.USERS)
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .single();
+
+      if (!user) {
+        throw new Error('User record not found');
+      }
+
       return await withRetry(async () => {
-        return await safeExecute(
+        // Create workspace
+        const workspace = await safeExecute(
           () => this.dbClient.from(TABLES.WORKSPACES).insert({
             name: data.name,
             description: data.description,
@@ -309,7 +317,20 @@ export class SupabaseDatabaseService implements DatabaseService {
             updated_at: new Date().toISOString()
           }).select().single(),
           'Workspace'
+        ) as Workspace;
+
+        // Automatically add the owner as a workspace member
+        await safeExecute(
+          () => this.dbClient.from(TABLES.WORKSPACE_MEMBERS).insert({
+            workspace_id: workspace.id,
+            user_id: user.id,
+            role: 'owner',
+            joined_at: new Date().toISOString()
+          }),
+          'Workspace member'
         );
+
+        return workspace;
       });
     } catch (error) {
       logDatabaseError(handleDatabaseError(error), 'createWorkspace');
@@ -425,7 +446,7 @@ export class SupabaseDatabaseService implements DatabaseService {
             joined_at: new Date().toISOString()
           }).select(`
             *,
-            users (
+            users!user_id (
               id,
               email,
               full_name,
@@ -469,7 +490,7 @@ export class SupabaseDatabaseService implements DatabaseService {
             .eq('user_id', userId)
             .select(`
               *,
-              users (
+              users!user_id (
                 id,
                 email,
                 full_name,
@@ -492,7 +513,7 @@ export class SupabaseDatabaseService implements DatabaseService {
         () => this.dbClient.from(TABLES.WORKSPACE_MEMBERS)
           .select(`
             *,
-            users (
+            users!user_id (
               id,
               email,
               full_name,
@@ -827,7 +848,7 @@ export class SupabaseDatabaseService implements DatabaseService {
         () => this.dbClient.from(TABLES.WORKSPACE_MEMBERS)
           .select(`
             *,
-            users (
+            users!user_id (
               id,
               email,
               full_name,
@@ -848,7 +869,3 @@ export class SupabaseDatabaseService implements DatabaseService {
 
 // Export singleton instances for common usage
 export const browserDatabaseService = SupabaseDatabaseService.createBrowserService();
-
-export async function getServerDatabaseService(): Promise<SupabaseDatabaseService> {
-  return await SupabaseDatabaseService.createServerService();
-}

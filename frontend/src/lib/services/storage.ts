@@ -1,6 +1,6 @@
 // Simplified Supabase Storage Service
 
-import { createClient } from '@/lib/supabase/server';
+// Remove static import to prevent client-side bundling issues
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseDatabaseService } from './database';
 
@@ -237,6 +237,8 @@ export class SupabaseStorageService implements StorageService {
 
 // Factory function to create storage service instance within request context
 export async function createStorageService(dbService?: SupabaseDatabaseService): Promise<SupabaseStorageService> {
+  // Dynamic import to avoid pulling server code into client bundles
+  const { createClient } = await import('@/lib/supabase/server');
   const supabase = await createClient();
 
   if (dbService) {

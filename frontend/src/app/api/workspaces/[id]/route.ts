@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerDatabaseService } from '@/lib/services/database';
+import { getServerDatabaseService } from '@/lib/services/database.server';
 import { createStorageService } from '@/lib/services/storage';
 import { createClient } from '@/lib/supabase/server';
 
@@ -104,7 +104,7 @@ export async function PUT(
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: { name?: string; description?: string | null } = {};
     if (name !== undefined) {
       if (typeof name !== 'string' || name.trim().length === 0) {
         return NextResponse.json(

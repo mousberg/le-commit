@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerDatabaseService } from '@/lib/services/database';
-import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { getServerDatabaseService } from '@/lib/services/database.server';
 import { withPutMiddleware, withDeleteMiddleware, ValidationSchemas } from '@/lib/middleware/apiWrapper';
 import { ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 

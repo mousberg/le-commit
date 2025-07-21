@@ -89,7 +89,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
 
     loadWorkspaces();
-  }, [user]);
+  }, [user, currentWorkspace]);
 
   // Load workspace members when current workspace changes
   useEffect(() => {

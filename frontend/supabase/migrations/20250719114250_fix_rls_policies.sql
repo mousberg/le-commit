@@ -11,26 +11,16 @@ DROP POLICY IF EXISTS "Workspace admins and owners can manage files" ON files;
 
 -- Create improved RLS policies without recursion
 
--- Workspaces policies - simplified to avoid recursion
+-- Workspaces policies - simplified to avoid recursion (no workspace_members reference)
 CREATE POLICY "Users can view workspaces they belong to" ON workspaces
     FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM workspace_members wm
-            JOIN users u ON wm.user_id = u.id
-            WHERE wm.workspace_id = workspaces.id
-            AND u.auth_user_id = auth.uid()
-        )
+        owner_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
     );
 
--- Workspace members policies - base case without recursion
+-- Workspace members policies - simple non-recursive policy
 CREATE POLICY "Users can view workspace members for their workspaces" ON workspace_members
     FOR SELECT USING (
-        user_id IN (SELECT id FROM users WHERE auth_user_id = auth.uid())
-        OR workspace_id IN (
-            SELECT wm.workspace_id FROM workspace_members wm
-            JOIN users u ON wm.user_id = u.id
-            WHERE u.auth_user_id = auth.uid()
-        )
+        user_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
     );
 
 CREATE POLICY "Workspace owners and admins can manage members" ON workspace_members
@@ -40,12 +30,7 @@ CREATE POLICY "Workspace owners and admins can manage members" ON workspace_memb
             JOIN users u ON w.owner_id = u.id
             WHERE u.auth_user_id = auth.uid()
         )
-        OR workspace_id IN (
-            SELECT wm.workspace_id FROM workspace_members wm
-            JOIN users u ON wm.user_id = u.id
-            WHERE u.auth_user_id = auth.uid()
-            AND wm.role = 'admin'
-        )
+        -- Simplified: only workspace owners can manage members for MVP
     );
 
 -- Applicants policies - using direct joins to avoid recursion
