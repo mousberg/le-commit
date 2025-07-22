@@ -153,8 +153,6 @@ async function processApplicantAsync(applicantId: string, cvFile: File, linkedin
       console.error('Failed to get applicant:', applicantResult.error);
       return;
     }
-    
-    const applicant = applicantResult.data;
 
     // Update status to processing
     await serverSupabase
@@ -304,7 +302,23 @@ async function processApplicantAsync(applicantId: string, cvFile: File, linkedin
 
     // Perform comprehensive analysis
     try {
-      const analyzedApplicant = await analyzeApplicant(updatedApplicant);
+      // Transform database fields to match TypeScript interface
+      const applicantForAnalysis = {
+        ...updatedApplicant,
+        cvData: updatedApplicant.cv_data,
+        linkedinData: updatedApplicant.linkedin_data,
+        githubData: updatedApplicant.github_data,
+        userId: updatedApplicant.user_id,
+        createdAt: updatedApplicant.created_at,
+        updatedAt: updatedApplicant.updated_at,
+        originalFileName: updatedApplicant.original_filename,
+        originalGithubUrl: updatedApplicant.original_github_url,
+        analysisResult: updatedApplicant.analysis_result,
+        individualAnalysis: updatedApplicant.individual_analysis,
+        crossReferenceAnalysis: updatedApplicant.cross_reference_analysis
+      };
+      
+      const analyzedApplicant = await analyzeApplicant(applicantForAnalysis);
 
       // Save final results with analysis
       await serverSupabase
