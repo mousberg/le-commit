@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import Features from "@/components/Features";
 import Testimonials from "@/components/Testimonials";
@@ -108,9 +109,11 @@ export default function Home() {
 
         {/* UI Preview - desktop only */}
         <div className="hidden z-[11] lg:block absolute -bottom-[11.5rem] left-1/2 transform -translate-x-1/2 z-[1] max-w-2xl pointer-events-none">
-          <img 
+          <Image 
             src="/pscreen.png" 
             alt="Unmask UI Preview" 
+            width={768}
+            height={432}
             className="w-full h-auto rounded-lg"
           />
         </div>

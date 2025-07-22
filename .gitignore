@@ -102,4 +102,8 @@ temp/
 .netlify
 
 # Local development
-.local 
+.local
+
+.cursor/
+.mcp.json
+.claude

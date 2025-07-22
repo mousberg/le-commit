@@ -1,6 +1,7 @@
 'use client';
 
 import { Trash2, LayoutDashboard, Users, Settings, CreditCard, Cog, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
 import Link from 'next/link';
@@ -69,7 +70,7 @@ export default function ConsoleSidebar({
           <Image 
             src="/Logo-full.svg" 
             alt="Unmask" 
-            width={120}
+            width={150}
             height={32}
             className="h-8 w-auto"
           />
