@@ -31,14 +31,8 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/applicants');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch applicants');
-      }
-      
-      const { applicants: fetchedApplicants } = await response.json();
-      setApplicants(fetchedApplicants || []);
+      const applicants = await simpleDatabaseService.listUserApplicants();
+      setApplicants(applicants || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch applicants';
       setError(errorMessage);

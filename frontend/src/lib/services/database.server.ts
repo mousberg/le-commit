@@ -2,9 +2,16 @@
 // This file should only be imported in API routes and server components
 
 import { DatabaseClient } from '../supabase/database';
-
-// Import the base class from the main database file
 import { SupabaseDatabaseService } from './database';
+
+class ServerSupabaseDatabaseService extends SupabaseDatabaseService {
+  constructor(dbClient: DatabaseClient) {
+    super();
+    // Override the browser client with server client
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this as any).dbClient = dbClient;
+  }
+}
 
 async function createServerDatabaseClient(): Promise<DatabaseClient> {
   // Dynamic import to avoid pulling server code into client bundles
@@ -15,5 +22,5 @@ async function createServerDatabaseClient(): Promise<DatabaseClient> {
 
 export async function getServerDatabaseService(): Promise<SupabaseDatabaseService> {
   const dbClient = await createServerDatabaseClient();
-  return new SupabaseDatabaseService(dbClient);
+  return new ServerSupabaseDatabaseService(dbClient);
 }

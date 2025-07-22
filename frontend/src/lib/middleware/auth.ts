@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 // Remove static import to prevent client-side bundling issues
 import { getServerDatabaseService } from '@/lib/services/database.server';
-import { WorkspaceRole } from '@/lib/interfaces/database';
 
 export interface AuthContext {
   user: {
@@ -15,11 +14,11 @@ export interface AuthMiddlewareOptions {
   requireAuth?: boolean;
   requireWorkspaceAccess?: {
     workspaceIdParam?: string;
-    requiredRole?: WorkspaceRole;
+    requiredRole?: 'admin' | 'owner';
   };
   requireApplicantAccess?: {
     applicantIdParam?: string;
-    requiredRole?: WorkspaceRole;
+    requiredRole?: 'admin' | 'owner';
   };
   rateLimit?: {
     windowMs: number;
@@ -40,7 +39,7 @@ export async function withAuth(
   try {
     // Rate limiting
     if (options.rateLimit) {
-      const clientIp = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+      const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
       const rateLimitKey = `${clientIp}:${request.nextUrl.pathname}`;
       const now = Date.now();
 
@@ -149,10 +148,9 @@ export async function withAuth(
           };
         }
 
-        const hasAccess = await dbService.validateApplicantAccess(
+        const hasAccess = await dbService.canUserViewApplicant(
           applicantId,
-          user.id,
-          options.requireApplicantAccess.requiredRole
+          user.id
         );
 
         if (!hasAccess) {

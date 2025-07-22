@@ -25,14 +25,13 @@ class SimpleSupabaseDatabaseService {
 
     // Try to get existing user record
     let userRecord = await safeExecuteOptional(
-      () => this.dbClient.from(TABLES.USERS).select('*').eq('id', authUser.id).single(),
-      'User lookup'
+      async () => await this.dbClient.from(TABLES.USERS).select('*').eq('id', authUser.id).single()
     );
 
     // If user doesn't exist, create them (should be handled by trigger, but fallback)
     if (!userRecord) {
       userRecord = await safeExecute(
-        () => this.dbClient.from(TABLES.USERS).insert({
+        async () => await this.dbClient.from(TABLES.USERS).insert({
           id: authUser.id,
           email: authUser.email || '',
           full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null
@@ -41,6 +40,9 @@ class SimpleSupabaseDatabaseService {
       );
     }
 
+    if (!userRecord) {
+      throw new Error('Failed to create user record');
+    }
     return userRecord as User;
   }
 
@@ -51,12 +53,11 @@ class SimpleSupabaseDatabaseService {
   async canUserViewApplicant(applicantId: string, userId: string): Promise<boolean> {
     try {
       const applicant = await safeExecuteOptional(
-        () => this.dbClient.from(TABLES.APPLICANTS)
+        async () => await this.dbClient.from(TABLES.APPLICANTS)
           .select('user_id')
           .eq('id', applicantId)
           .eq('user_id', userId)
-          .single(),
-        'Applicant access check'
+          .single()
       );
       return applicant !== null;
     } catch (error) {
@@ -71,8 +72,11 @@ class SimpleSupabaseDatabaseService {
   }
 
   async validateWorkspaceAccess(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _workspaceId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _requiredRole?: 'admin' | 'owner'
   ): Promise<boolean> {
     // In the simplified architecture, users have direct access to their data
@@ -90,7 +94,7 @@ class SimpleSupabaseDatabaseService {
 
       return await withRetry(async () => {
         const applicant = await safeExecute(
-          () => this.dbClient.from(TABLES.APPLICANTS).insert({
+          async () => await this.dbClient.from(TABLES.APPLICANTS).insert({
             user_id: currentUser.id,
             name: data.name,
             email: data.email,
@@ -102,6 +106,9 @@ class SimpleSupabaseDatabaseService {
           'Applicant creation'
         );
 
+        if (!applicant) {
+          throw new Error('Failed to create applicant');
+        }
         return applicant as Applicant;
       });
     } catch (error) {
@@ -113,8 +120,7 @@ class SimpleSupabaseDatabaseService {
   async getApplicant(id: string): Promise<Applicant | null> {
     try {
       const dbApplicant = await safeExecuteOptional(
-        () => this.dbClient.from(TABLES.APPLICANTS).select('*').eq('id', id).single(),
-        'Applicant lookup'
+        async () => await this.dbClient.from(TABLES.APPLICANTS).select('*').eq('id', id).single()
       );
       
       return dbApplicant as Applicant | null;
@@ -128,7 +134,7 @@ class SimpleSupabaseDatabaseService {
     try {
       return await withRetry(async () => {
         const applicant = await safeExecute(
-          () => this.dbClient.from(TABLES.APPLICANTS)
+          async () => await this.dbClient.from(TABLES.APPLICANTS)
             .update({
               name: data.name,
               email: data.email,
@@ -148,6 +154,9 @@ class SimpleSupabaseDatabaseService {
           'Applicant update'
         );
 
+        if (!applicant) {
+          throw new Error('Failed to update applicant');
+        }
         return applicant as Applicant;
       });
     } catch (error) {
@@ -160,7 +169,7 @@ class SimpleSupabaseDatabaseService {
     try {
       await withRetry(async () => {
         await safeExecute(
-          () => this.dbClient.from(TABLES.APPLICANTS).delete().eq('id', id),
+          async () => await this.dbClient.from(TABLES.APPLICANTS).delete().eq('id', id),
           'Applicant deletion'
         );
       });
@@ -193,7 +202,7 @@ class SimpleSupabaseDatabaseService {
         query = query.range(options.offset, options.offset + (options.limit || 50) - 1);
       }
 
-      const result = await safeExecuteArray(() => query, 'User applicants');
+      const result = await safeExecuteArray(async () => await query);
       return result as Applicant[];
     } catch (error) {
       console.error('Error listing applicants:', error);
@@ -208,8 +217,7 @@ class SimpleSupabaseDatabaseService {
   async getApplicantFiles(applicantId: string) {
     try {
       return await safeExecuteArray(
-        () => this.dbClient.from(TABLES.FILES).select('*').eq('applicant_id', applicantId),
-        'Applicant files'
+        async () => await this.dbClient.from(TABLES.FILES).select('*').eq('applicant_id', applicantId)
       );
     } catch (error) {
       console.error('Error getting applicant files:', error);
