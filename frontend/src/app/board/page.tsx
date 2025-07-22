@@ -567,10 +567,10 @@ function BoardPageContent() {
 
   // Handle successful applicant creation from NewApplicantForm
   const handleApplicantCreated = useCallback((applicantId: string) => {
-    // The NewApplicantForm component handles navigation, but we can add
-    // additional logic here if needed (e.g., analytics, notifications)
     console.log('Applicant created:', applicantId);
-  }, []);
+    // Navigate to the newly created applicant to show processing status
+    navigateToApplicant(applicantId);
+  }, [navigateToApplicant]);
 
   const handleDeleteApplicant = async (applicantId: string, applicantName: string) => {
     setDeleteConfirmModal({
@@ -828,7 +828,7 @@ function BoardPageContent() {
             selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' ? (
               <ProcessingLoader
                 status={selectedCandidate.status}
-                fileName={selectedCandidate.originalFileName}
+                fileName={selectedCandidate.original_filename}
                 applicant={selectedCandidate}
               />
             ) : (
@@ -840,17 +840,17 @@ function BoardPageContent() {
                     <div className="flex items-center gap-3 mb-2">
                       <h2 className="text-2xl font-semibold text-gray-900">{selectedCandidate.name}</h2>
                       <div className="flex items-center gap-2">
-                        {selectedCandidate.cvData && (
+                        {selectedCandidate.cv_data && (
                           <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full border border-green-200 font-medium">
                             CV ✓
                           </span>
                         )}
-                        {selectedCandidate.linkedinData && (
+                        {selectedCandidate.linkedin_data && (
                           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium">
                             LinkedIn ✓
                           </span>
                         )}
-                        {selectedCandidate.githubData && (
+                        {selectedCandidate.github_data && (
                           <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200 font-medium">
                             GitHub ✓
                           </span>
@@ -891,31 +891,31 @@ function BoardPageContent() {
               </div>
 
               {/* Credibility Analysis */}
-              {selectedCandidate.analysisResult && (
+              {selectedCandidate.analysis_result && (
                 <div className="mb-6">
-                  <CredibilityScore analysisResult={selectedCandidate.analysisResult} />
+                  <CredibilityScore analysisResult={selectedCandidate.analysis_result} />
                 </div>
               )}
 
               {/* CV vs LinkedIn Comparison */}
               <DataComparisonSection 
-                cvData={selectedCandidate.cvData} 
-                linkedinData={selectedCandidate.linkedinData} 
+                cvData={selectedCandidate.cv_data || undefined} 
+                linkedinData={selectedCandidate.linkedin_data || undefined} 
               />
 
               {/* Main Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 {/* CV Section */}
-                {selectedCandidate.cvData && (
+                {selectedCandidate.cv_data && (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                    <CollapsibleCVSection cvData={selectedCandidate.cvData} />
+                    <CollapsibleCVSection cvData={selectedCandidate.cv_data} />
                   </div>
                 )}
 
                 {/* LinkedIn Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                  {selectedCandidate.linkedinData ? (
-                    <LinkedInSection linkedinData={selectedCandidate.linkedinData} />
+                  {selectedCandidate.linkedin_data ? (
+                    <LinkedInSection linkedinData={selectedCandidate.linkedin_data} />
                   ) : (
                     <div className="p-6 opacity-60">
                       <div className="flex items-center gap-3 mb-2">
@@ -929,10 +929,10 @@ function BoardPageContent() {
                 </div>
 
                 {/* GitHub Section - Full Width if available */}
-                {(selectedCandidate.githubData || !selectedCandidate.cvData) && (
-                  <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${selectedCandidate.githubData ? 'lg:col-span-2' : ''}`}>
-                    {selectedCandidate.githubData ? (
-                      <GitHubSection githubData={selectedCandidate.githubData} />
+                {(selectedCandidate.github_data || !selectedCandidate.cv_data) && (
+                  <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${selectedCandidate.github_data ? 'lg:col-span-2' : ''}`}>
+                    {selectedCandidate.github_data ? (
+                      <GitHubSection githubData={selectedCandidate.github_data} />
                     ) : (
                       <div className="p-6 opacity-60">
                         <div className="flex items-center gap-3 mb-2">

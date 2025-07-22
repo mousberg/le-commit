@@ -6,24 +6,6 @@ import { Applicant } from '../interfaces/applicant';
 import { User, CreateApplicantData, UpdateApplicantData } from '../interfaces/database';
 import { withRetry, safeExecute, safeExecuteOptional, safeExecuteArray } from '../supabase/errors';
 
-// Helper function to transform database fields to TypeScript interface
-function transformDatabaseApplicant(dbApplicant: Record<string, unknown>): Applicant {
-  return {
-    ...dbApplicant,
-    cvData: dbApplicant.cv_data,
-    linkedinData: dbApplicant.linkedin_data,
-    githubData: dbApplicant.github_data,
-    userId: dbApplicant.user_id,
-    createdAt: dbApplicant.created_at,
-    updatedAt: dbApplicant.updated_at,
-    originalFileName: dbApplicant.original_filename,
-    originalGithubUrl: dbApplicant.original_github_url,
-    analysisResult: dbApplicant.analysis_result,
-    individualAnalysis: dbApplicant.individual_analysis,
-    crossReferenceAnalysis: dbApplicant.cross_reference_analysis
-  };
-}
-
 class SimpleSupabaseDatabaseService {
   private dbClient: DatabaseClient;
 
@@ -88,7 +70,7 @@ class SimpleSupabaseDatabaseService {
           'Applicant creation'
         );
 
-        return transformDatabaseApplicant(applicant);
+        return applicant as Applicant;
       });
     } catch (error) {
       console.error('Error creating applicant:', error);
@@ -103,7 +85,7 @@ class SimpleSupabaseDatabaseService {
         'Applicant lookup'
       );
       
-      return dbApplicant ? transformDatabaseApplicant(dbApplicant) : null;
+      return dbApplicant as Applicant | null;
     } catch (error) {
       console.error('Error getting applicant:', error);
       throw error;
@@ -134,7 +116,7 @@ class SimpleSupabaseDatabaseService {
           'Applicant update'
         );
 
-        return transformDatabaseApplicant(applicant);
+        return applicant as Applicant;
       });
     } catch (error) {
       console.error('Error updating applicant:', error);
@@ -180,7 +162,7 @@ class SimpleSupabaseDatabaseService {
       }
 
       const result = await safeExecuteArray(() => query, 'User applicants');
-      return result.map(transformDatabaseApplicant);
+      return result as Applicant[];
     } catch (error) {
       console.error('Error listing applicants:', error);
       throw error;

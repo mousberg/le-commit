@@ -302,37 +302,21 @@ async function processApplicantAsync(applicantId: string, cvFile: File, linkedin
 
     // Perform comprehensive analysis
     try {
-      // Transform database fields to match TypeScript interface
-      const applicantForAnalysis = {
-        ...updatedApplicant,
-        cvData: updatedApplicant.cv_data,
-        linkedinData: updatedApplicant.linkedin_data,
-        githubData: updatedApplicant.github_data,
-        userId: updatedApplicant.user_id,
-        createdAt: updatedApplicant.created_at,
-        updatedAt: updatedApplicant.updated_at,
-        originalFileName: updatedApplicant.original_filename,
-        originalGithubUrl: updatedApplicant.original_github_url,
-        analysisResult: updatedApplicant.analysis_result,
-        individualAnalysis: updatedApplicant.individual_analysis,
-        crossReferenceAnalysis: updatedApplicant.cross_reference_analysis
-      };
-      
-      const analyzedApplicant = await analyzeApplicant(applicantForAnalysis);
+      const analyzedApplicant = await analyzeApplicant(updatedApplicant);
 
       // Save final results with analysis
       await serverSupabase
         .from('applicants')
         .update({
           status: 'completed',
-          analysis_result: analyzedApplicant.analysisResult,
-          individual_analysis: analyzedApplicant.individualAnalysis,
-          cross_reference_analysis: analyzedApplicant.crossReferenceAnalysis,
-          score: analyzedApplicant.analysisResult?.credibilityScore
+          analysis_result: analyzedApplicant.analysis_result,
+          individual_analysis: analyzedApplicant.individual_analysis,
+          cross_reference_analysis: analyzedApplicant.cross_reference_analysis,
+          score: analyzedApplicant.analysis_result?.credibilityScore
         })
         .eq('id', applicantId);
 
-      console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysisResult?.credibilityScore || 'N/A'}`);
+      console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysis_result?.credibilityScore || 'N/A'}`);
     } catch (analysisError) {
       console.error(`Analysis failed for applicant ${applicantId}:`, analysisError);
 
