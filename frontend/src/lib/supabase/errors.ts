@@ -7,9 +7,9 @@ export class DatabaseError extends Error {
   public readonly code: string;
   public readonly details?: string;
   public readonly hint?: string;
-  public readonly originalError?: any;
+  public readonly originalError?: Error | unknown;
 
-  constructor(message: string, code: string, details?: string, hint?: string, originalError?: any) {
+  constructor(message: string, code: string, details?: string, hint?: string, originalError?: Error | unknown) {
     super(message);
     this.name = 'DatabaseError';
     this.code = code;
@@ -20,28 +20,28 @@ export class DatabaseError extends Error {
 }
 
 export class AuthenticationError extends DatabaseError {
-  constructor(message: string = 'Authentication required', originalError?: any) {
+  constructor(message: string = 'Authentication required', originalError?: Error | unknown) {
     super(message, 'AUTH_REQUIRED', undefined, undefined, originalError);
     this.name = 'AuthenticationError';
   }
 }
 
 export class AuthorizationError extends DatabaseError {
-  constructor(message: string = 'Insufficient permissions', originalError?: any) {
+  constructor(message: string = 'Insufficient permissions', originalError?: Error | unknown) {
     super(message, 'INSUFFICIENT_PERMISSIONS', undefined, undefined, originalError);
     this.name = 'AuthorizationError';
   }
 }
 
 export class ValidationError extends DatabaseError {
-  constructor(message: string, field?: string, originalError?: any) {
+  constructor(message: string, field?: string, originalError?: Error | unknown) {
     super(message, 'VALIDATION_ERROR', field, undefined, originalError);
     this.name = 'ValidationError';
   }
 }
 
 export class NotFoundError extends DatabaseError {
-  constructor(resource: string, id?: string, originalError?: any) {
+  constructor(resource: string, id?: string, originalError?: Error | unknown) {
     const message = id ? `${resource} with id '${id}' not found` : `${resource} not found`;
     super(message, 'NOT_FOUND', resource, undefined, originalError);
     this.name = 'NotFoundError';
@@ -49,7 +49,7 @@ export class NotFoundError extends DatabaseError {
 }
 
 export class ConflictError extends DatabaseError {
-  constructor(message: string, originalError?: any) {
+  constructor(message: string, originalError?: Error | unknown) {
     super(message, 'CONFLICT', undefined, undefined, originalError);
     this.name = 'ConflictError';
   }
@@ -78,8 +78,18 @@ const ERROR_CODE_MAPPINGS: Record<string, (error: PostgrestError) => DatabaseErr
   // Not found (handled separately as it's not always an error code)
 };
 
+// Type guard for objects with error properties
+function isErrorLike(error: unknown): error is { code?: string; status?: number; message?: string; details?: string; hint?: string } {
+  return typeof error === 'object' && error !== null;
+}
+
+// Type guard for PostgrestError
+function isPostgrestError(error: unknown): error is PostgrestError {
+  return isErrorLike(error) && typeof error.code === 'string';
+}
+
 // Main error handler function
-export function handleDatabaseError(error: any): DatabaseError {
+export function handleDatabaseError(error: Error | unknown): DatabaseError {
   // Handle null/undefined errors
   if (!error) {
     return new DatabaseError('Unknown database error', 'UNKNOWN');
@@ -91,7 +101,7 @@ export function handleDatabaseError(error: any): DatabaseError {
   }
 
   // Handle Supabase PostgrestError
-  if (error.code && typeof error.code === 'string') {
+  if (isPostgrestError(error)) {
     const errorHandler = ERROR_CODE_MAPPINGS[error.code];
     if (errorHandler) {
       return errorHandler(error);
@@ -99,7 +109,7 @@ export function handleDatabaseError(error: any): DatabaseError {
   }
 
   // Handle common HTTP status codes from Supabase
-  if (error.status) {
+  if (isErrorLike(error) && error.status) {
     switch (error.status) {
       case 401:
         return new AuthenticationError(error.message || 'Authentication required', error);
@@ -115,7 +125,7 @@ export function handleDatabaseError(error: any): DatabaseError {
   }
 
   // Handle network and connection errors
-  if (error.message) {
+  if (isErrorLike(error) && error.message) {
     if (error.message.includes('fetch')) {
       return new DatabaseError('Network connection error', 'NETWORK_ERROR', error.message, 'Check your internet connection', error);
     }
@@ -125,18 +135,19 @@ export function handleDatabaseError(error: any): DatabaseError {
   }
 
   // Default fallback
+  const errorLike = isErrorLike(error) ? error : {};
   return new DatabaseError(
-    error.message || 'An unexpected database error occurred',
+    errorLike.message || 'An unexpected database error occurred',
     'UNKNOWN',
-    error.details,
-    error.hint,
+    errorLike.details,
+    errorLike.hint,
     error
   );
 }
 
 // Utility function to safely execute database operations
 export async function safeExecute<T>(
-  operation: () => any,
+  operation: () => Promise<{ data: T | null; error: Error | unknown | null }>,
   context?: string
 ): Promise<T> {
   try {
@@ -162,7 +173,7 @@ export async function safeExecute<T>(
 
 // Utility function for operations that may return null (like optional gets)
 export async function safeExecuteOptional<T>(
-  operation: () => any
+  operation: () => Promise<{ data: T | null; error: Error | unknown | null }>
 ): Promise<T | null> {
   try {
     const result = await operation();
@@ -183,7 +194,7 @@ export async function safeExecuteOptional<T>(
 
 // Utility function for operations that return arrays
 export async function safeExecuteArray<T>(
-  operation: () => any
+  operation: () => Promise<{ data: T[] | null; error: Error | unknown | null }>
 ): Promise<T[]> {
   try {
     const result = await operation();
@@ -230,7 +241,7 @@ export async function withRetry<T>(
   maxRetries: number = 3,
   delayMs: number = 1000
 ): Promise<T> {
-  let lastError: any;
+  let lastError: Error | unknown;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {

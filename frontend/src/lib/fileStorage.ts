@@ -78,7 +78,7 @@ export function loadAllApplicants(): Applicant[] {
 
     // Sort by creation date (newest first)
     return applicants.sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
     );
   } catch (error) {
     console.error('Error loading applicants:', error);

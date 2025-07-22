@@ -266,7 +266,7 @@ function BoardPageContent() {
             selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' ? (
               <ProcessingLoader
                 status={selectedCandidate.status}
-                fileName={selectedCandidate.original_filename}
+                fileName={selectedCandidate.original_filename || undefined}
                 applicant={selectedCandidate}
               />
             ) : (

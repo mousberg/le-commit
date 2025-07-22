@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
 import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
@@ -179,7 +180,6 @@ async function processApplicantAsync(applicantId: string, cvFile: File, linkedin
           // For now, we'll need to save to temp file since processCvPdf expects a file path
           // TODO: Update processCvPdf to accept buffer directly
           const tempFilePath = `/tmp/cv_${applicantId}_${Date.now()}.pdf`;
-          const fs = require('fs');
           fs.writeFileSync(tempFilePath, buffer);
           
           const rawCvData = await processCvPdf(tempFilePath, true, cvTempSuffix);
@@ -207,7 +207,6 @@ async function processApplicantAsync(applicantId: string, cvFile: File, linkedin
             const buffer = Buffer.from(arrayBuffer);
             
             const tempFilePath = `/tmp/linkedin_${applicantId}_${Date.now()}.pdf`;
-            const fs = require('fs');
             fs.writeFileSync(tempFilePath, buffer);
             
             const rawLinkedinData = await processLinkedInPdf(tempFilePath, true, linkedinTempSuffix);

@@ -167,7 +167,7 @@ export default function ApplicantsPage() {
                 </div>
               </div>
               <div className="mt-4 text-sm text-muted-foreground">
-                Created: {new Date(applicant.createdAt).toLocaleDateString()}
+                Created: {applicant.created_at ? new Date(applicant.created_at).toLocaleDateString() : 'Unknown'}
               </div>
             </div>
           ))

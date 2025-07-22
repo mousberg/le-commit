@@ -48,6 +48,38 @@ class SimpleSupabaseDatabaseService {
   // APPLICANT OPERATIONS (Users own applicants directly)
   // ============================================================================
 
+  async canUserViewApplicant(applicantId: string, userId: string): Promise<boolean> {
+    try {
+      const applicant = await safeExecuteOptional(
+        () => this.dbClient.from(TABLES.APPLICANTS)
+          .select('user_id')
+          .eq('id', applicantId)
+          .eq('user_id', userId)
+          .single(),
+        'Applicant access check'
+      );
+      return applicant !== null;
+    } catch (error) {
+      console.error('Access check failed:', error);
+      return false;
+    }
+  }
+
+  async canUserModifyApplicant(applicantId: string, userId: string): Promise<boolean> {
+    // For the simplified service, modify access is the same as view access
+    return this.canUserViewApplicant(applicantId, userId);
+  }
+
+  async validateWorkspaceAccess(
+    _workspaceId: string,
+    _userId: string,
+    _requiredRole?: 'admin' | 'owner'
+  ): Promise<boolean> {
+    // In the simplified architecture, users have direct access to their data
+    // This method is kept for backward compatibility but always returns true
+    return true;
+  }
+
   async createApplicant(data: CreateApplicantData): Promise<Applicant> {
     try {
       await this.ensureUserExists();
@@ -186,6 +218,7 @@ class SimpleSupabaseDatabaseService {
   }
 }
 
-// Export singleton instance
+// Export the class and singleton instance
+export { SimpleSupabaseDatabaseService as SupabaseDatabaseService };
 export const simpleDatabaseService = new SimpleSupabaseDatabaseService();
 export default simpleDatabaseService;

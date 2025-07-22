@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Search, Users, UserCheck, Clock, UserX } from 'lucide-react';
 import { Applicant } from '@/lib/interfaces/applicant';
-import { simpleDatabaseService } from '@/lib/services/simple-database';
+import { simpleDatabaseService } from '@/lib/services/database';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function SimpleApplicantsPage() {
@@ -167,7 +167,7 @@ export default function SimpleApplicantsPage() {
                 </div>
               </div>
               <div className="mt-4 text-sm text-muted-foreground">
-                Created: {new Date(applicant.createdAt).toLocaleDateString()}
+                Created: {applicant.created_at ? new Date(applicant.created_at).toLocaleDateString() : 'Unknown'}
               </div>
             </div>
           ))

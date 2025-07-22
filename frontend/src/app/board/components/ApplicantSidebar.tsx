@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2, Check, Briefcase, RefreshCw } from 'lucide-react';
+import { Trash2, Check, RefreshCw } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
 import { useState } from 'react';
@@ -44,12 +44,7 @@ export default function ApplicantSidebar({
           </button>
         </div>
 
-        {!currentWorkspace ? (
-          <div className="text-center py-6 px-2 border border-dashed border-zinc-300 rounded-lg">
-            <Briefcase className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
-            <p className="text-sm text-zinc-500">Select a workspace to view applicants</p>
-          </div>
-        ) : isLoading ? (
+        {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
           </div>
@@ -125,15 +120,13 @@ export default function ApplicantSidebar({
         )}
       </div>
 
-      {currentWorkspace && (
-        <Button
-          onClick={onSelectNew}
-          disabled={isLoading}
-          className="w-full rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-3 transition-colors disabled:opacity-50"
-        >
-          + Add New Applicant
-        </Button>
-      )}
+      <Button
+        onClick={onSelectNew}
+        disabled={isLoading}
+        className="w-full rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-3 transition-colors disabled:opacity-50"
+      >
+        + Add New Applicant
+      </Button>
     </aside>
   );
 }

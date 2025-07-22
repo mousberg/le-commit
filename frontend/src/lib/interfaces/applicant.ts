@@ -34,4 +34,5 @@ export interface CreateApplicantRequest {
   cvFile: File;
   linkedinFile?: File;
   githubUrl?: string;
+  role?: string;
 }

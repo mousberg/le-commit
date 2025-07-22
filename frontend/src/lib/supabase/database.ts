@@ -77,7 +77,7 @@ export class DatabaseClient {
   }
 
   // RPC helper for stored procedures
-  rpc(functionName: string, params?: any) {
+  rpc(functionName: string, params?: Record<string, unknown>) {
     return this.client.rpc(functionName, params);
   }
 }
