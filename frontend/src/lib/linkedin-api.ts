@@ -433,7 +433,7 @@ export async function findExistingLinkedInSnapshot(linkedinUrl: string): Promise
         // Fetch individual snapshot details to get the input URL
         const detailResponse = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${snapshot.id}`, {
           headers: {
-            'Authorization': `Bearer ${process.env.BRIGHTDATA_API_TOKEN}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           }
         });
