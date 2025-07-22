@@ -6,7 +6,6 @@ import {
   saveApplicant,
   saveApplicantFile,
   ensureDataDir,
-  saveLinkedInRawData,
   getApplicantPaths
 } from '@/lib/fileStorage';
 import { startLinkedInJob, checkLinkedInJob, processLinkedInData, pollLinkedInJob } from '@/lib/linkedin-api';
@@ -103,17 +102,32 @@ async function processApplicantAsync(applicantId: string) {
     if (applicant.originalLinkedinUrl) {
       try {
         console.log(`🚀 Starting LinkedIn job for ${applicantId}`);
-        const { jobId } = await startLinkedInJob(applicant.originalLinkedinUrl);
+        const { jobId, isExisting } = await startLinkedInJob(applicant.originalLinkedinUrl);
         
         // Update applicant with job ID
         applicant.linkedinJobId = jobId;
-        applicant.linkedinJobStatus = 'running';
+        applicant.linkedinJobStatus = isExisting ? 'completed' : 'running';
         applicant.linkedinJobStartedAt = new Date().toISOString();
+        if (isExisting) {
+          applicant.linkedinJobCompletedAt = new Date().toISOString();
+        }
         saveApplicant(applicant);
 
-        // Poll until complete
-        console.log(`⏳ Waiting for LinkedIn job ${jobId} to complete...`);
-        const linkedinData = await pollLinkedInJob(jobId);
+        let linkedinData;
+        if (isExisting) {
+          // For existing snapshots, try to get data directly
+          console.log(`♻️ Using existing LinkedIn snapshot ${jobId}`);
+          const result = await checkLinkedInJob(jobId, true);
+          if (result.data) {
+            linkedinData = processLinkedInData(result.data);
+          } else {
+            throw new Error('No data available from existing snapshot');
+          }
+        } else {
+          // Poll until complete for new jobs
+          console.log(`⏳ Waiting for LinkedIn job ${jobId} to complete...`);
+          linkedinData = await pollLinkedInJob(jobId);
+        }
         
         // Save LinkedIn data
         applicant.linkedinData = linkedinData;

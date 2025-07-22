@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { processLinkedInUrl, type LinkedInProgress } from '../linkedin-api';
 import ProcessingLoader from '../../components/ProcessingLoader';
+import { ProfileData } from '../interfaces/applicant';
 
 /**
  * Demo component to test LinkedIn API with progress tracking
@@ -9,7 +10,7 @@ import ProcessingLoader from '../../components/ProcessingLoader';
 export default function LinkedInProgressDemo() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<LinkedInProgress | undefined>();
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
 
   const testLinkedInUrl = 'https://www.linkedin.com/in/satyanadella';
@@ -47,7 +48,7 @@ export default function LinkedInProgressDemo() {
           email: 'demo@test.com',
           status: 'processing',
           cvData: undefined,
-          linkedinData: result,
+          linkedinData: result as ProfileData | undefined,
           githubData: undefined,
           originalLinkedinUrl: testLinkedInUrl,
           originalGithubUrl: undefined,
@@ -76,17 +77,17 @@ export default function LinkedInProgressDemo() {
           </div>
         )}
 
-        {result && (
+        {result && typeof result === 'object' && result !== null ? (
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
             <h3 className="font-medium text-green-800 mb-2">LinkedIn Data Retrieved!</h3>
             <div className="text-sm text-green-700 space-y-1">
-              <p><strong>Name:</strong> {result.firstName} {result.lastName}</p>
-              <p><strong>Job Title:</strong> {result.jobTitle}</p>
-              <p><strong>Location:</strong> {result.address}</p>
-              <p><strong>Skills:</strong> {result.skills?.slice(0, 5).join(', ')}</p>
+              <p><strong>Name:</strong> {(result as ProfileData).firstName} {(result as ProfileData).lastName}</p>
+              <p><strong>Job Title:</strong> {(result as ProfileData).jobTitle}</p>
+              <p><strong>Location:</strong> {(result as ProfileData).address}</p>
+              <p><strong>Skills:</strong> {(result as ProfileData).skills?.slice(0, 5).join(', ')}</p>
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="text-sm text-gray-600">
           <p><strong>Test URL:</strong> {testLinkedInUrl}</p>

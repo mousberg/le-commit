@@ -1,5 +1,4 @@
 import { Applicant } from '@/lib/interfaces/applicant';
-import { useState, useEffect } from 'react';
 
 export interface LinkedInProgress {
   attempt: number;
@@ -60,13 +59,6 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
     };
   };
 
-  const getCompletedSteps = () => {
-    let completed = 0;
-    if (applicant?.cvData) completed++;
-    if (applicant?.linkedinData) completed++;
-    if (applicant?.githubData) completed++;
-    return completed;
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

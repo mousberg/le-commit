@@ -381,18 +381,129 @@ export async function processLinkedInUrl(
 }
 
 /**
- * Start a LinkedIn job and return the job ID
- * @param linkedinUrl - LinkedIn profile URL
- * @returns Job ID and any immediate data
+ * Check for existing LinkedIn snapshots for the same URL
+ * @param linkedinUrl - LinkedIn profile URL to check
+ * @returns Existing job ID if found, null if none
  */
-export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: string; data?: unknown }> {
+export async function findExistingLinkedInSnapshot(linkedinUrl: string): Promise<string | null> {
   const apiKey = process.env.BRIGHTDATA_API_KEY;
   
   if (!apiKey) {
     throw new Error('BRIGHTDATA_API_KEY environment variable is not set');
   }
   
-  console.log(`🚀 Starting LinkedIn job for URL: ${linkedinUrl}`);
+  try {
+    console.log(`🔍 Checking for existing LinkedIn snapshots for URL: ${linkedinUrl}`);
+    
+    const response = await fetch(`https://api.brightdata.com/datasets/v3/snapshots?status=ready`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch snapshots: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
+    const snapshots = await response.json();
+    console.log(`📊 Found ${snapshots.length || 0} ready snapshots`);
+    
+    if (!Array.isArray(snapshots) || snapshots.length === 0) {
+      return null;
+    }
+    
+    // Normalize the LinkedIn URL for comparison
+    const normalizeUrl = (url: string) => {
+      return url
+        .toLowerCase()
+        .replace(/https?:\/\//, '') // Remove protocol
+        .replace(/www\./, '') // Remove www
+        .replace(/\/$/, '') // Remove trailing slash
+        .replace(/\/+/g, '/'); // Normalize multiple slashes
+    };
+    
+    const targetUrl = normalizeUrl(linkedinUrl);
+    
+    // Since the snapshots list doesn't include URLs, we need to check each snapshot individually
+    const matchingSnapshots = [];
+    
+    for (const snapshot of snapshots) {
+      try {
+        // Fetch individual snapshot details to get the input URL
+        const detailResponse = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${snapshot.id}`, {
+          headers: {
+            'Authorization': `Bearer ${process.env.BRIGHTDATA_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!detailResponse.ok) {
+          console.log(`⚠️ Failed to fetch details for snapshot ${snapshot.id}`);
+          continue;
+        }
+        
+        const snapshotDetails = await detailResponse.json();
+        const snapshotUrl = snapshotDetails.input?.[0]?.url || '';
+        
+        if (snapshotUrl && normalizeUrl(snapshotUrl) === targetUrl) {
+          matchingSnapshots.push({
+            ...snapshot,
+            inputUrl: snapshotUrl,
+            createdAt: snapshot.created_at || snapshot.createdAt
+          });
+        }
+      } catch (error) {
+        console.log(`⚠️ Error checking snapshot ${snapshot.id}:`, error);
+        continue;
+      }
+    }
+    
+    if (matchingSnapshots.length === 0) {
+      console.log(`❌ No existing snapshots found for ${linkedinUrl}`);
+      return null;
+    }
+    
+    // Sort by creation date and get the oldest one
+    matchingSnapshots.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateA.getTime() - dateB.getTime();
+    });
+    
+    const oldestSnapshot = matchingSnapshots[0];
+    console.log(`✅ Found existing snapshot for ${linkedinUrl}: ${oldestSnapshot.id}`);
+    console.log(`📅 Created: ${oldestSnapshot.created_at || oldestSnapshot.createdAt}`);
+    
+    return oldestSnapshot.id;
+    
+  } catch (error) {
+    console.error(`Error checking existing snapshots:`, error);
+    return null; // Don't fail the whole process, just proceed with new job
+  }
+}
+
+/**
+ * Start a LinkedIn job and return the job ID (checks for existing snapshots first)
+ * @param linkedinUrl - LinkedIn profile URL
+ * @returns Job ID and any immediate data
+ */
+export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: string; data?: unknown; isExisting?: boolean }> {
+  const apiKey = process.env.BRIGHTDATA_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('BRIGHTDATA_API_KEY environment variable is not set');
+  }
+  
+  // First, check if we already have a snapshot for this URL
+  const existingJobId = await findExistingLinkedInSnapshot(linkedinUrl);
+  
+  if (existingJobId) {
+    console.log(`♻️ Reusing existing LinkedIn snapshot: ${existingJobId}`);
+    return { jobId: existingJobId, isExisting: true };
+  }
+  
+  console.log(`🚀 No existing snapshot found, starting new LinkedIn job for URL: ${linkedinUrl}`);
   
   try {
     const response = await fetch('https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_l1viktl72bvl7bjuj0&format=json&uncompressed_webhook=true', {
@@ -418,8 +529,8 @@ export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: st
       throw new Error('No snapshot_id returned from LinkedIn API');
     }
     
-    console.log(`✅ LinkedIn job started with ID: ${jobId}`);
-    return { jobId, data: data.data || null };
+    console.log(`✅ New LinkedIn job started with ID: ${jobId}`);
+    return { jobId, data: data.data || null, isExisting: false };
     
   } catch (error) {
     console.error(`Error starting LinkedIn job:`, error);
@@ -430,9 +541,10 @@ export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: st
 /**
  * Check LinkedIn job status and download data if ready
  * @param jobId - Job ID from startLinkedInJob
+ * @param isExisting - Whether this is an existing snapshot (optional)
  * @returns Job status and data if available
  */
-export async function checkLinkedInJob(jobId: string): Promise<{
+export async function checkLinkedInJob(jobId: string, isExisting?: boolean): Promise<{
   status: 'running' | 'completed' | 'failed';
   data?: unknown;
 }> {
@@ -443,7 +555,30 @@ export async function checkLinkedInJob(jobId: string): Promise<{
   }
   
   try {
-    // Check job status
+    // If it's an existing snapshot, skip progress check and go straight to download
+    if (isExisting) {
+      console.log(`📋 Existing snapshot ${jobId}, attempting direct download...`);
+      
+      const downloadResponse = await fetch(`https://api.brightdata.com/datasets/v3/snapshot/${jobId}?format=json`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
+
+      if (downloadResponse.ok) {
+        const data = await downloadResponse.json();
+        console.log(`Downloaded existing data for job ${jobId}:`, Array.isArray(data) ? `Array with ${data.length} items` : typeof data);
+        if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+          return { status: 'completed', data };
+        }
+      } else {
+        console.error(`Failed to download existing LinkedIn data: ${downloadResponse.status} ${downloadResponse.statusText}`);
+      }
+      
+      return { status: 'completed' };
+    }
+    
+    // Check job status for new jobs
     const response = await fetch(`https://api.brightdata.com/datasets/v3/progress/${jobId}`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -507,11 +642,13 @@ export async function checkLinkedInJob(jobId: string): Promise<{
  * Poll LinkedIn job until completion
  * @param jobId - Job ID to poll
  * @param onProgress - Progress callback
+ * @param isExisting - Whether this is an existing snapshot
  * @returns LinkedIn data when ready
  */
 export async function pollLinkedInJob(
   jobId: string,
-  onProgress?: (progress: LinkedInProgress) => void
+  onProgress?: (progress: LinkedInProgress) => void,
+  isExisting?: boolean
 ): Promise<CvData> {
   const maxAttempts = 60; // 5 minutes with 5-second intervals
   const pollInterval = 5000; // 5 seconds
@@ -526,7 +663,7 @@ export async function pollLinkedInJob(
         percentage: (attempt / maxAttempts) * 100
       });
 
-      const result = await checkLinkedInJob(jobId);
+      const result = await checkLinkedInJob(jobId, isExisting);
       
       if (result.status === 'completed' && result.data) {
         onProgress?.({

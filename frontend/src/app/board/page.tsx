@@ -835,7 +835,9 @@ function BoardPageContent() {
              selectedCandidate.status === 'analyzing' ||
              (selectedCandidate.linkedinJobStatus === 'running' && selectedCandidate.originalLinkedinUrl)) ? (
               <ProcessingLoader
-                status={selectedCandidate.status}
+                status={selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' 
+                  ? selectedCandidate.status 
+                  : 'processing'}
                 fileName={selectedCandidate.originalFileName}
                 applicant={selectedCandidate}
               />
