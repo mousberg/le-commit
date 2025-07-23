@@ -1,41 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Applicant } from '@/lib/interfaces/applicant';
+import fs from 'fs';
 import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
 import { processCvPdf, validateAndCleanCvData, processLinkedInPdf } from '@/lib/cv';
 import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
-import * as fs from 'fs';
-import {
-  loadAllApplicants,
-  loadApplicant,
-  saveApplicant,
-  saveApplicantFile,
-  getApplicantPaths,
-  ensureDataDir
-} from '@/lib/fileStorage';
+import { createClient } from '@/lib/supabase/server';
 
-export async function GET() {
-  try {
-    const applicants = loadAllApplicants();
-
-    return NextResponse.json({
-      applicants,
-      total: applicants.length,
-      success: true
-    });
-  } catch (error) {
-    console.error('Error fetching applicants:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch applicants', success: false },
-      { status: 500 }
-    );
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
-    ensureDataDir();
+    // Get authentication
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required', success: false },
+        { status: 401 }
+      );
+    }
 
     const formData = await request.formData();
     const cvFile = formData.get('cvFile') as File;
@@ -49,35 +33,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const applicantId = crypto.randomUUID();
+    // Create initial applicant record in database using server-side client
+    const serverSupabase = await createClient();
+    const applicantResult = await serverSupabase
+      .from('applicants')
+      .insert({
+        user_id: user.id,
+        name: 'Processing...',
+        email: '',
+        status: 'uploading',
+        original_filename: cvFile.name,
+        original_github_url: githubUrl || null
+      })
+      .select()
+      .single();
 
-    // Create initial applicant record
-    const applicant: Applicant = {
-      id: applicantId,
-      name: 'Processing...',
-      email: '',
-      status: 'uploading',
-      createdAt: new Date().toISOString(),
-      originalFileName: cvFile.name,
-      originalGithubUrl: githubUrl
-    };
-
-    // Save initial record
-    saveApplicant(applicant);
-
-    // Save CV file
-    const cvBuffer = Buffer.from(await cvFile.arrayBuffer());
-    saveApplicantFile(applicantId, cvBuffer, 'cv.pdf');
-
-    // Save LinkedIn file if provided
-    if (linkedinFile) {
-      const linkedinBuffer = Buffer.from(await linkedinFile.arrayBuffer());
-      const linkedinExt = linkedinFile.name.endsWith('.html') ? 'html' : 'pdf';
-      saveApplicantFile(applicantId, linkedinBuffer, `linkedin.${linkedinExt}`);
+    if (applicantResult.error) {
+      throw new Error(`Failed to create applicant: ${applicantResult.error.message}`);
     }
+    
+    const applicant = applicantResult.data;
+
+    // TODO: Implement file storage for simplified architecture
+    // For now, we'll process the files directly without storage
 
     // Process asynchronously
-    processApplicantAsync(applicantId, githubUrl);
+    processApplicantAsync(applicant.id, cvFile, linkedinFile, githubUrl);
 
     return NextResponse.json({
       applicant,
@@ -93,44 +74,90 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processApplicantAsync(applicantId: string, githubUrl?: string) {
+async function processApplicantAsync(applicantId: string, cvFile: File, linkedinFile?: File, githubUrl?: string) {
   try {
-    const paths = getApplicantPaths(applicantId);
-    const applicant = loadApplicant(applicantId);
-
-    if (!applicant) return;
+    // Get server-side Supabase client
+    const serverSupabase = await createClient();
+    
+    // Get current applicant
+    const applicantResult = await serverSupabase
+      .from('applicants')
+      .select('*')
+      .eq('id', applicantId)
+      .single();
+      
+    if (applicantResult.error || !applicantResult.data) {
+      console.error('Failed to get applicant:', applicantResult.error);
+      return;
+    }
 
     // Update status to processing
-    applicant.status = 'processing';
-    saveApplicant(applicant);
+    await serverSupabase
+      .from('applicants')
+      .update({ status: 'processing' })
+      .eq('id', applicantId);
 
     // Generate unique temp directory suffixes to prevent race conditions
     const cvTempSuffix = `cv_${applicantId}_${Date.now()}`;
     const linkedinTempSuffix = `linkedin_${applicantId}_${Date.now()}`;
 
-        // Process CV, LinkedIn, and GitHub all in parallel
     console.log(`Processing all data sources for applicant ${applicantId}`);
 
     const processingPromises = [];
 
     // Always process CV (required)
     processingPromises.push(
-      processCvPdf(paths.cvPdf, true, cvTempSuffix).then(rawCvData => ({
-        type: 'cv',
-        data: validateAndCleanCvData(rawCvData)
-      }))
+      (async () => {
+        try {
+          // Convert File to buffer for processing
+          const arrayBuffer = await cvFile.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          
+          // For now, we'll need to save to temp file since processCvPdf expects a file path
+          // TODO: Update processCvPdf to accept buffer directly
+          const tempFilePath = `/tmp/cv_${applicantId}_${Date.now()}.pdf`;
+          fs.writeFileSync(tempFilePath, buffer);
+          
+          const rawCvData = await processCvPdf(tempFilePath, true, cvTempSuffix);
+          
+          // Clean up temp file
+          fs.unlinkSync(tempFilePath);
+          
+          return {
+            type: 'cv',
+            data: validateAndCleanCvData(rawCvData)
+          };
+        } catch (error) {
+          console.error(`CV processing failed for ${applicantId}:`, error);
+          throw error;
+        }
+      })()
     );
 
     // Process LinkedIn if file exists
-    if (paths.linkedinFile && fs.existsSync(paths.linkedinFile)) {
+    if (linkedinFile) {
       processingPromises.push(
-        processLinkedInPdf(paths.linkedinFile, true, linkedinTempSuffix).then(rawLinkedinData => ({
-          type: 'linkedin',
-          data: validateAndCleanCvData(rawLinkedinData)
-        })).catch(error => {
-          console.warn(`LinkedIn processing failed for ${applicantId}:`, error);
-          return { type: 'linkedin', data: null, error: error.message };
-        })
+        (async () => {
+          try {
+            const arrayBuffer = await linkedinFile.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            
+            const tempFilePath = `/tmp/linkedin_${applicantId}_${Date.now()}.pdf`;
+            fs.writeFileSync(tempFilePath, buffer);
+            
+            const rawLinkedinData = await processLinkedInPdf(tempFilePath, true, linkedinTempSuffix);
+            
+            fs.unlinkSync(tempFilePath);
+            
+            return {
+              type: 'linkedin',
+              data: validateAndCleanCvData(rawLinkedinData)
+            };
+          } catch (error) {
+            console.warn(`LinkedIn processing failed for ${applicantId}:`, error);
+            return { type: 'linkedin', data: null, error: error instanceof Error ? error.message : String(error) };
+          }
+        })()
       );
     }
 
@@ -141,7 +168,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
           maxRepos: 50,
           includeOrganizations: true,
           analyzeContent: true,
-          maxContentAnalysis: 3,  // Reduced from 10 to 3 for API efficiency
+          maxContentAnalysis: 3,
           includeActivity: true
         }).then(githubData => ({
           type: 'github',
@@ -174,7 +201,7 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
       } else {
         console.error(`Processing failed for ${applicantId}:`, result.reason);
         if (result.reason?.message?.includes('CV')) {
-          hasErrors = true; // CV processing failure is critical
+          hasErrors = true;
         }
       }
     }
@@ -185,47 +212,69 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
     }
 
     // Update applicant with all processed data at once
-    applicant.cvData = cvData;
-    applicant.linkedinData = linkedinData || undefined;
-    applicant.githubData = githubData || undefined;
-    applicant.name = `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown';
-    applicant.email = cvData.email || '';
-    applicant.role = cvData.jobTitle || '';
-    applicant.status = 'analyzing';
+    const updateResult = await serverSupabase
+      .from('applicants')
+      .update({
+        cv_data: cvData,
+        linkedin_data: linkedinData || null,
+        github_data: githubData || null,
+        name: `${cvData.firstName} ${cvData.lastName}`.trim() || 'Unknown',
+        email: cvData.email || '',
+        role: cvData.jobTitle || '',
+        status: 'analyzing'
+      })
+      .eq('id', applicantId)
+      .select()
+      .single();
+      
+    if (updateResult.error) {
+      throw new Error(`Failed to update applicant: ${updateResult.error.message}`);
+    }
+    
+    const updatedApplicant = updateResult.data;
 
-    // Save intermediate state before analysis
-    saveApplicant(applicant);
-
-    console.log(`Data processing completed for applicant ${applicantId}${linkedinData ? ' (with LinkedIn data)' : ''}${githubData ? ' (with GitHub data)' : ''}, starting analysis...`);
+    console.log(`Data processing completed for applicant ${applicantId}, starting analysis...`);
 
     // Perform comprehensive analysis
     try {
-      const analyzedApplicant = await analyzeApplicant(applicant);
+      const analyzedApplicant = await analyzeApplicant(updatedApplicant);
 
       // Save final results with analysis
-      analyzedApplicant.status = 'completed';
-      saveApplicant(analyzedApplicant);
+      await serverSupabase
+        .from('applicants')
+        .update({
+          status: 'completed',
+          analysis_result: analyzedApplicant.analysis_result,
+          individual_analysis: analyzedApplicant.individual_analysis,
+          cross_reference_analysis: analyzedApplicant.cross_reference_analysis,
+          score: analyzedApplicant.analysis_result?.credibilityScore
+        })
+        .eq('id', applicantId);
 
-      console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysisResult?.credibilityScore || 'N/A'}`);
+      console.log(`Analysis completed for applicant ${applicantId} with credibility score: ${analyzedApplicant.analysis_result?.credibilityScore || 'N/A'}`);
     } catch (analysisError) {
       console.error(`Analysis failed for applicant ${applicantId}:`, analysisError);
 
       // Even if analysis fails, we can still mark as completed with the data we have
-      applicant.status = 'completed';
-      applicant.analysisResult = {
-        credibilityScore: 50,
-        summary: 'Analysis could not be completed due to technical error.',
-        flags: [{
-          type: 'yellow',
-          category: 'verification',
-          message: 'Credibility analysis failed',
-          severity: 5
-        }],
-        suggestedQuestions: ['Could you provide additional information to verify your background?'],
-        analysisDate: new Date().toISOString(),
-        sources: []
-      };
-      saveApplicant(applicant);
+      await serverSupabase
+        .from('applicants')
+        .update({
+          status: 'completed',
+          analysis_result: {
+            credibilityScore: 50,
+            summary: 'Analysis could not be completed due to technical error.',
+            flags: [{
+              type: 'yellow',
+              category: 'verification',
+              message: 'Credibility analysis failed',
+              severity: 5
+            }],
+            suggestedQuestions: ['Could you provide additional information to verify your background?'],
+            analysisDate: new Date().toISOString(),
+            sources: []
+          }
+        })
+        .eq('id', applicantId);
 
       console.log(`Applicant ${applicantId} marked as completed despite analysis failure`);
     }
@@ -233,10 +282,14 @@ async function processApplicantAsync(applicantId: string, githubUrl?: string) {
   } catch (error) {
     console.error(`Error processing applicant ${applicantId}:`, error);
 
-    const applicant = loadApplicant(applicantId);
-    if (applicant) {
-      applicant.status = 'failed';
-      saveApplicant(applicant);
+    try {
+      const serverSupabase = await createClient();
+      await serverSupabase
+        .from('applicants')
+        .update({ status: 'failed' })
+        .eq('id', applicantId);
+    } catch (updateError) {
+      console.error(`Failed to update applicant status to failed:`, updateError);
     }
   }
 }

@@ -6,12 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Unmask" (le-commit) is an AI-powered hiring verification platform that analyzes CVs, LinkedIn profiles, GitHub accounts, and conducts automated reference calls to verify candidate authenticity. Built for RAISE YOUR HACK 2025 hackathon (Vultr track).
 
+## Related Files
+@docs/design_priciples.md - UI Design System Prompt
+@docs/supabase_auth.mdc - Supabase Auth Configuration
+@.cursor/rules - Cursor Rules
+
 ## Development Commands
 
 **Navigate to frontend directory first**: `cd frontend`
 
 - Start development server: `npm run dev` (uses Turbopack)
-- Build for production: `npm run build` 
+- Build for production: `npm run build`
 - Start production server: `npm start`
 - Run linting: `npm run lint`
 - Run CV parsing tests: `npm run test:cv`
@@ -25,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Deployment**:
 - Deploy to production: `./deploy.sh` (from root)
-- Check deployment status: `./check-status.sh` 
+- Check deployment status: `./check-status.sh`
 - Emergency rollback: `./rollback.sh`
 
 ## Architecture Overview
@@ -39,14 +44,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Key Application Flow
 1. **Applicant Creation** (`/api/applicants`): Upload CV (required), LinkedIn PDF (optional), GitHub URL (optional)
-2. **Parallel Processing**: CV parsing, LinkedIn analysis, GitHub repository analysis 
+2. **Parallel Processing**: CV parsing, LinkedIn analysis, GitHub repository analysis
 3. **AI Analysis** (`/lib/analysis.ts`): Comprehensive credibility scoring with flags and recommendations
 4. **Reference Calling**: Automated calls via ElevenLabs + Twilio integration
 5. **Dashboard Interface**: Real-time status tracking and results display
 
 ### Core Architecture Patterns
 
-**State Management**: 
+**State Management**:
 - `ApplicantContext` (`/src/lib/contexts/ApplicantContext.tsx`) provides centralized state for applicant data
 - File-based data persistence during development (`/data/applicants/`)
 - Supabase integration for production data storage
@@ -68,7 +73,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 /frontend/
 ├── src/app/          # Next.js App Router pages
 │   ├── api/          # API routes
-│   ├── board/        # Main dashboard interface  
+│   ├── board/        # Main dashboard interface
 │   └── call/         # Reference calling interface
 ├── src/components/   # Reusable UI components
 ├── src/lib/          # Business logic and utilities
@@ -114,7 +119,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Analysis Engine**:
 - `/lib/cv.ts`: PDF processing and data extraction
-- `/lib/github.ts`: Repository analysis and activity tracking  
+- `/lib/github.ts`: Repository analysis and activity tracking
 - `/lib/analysis.ts`: AI-powered credibility scoring
 - Parallel processing for performance optimization
 

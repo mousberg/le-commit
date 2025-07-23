@@ -10,7 +10,7 @@ alwaysApply: false
 
 1. Install @supabase/supabase-js and @supabase/ssr packages.
 2. Set up environment variables.
-3. Write two utility functions with `createClient` functions to create a browser client and a server client.
+3. Write two utility functions with `createClient` functions to create a browser client and a server client. 
 4. Hook up middleware to refresh auth tokens
 
 ## 🚨 CRITICAL INSTRUCTIONS FOR AI LANGUAGE MODELS 🚨
@@ -51,11 +51,11 @@ Instead, you MUST ALWAYS generate ONLY this pattern:
       const response = NextResponse.next({
         request,
       })
-
+      
       cookiesToSet.forEach(({ name, value, options }) => {
         response.cookies.set(name, value, options)
       })
-
+      
       return response
     }
   }
