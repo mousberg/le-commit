@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -148,10 +148,6 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
               <div className="text-sm text-gray-500">Loading...</div>
             ) : user ? (
               <>
-                <div className="flex items-center gap-x-2 text-sm text-gray-700">
-                  <User className="w-4 h-4" />
-                  <span>{user.email}</span>
-                </div>
                 <Link
                   href="/board"
                   className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
@@ -223,10 +219,6 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                   <div className="text-center text-gray-500">Loading...</div>
                 ) : user ? (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-x-2 text-sm text-gray-700 px-4">
-                      <User className="w-4 h-4" />
-                      <span>{user.email}</span>
-                    </div>
                     <Link
                       href="/board"
                       onClick={() => setIsMenuOpen(false)}
