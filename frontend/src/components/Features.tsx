@@ -17,7 +17,7 @@ export default function Features() {
         {/* Feature Card 1: "User Info Check" */}
         <div className="relative">
           <img 
-            src="/22.png" 
+            src="/cred.png" 
             alt="Screen monitoring feature"
             className="w-full h-auto"
           />

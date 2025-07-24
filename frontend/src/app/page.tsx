@@ -109,7 +109,7 @@ export default function Home() {
         {/* UI Preview - desktop only */}
         <div className="hidden z-[11] lg:block absolute -bottom-[11.5rem] left-1/2 transform -translate-x-1/2 z-[1] max-w-2xl pointer-events-none">
           <img 
-            src="/pscreen.png" 
+            src="/screen.png" 
             alt="Unmask UI Preview" 
             className="w-full h-auto rounded-lg"
           />
