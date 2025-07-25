@@ -17,10 +17,10 @@ export default function Home() {
   useEffect(() => {
     const handleDemoOpen = () => setIsDemoOpen(true);
     const handleWaitlistOpen = () => setIsWaitlistOpen(true);
-    
+
     window.addEventListener('openDemo', handleDemoOpen);
     window.addEventListener('openWaitlist', handleWaitlistOpen);
-    
+
     return () => {
       window.removeEventListener('openDemo', handleDemoOpen);
       window.removeEventListener('openWaitlist', handleWaitlistOpen);
@@ -39,7 +39,7 @@ export default function Home() {
             <div className="absolute inset-[6rem] rounded-[12rem] bg-white/2 shadow-[0_0_20px_rgba(255,105,180,0.2)] blur-[2px] island-float-3"></div>
             <div className="absolute inset-[10rem] rounded-[8rem] bg-white/2 shadow-[inset_0_0_30px_rgba(255,255,255,0.4)] blur-[1px] island-float-4"></div>
           </div>
-          
+
           {/* Mobile islands - smaller and more subtle */}
           <div className="lg:hidden overflow-hidden">
             <div className="absolute inset-[2rem] rounded-[6rem] bg-white/2 shadow-[0_0_15px_rgba(255,105,180,0.15)] blur-[1px] island-float-1"></div>
@@ -49,14 +49,14 @@ export default function Home() {
         </div>
 
         {/* Background gradient blob */}
-        <div 
-          aria-hidden="true" 
+        <div
+          aria-hidden="true"
           className="absolute inset-x-0 top-1/2 transform -translate-y-1/2 overflow-hidden blur-3xl"
         >
-          <div 
+          <div
             style={{
               clipPath: "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)"
-            }} 
+            }}
             className="relative left-1/2 aspect-[1155/678] w-96 -translate-x-1/2 bg-gradient-to-tr from-pink-500 to-pink-600 opacity-30 sm:w-[36rem] md:w-[72rem] animate-pulse"
           />
         </div>
@@ -80,7 +80,7 @@ export default function Home() {
               <div className="absolute -bottom-4 left-8 w-1.5 h-1.5 bg-pink-300/35 rounded-full island-float-1" style={{animationDelay: '0.5s'}}></div>
               <div className="absolute -bottom-2 left-2 w-1 h-1 bg-pink-400/40 rounded-full island-float-2" style={{animationDelay: '1.5s'}}></div>
             </div>
-            
+
             <div className="bg-white/20 backdrop-blur-md border border-white/30 rounded-full p-2 shadow-lg transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,105,180,0.3)] focus-within:shadow-[0_0_30px_rgba(255,105,180,0.5)] focus-within:border-pink-300/50 relative z-10">
               <div className="flex items-center gap-x-2">
                 <Input
@@ -90,7 +90,7 @@ export default function Home() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 h-10 bg-transparent border-none outline-none placeholder:text-gray-600 text-gray-900 focus:ring-0 focus:border-none"
                 />
-                <button 
+                <button
                   onClick={() => {
                     if (email && email.includes('@')) {
                       setIsWaitlistOpen(true);
@@ -109,9 +109,9 @@ export default function Home() {
 
         {/* UI Preview - desktop only */}
         <div className="hidden z-[11] lg:block absolute -bottom-[11.5rem] left-1/2 transform -translate-x-1/2 z-[1] max-w-2xl pointer-events-none">
-          <img 
-            src="/screen.png" 
-            alt="Unmask UI Preview" 
+          <Image
+            src="/screen.png"
+            alt="Unmask UI Preview"
             width={768}
             height={432}
             className="w-full h-auto rounded-lg"
@@ -122,16 +122,16 @@ export default function Home() {
       <Features />
       <Testimonials />
       <Footer />
-      
+
       {/* Demo Overlay */}
-      <DemoOverlay 
-        isOpen={isDemoOpen} 
-        onClose={() => setIsDemoOpen(false)} 
+      <DemoOverlay
+        isOpen={isDemoOpen}
+        onClose={() => setIsDemoOpen(false)}
       />
-      
+
       {/* Waitlist Overlay */}
-      <WaitlistOverlay 
-        isOpen={isWaitlistOpen} 
+      <WaitlistOverlay
+        isOpen={isWaitlistOpen}
         onClose={() => setIsWaitlistOpen(false)}
         initialEmail={email}
       />
