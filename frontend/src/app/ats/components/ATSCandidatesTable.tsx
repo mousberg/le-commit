@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   ShieldCheck
 } from 'lucide-react';
+import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
 
 interface ATSCandidate {
   ashby_id: string;
@@ -42,6 +43,8 @@ interface ATSCandidatesTableProps {
 
 export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
+  const [isTrayOpen, setIsTrayOpen] = useState(false);
 
   const toggleCandidate = (ashbyId: string) => {
     setSelectedCandidates(prev => 
@@ -49,6 +52,21 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
         ? prev.filter(id => id !== ashbyId)
         : [...prev, ashbyId]
     );
+  };
+
+  const handleRowClick = (candidate: ATSCandidate, event: React.MouseEvent) => {
+    // Don't open tray if clicking on checkbox or actions
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.closest('button')) {
+      return;
+    }
+    setSelectedCandidate(candidate);
+    setIsTrayOpen(true);
+  };
+
+  const closeTray = () => {
+    setIsTrayOpen(false);
+    setTimeout(() => setSelectedCandidate(null), 300);
   };
 
   const toggleAll = () => {
@@ -173,18 +191,21 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     className="rounded"
                   />
                 </th>
-                <th className="text-left p-3 font-medium text-gray-900">Candidate</th>
-                <th className="text-left p-3 font-medium text-gray-900">Data Sources</th>
+                <th className="text-left p-3 font-medium text-gray-900">Name</th>
+                <th className="text-left p-3 font-medium text-gray-900">CV</th>
+                <th className="text-left p-3 font-medium text-gray-900">LinkedIn</th>
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
                 <th className="text-left p-3 font-medium text-gray-900">Fraud Risk</th>
-                <th className="text-left p-3 font-medium text-gray-900">Risk Reason</th>
-                <th className="text-left p-3 font-medium text-gray-900">Created</th>
-                <th className="text-left p-3 font-medium text-gray-900">Actions</th>
+                <th className="text-left p-3 font-medium text-gray-900 w-2/5">Fraud Reason</th>
               </tr>
             </thead>
             <tbody>
               {candidates.map((candidate) => (
-                <tr key={candidate.ashby_id} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr 
+                  key={candidate.ashby_id} 
+                  className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                  onClick={(e) => handleRowClick(candidate, e)}
+                >
                   <td className="p-3">
                     <input
                       type="checkbox"
@@ -194,76 +215,32 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     />
                   </td>
                   
-                  {/* Candidate Info */}
+                  {/* Name */}
                   <td className="p-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">{candidate.name}</span>
-                      </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{candidate.name}</div>
                       {candidate.email && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Mail className="h-3 w-3" />
-                          <span>{candidate.email}</span>
-                        </div>
-                      )}
-                      {candidate.tags.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <Tag className="h-3 w-3 text-gray-400" />
-                          <div className="flex gap-1">
-                            {candidate.tags.slice(0, 2).map((tag, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {candidate.tags.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{candidate.tags.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+                        <div className="text-sm text-gray-500">{candidate.email}</div>
                       )}
                     </div>
                   </td>
 
-                  {/* Data Sources */}
+                  {/* CV */}
                   <td className="p-3">
-                    <div className="flex flex-col gap-1">
-                      {candidate.linkedin_url && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <ExternalLink className="h-3 w-3 text-blue-500" />
-                          <a 
-                            href={candidate.linkedin_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            LinkedIn
-                          </a>
-                        </div>
-                      )}
-                      {candidate.has_resume && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <FileText className="h-3 w-3 text-green-500" />
-                          {candidate.resume_url ? (
-                            <a 
-                              href={candidate.resume_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-green-600 hover:underline"
-                            >
-                              Resume
-                            </a>
-                          ) : (
-                            <span className="text-green-600">Resume</span>
-                          )}
-                        </div>
-                      )}
-                      {!candidate.linkedin_url && !candidate.has_resume && (
-                        <span className="text-sm text-gray-400">No data sources</span>
-                      )}
-                    </div>
+                    {candidate.has_resume ? (
+                      <FileText className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-gray-300" />
+                    )}
+                  </td>
+
+                  {/* LinkedIn */}
+                  <td className="p-3">
+                    {candidate.linkedin_url ? (
+                      <ExternalLink className="h-5 w-5 text-blue-600" />
+                    ) : (
+                      <ExternalLink className="h-5 w-5 text-gray-300" />
+                    )}
                   </td>
 
                   {/* Status */}
@@ -276,55 +253,33 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     {getFraudLikelihoodBadge(candidate.fraud_likelihood)}
                   </td>
 
-                  {/* Risk Reason */}
+                  {/* Fraud Reason */}
                   <td className="p-3">
-                    <div className="max-w-xs">
+                    <div className="text-sm text-gray-900">
                       {candidate.fraud_reason ? (
-                        <span className="text-sm text-gray-700">{candidate.fraud_reason}</span>
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                          <span>{candidate.fraud_reason}</span>
+                        </div>
                       ) : (
-                        <span className="text-sm text-gray-400">No assessment</span>
+                        <span className="text-gray-500">No issues detected</span>
                       )}
                     </div>
                   </td>
 
-                  {/* Created Date */}
-                  <td className="p-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatDate(candidate.created_at)}</span>
-                    </div>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(`/ats/${candidate.ashby_id}`, '_blank')}
-                      >
-                        View Details
-                      </Button>
-                      {candidate.ready_for_processing && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // Trigger verification for this candidate
-                            alert('Starting verification...');
-                          }}
-                        >
-                          Verify
-                        </Button>
-                      )}
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </CardContent>
+      
+      {/* Candidate Details Tray */}
+      <ATSCandidateDetailsTray
+        candidate={selectedCandidate}
+        isOpen={isTrayOpen}
+        onClose={closeTray}
+      />
     </Card>
   );
 }
