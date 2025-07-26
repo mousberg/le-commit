@@ -95,6 +95,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `ELEVENLABS_AGENT_PHONE_ID`: Phone number for outbound calls
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`: Phone service integration
 
+**Ashby Integration**:
+- `ASHBY_API_KEY`: API key for Ashby ATS integration
+- `ASHBY_WEBHOOK_SECRET`: Secret for webhook signature verification
+- `ASHBY_BASE_URL`: Ashby API base URL (optional, defaults to https://api.ashbyhq.com)
+
 ### Supabase Configuration
 
 **Local Development**:
