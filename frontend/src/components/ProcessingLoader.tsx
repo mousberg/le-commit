@@ -18,7 +18,7 @@ interface ProcessingLoaderProps {
 export default function ProcessingLoader({ status, fileName, applicant, linkedinProgress }: ProcessingLoaderProps) {
   const getStatusText = () => {
     // Show LinkedIn-specific status if available
-    if (applicant?.linkedinJobStatus === 'running' && applicant?.originalLinkedinUrl) {
+    if (applicant?.linkedin_job_status === 'running' && applicant?.original_linkedin_url) {
       return 'Processing LinkedIn profile...';
     }
     
@@ -36,7 +36,7 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
 
   const getProgressInfo = () => {
     // If LinkedIn job is running, show indeterminate progress
-    if (applicant?.linkedinJobStatus === 'running' && applicant?.originalLinkedinUrl) {
+    if (applicant?.linkedin_job_status === 'running' && applicant?.original_linkedin_url) {
       return {
         showBar: false,
         message: 'Waiting for LinkedIn data...'
@@ -58,6 +58,7 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
       message: 'Processing data...'
     };
   };
+
 
 
   return (
@@ -94,47 +95,47 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
               {/* CV Analysis */}
               <div className="text-center">
                 <div className="flex items-center justify-center gap-3 mb-2">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.cvData ? 'bg-emerald-500' : 'bg-gray-200'}`}></div>
-                  <span className={`text-sm ${applicant.cvData ? 'text-gray-700' : 'text-gray-400'}`}>CV Analysis</span>
-                  {applicant.cvData && (
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.cv_data ? 'bg-emerald-500' : 'bg-gray-200'}`}></div>
+                  <span className={`text-sm ${applicant.cv_data ? 'text-gray-700' : 'text-gray-400'}`}>CV Analysis</span>
+                  {applicant.cv_data && (
                     <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
                 </div>
-                {applicant.cvData && (
+                {applicant.cv_data && (
                   <div className="text-xs text-gray-600 space-y-1">
-                    {applicant.cvData.firstName && applicant.cvData.lastName && (
-                      <p className="font-medium">{applicant.cvData.firstName} {applicant.cvData.lastName}</p>
+                    {applicant.cv_data.firstName && applicant.cv_data.lastName && (
+                      <p className="font-medium">{applicant.cv_data.firstName} {applicant.cv_data.lastName}</p>
                     )}
-                    {applicant.cvData.jobTitle && (
-                      <p>{applicant.cvData.jobTitle}</p>
+                    {applicant.cv_data.jobTitle && (
+                      <p>{applicant.cv_data.jobTitle}</p>
                     )}
-                    {applicant.cvData.skills && applicant.cvData.skills.length > 0 && (
-                      <p className="text-emerald-600">{applicant.cvData.skills.slice(0, 3).join(' • ')}</p>
+                    {applicant.cv_data.skills && applicant.cv_data.skills.length > 0 && (
+                      <p className="text-emerald-600">{applicant.cv_data.skills.slice(0, 3).join(' • ')}</p>
                     )}
                   </div>
                 )}
               </div>
 
               {/* LinkedIn Analysis */}
-              {(applicant.linkedinData || applicant.originalLinkedinUrl || applicant.linkedinJobId || status === 'processing' || linkedinProgress) && (
+              {(applicant.linkedin_data || applicant.original_linkedin_url || applicant.linkedin_job_id || status === 'processing' || linkedinProgress) && (
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-3 mb-2">
                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                      applicant.linkedinData ? 'bg-blue-500' : 
-                      applicant.linkedinJobStatus === 'failed' ? 'bg-red-500' :
-                      applicant.linkedinJobStatus === 'running' ? 'bg-blue-300 animate-pulse' :
+                      applicant.linkedin_data ? 'bg-blue-500' : 
+                      applicant.linkedin_job_status === 'failed' ? 'bg-red-500' :
+                      applicant.linkedin_job_status === 'running' ? 'bg-blue-300 animate-pulse' :
                       linkedinProgress?.status === 'error' ? 'bg-red-500' :
                       linkedinProgress ? 'bg-blue-300 animate-pulse' : 'bg-gray-200'
                     }`}></div>
-                    <span className={`text-sm ${applicant.linkedinData ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
-                    {applicant.linkedinData && (
+                    <span className={`text-sm ${applicant.linkedin_data ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
+                    {applicant.linkedin_data && (
                       <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
-                    {(applicant.linkedinJobStatus === 'failed' || linkedinProgress?.status === 'error') && (
+                    {(applicant.linkedin_job_status === 'failed' || linkedinProgress?.status === 'error') && (
                       <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -142,31 +143,31 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
                   </div>
                   
                   {/* LinkedIn Job Status */}
-                  {applicant.linkedinJobId && !applicant.linkedinData && (
+                  {applicant.linkedin_job_id && !applicant.linkedin_data && (
                     <div className="text-xs text-gray-600 space-y-2">
                       <p className={`${
-                        applicant.linkedinJobStatus === 'failed' ? 'text-red-600' :
-                        applicant.linkedinJobStatus === 'running' ? 'text-blue-600' :
+                        applicant.linkedin_job_status === 'failed' ? 'text-red-600' :
+                        applicant.linkedin_job_status === 'running' ? 'text-blue-600' :
                         'text-gray-600'
                       }`}>
-                        {applicant.linkedinJobStatus === 'running' ? 'LinkedIn processing in progress...' :
-                         applicant.linkedinJobStatus === 'failed' ? 'LinkedIn processing failed' :
-                         applicant.linkedinJobStatus === 'completed' ? 'LinkedIn processing completed' :
+                        {applicant.linkedin_job_status === 'running' ? 'LinkedIn processing in progress...' :
+                         applicant.linkedin_job_status === 'failed' ? 'LinkedIn processing failed' :
+                         applicant.linkedin_job_status === 'completed' ? 'LinkedIn processing completed' :
                          'LinkedIn job started'}
                       </p>
-                      {applicant.linkedinJobStatus === 'running' && (
+                      {applicant.linkedin_job_status === 'running' && (
                         <div className="w-full bg-gray-200 rounded-full h-1">
                           <div className="bg-blue-500 h-1 rounded-full animate-pulse w-1/2" />
                         </div>
                       )}
-                      {applicant.linkedinJobId && (
-                        <p className="text-gray-500 text-xs">Job ID: {applicant.linkedinJobId.slice(0, 8)}...</p>
+                      {applicant.linkedin_job_id && (
+                        <p className="text-gray-500 text-xs">Job ID: {applicant.linkedin_job_id.slice(0, 8)}...</p>
                       )}
                     </div>
                   )}
                   
                   {/* LinkedIn Progress Details (for real-time processing) */}
-                  {linkedinProgress && !applicant.linkedinData && !applicant.linkedinJobId && (
+                  {linkedinProgress && !applicant.linkedin_data && !applicant.linkedin_job_id && (
                     <div className="text-xs text-gray-600 space-y-2">
                       <p className={`${linkedinProgress.status === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
                         {linkedinProgress.message}
@@ -187,13 +188,13 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
                     </div>
                   )}
                   
-                  {applicant.linkedinData && (
+                  {applicant.linkedin_data && (
                     <div className="text-xs text-gray-600 space-y-1">
-                      {applicant.linkedinData.jobTitle && (
-                        <p>{applicant.linkedinData.jobTitle}</p>
+                      {applicant.linkedin_data.headline && (
+                        <p>{applicant.linkedin_data.headline}</p>
                       )}
-                      {applicant.linkedinData.skills && applicant.linkedinData.skills.length > 0 && (
-                        <p className="text-blue-600">{applicant.linkedinData.skills.slice(0, 3).join(' • ')}</p>
+                      {applicant.linkedin_data.skills && applicant.linkedin_data.skills.length > 0 && (
+                        <p className="text-blue-600">{applicant.linkedin_data.skills.slice(0, 3).join(' • ')}</p>
                       )}
                     </div>
                   )}
@@ -201,23 +202,23 @@ export default function ProcessingLoader({ status, fileName, applicant, linkedin
               )}
 
               {/* GitHub Analysis */}
-              {(applicant.githubData || applicant.originalGithubUrl) && (
+              {(applicant.github_data || applicant.original_github_url) && (
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-3 mb-2">
-                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.githubData ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
-                    <span className={`text-sm ${applicant.githubData ? 'text-gray-700' : 'text-gray-400'}`}>GitHub Analysis</span>
-                    {applicant.githubData && (
+                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.github_data ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
+                    <span className={`text-sm ${applicant.github_data ? 'text-gray-700' : 'text-gray-400'}`}>GitHub Analysis</span>
+                    {applicant.github_data && (
                       <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </div>
-                  {applicant.githubData && (
+                  {applicant.github_data && (
                     <div className="text-xs text-gray-600 space-y-1">
-                      <p>@{applicant.githubData.username}</p>
-                      <p>{applicant.githubData.publicRepos} repositories</p>
-                      {applicant.githubData.languages && applicant.githubData.languages.length > 0 && (
-                        <p className="text-purple-600">{applicant.githubData.languages.slice(0, 3).map(l => l.language).join(' • ')}</p>
+                      <p>@{applicant.github_data.username}</p>
+                      <p>{applicant.github_data.publicRepos} repositories</p>
+                      {applicant.github_data.languages && applicant.github_data.languages.length > 0 && (
+                        <p className="text-purple-600">{applicant.github_data.languages.slice(0, 3).map(l => l.language).join(' • ')}</p>
                       )}
                     </div>
                   )}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Applicant, CreateApplicantRequest } from '@/lib/interfaces/applicant';
+import { simpleDatabaseService } from '@/lib/services/database';
 
 interface ApplicantContextType {
   applicants: Applicant[];
@@ -26,20 +27,16 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchApplicants = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const response = await fetch('/api/applicants');
-      const data = await response.json();
-
-      if (data.success) {
-        setApplicants(data.applicants);
-      } else {
-        setError(data.error || 'Failed to fetch applicants');
-      }
-    } catch {
-      setError('Network error');
+      setIsLoading(true);
+      setError(null);
+      
+      const applicants = await simpleDatabaseService.listUserApplicants();
+      setApplicants(applicants || []);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch applicants';
+      setError(errorMessage);
+      console.error('Error fetching applicants:', err);
     } finally {
       setIsLoading(false);
     }
@@ -51,66 +48,56 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const response = await fetch(`/api/applicants/${id}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setSelectedApplicant(data.applicant);
-      } else {
-        setError(data.error || 'Failed to fetch applicant');
-      }
-    } catch {
-      setError('Network error');
-    } finally {
-      setIsLoading(false);
+      setError(null);
+      const applicant = await simpleDatabaseService.getApplicant(id);
+      setSelectedApplicant(applicant);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to select applicant';
+      setError(errorMessage);
+      console.error('Error selecting applicant:', err);
     }
   }, []);
 
   const createApplicant = useCallback(async (request: CreateApplicantRequest): Promise<string | null> => {
-    setIsLoading(true);
-    setError(null);
-
     try {
+      setIsLoading(true);
+      setError(null);
+
       const formData = new FormData();
       
       if (request.cvFile) {
         formData.append('cvFile', request.cvFile);
       }
-
-
+      
       if (request.linkedinUrl) {
         formData.append('linkedinUrl', request.linkedinUrl);
       }
-
+      
       if (request.githubUrl) {
-        // Send GitHub URL as a string
         formData.append('githubUrl', request.githubUrl);
       }
 
       const response = await fetch('/api/applicants', {
         method: 'POST',
-        body: formData
+        body: formData,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Add the new applicant to local state immediately for optimistic UI
-        setApplicants(prev => [data.applicant, ...prev]);
-
-        // Return the ID immediately - don't wait for full refresh
-        return data.applicant.id;
-      } else {
-        setError(data.error || 'Failed to create applicant');
-        return null;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create applicant');
       }
+
+      const { applicant } = await response.json();
+      
+      // Add to local state
+      setApplicants(prev => [applicant, ...prev]);
+      
+      return applicant.id;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create applicant';
       setError(errorMessage);
+      console.error('Error creating applicant:', err);
       return null;
     } finally {
       setIsLoading(false);
@@ -119,63 +106,59 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
 
   const refreshApplicant = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/applicants/${id}`);
-      const data = await response.json();
-
-      if (data.success) {
-        // Update in list
-        setApplicants(prev => prev.map(a =>
-          a.id === id ? data.applicant : a
-        ));
-
-        // Update selected if it matches
+      setError(null);
+      const updatedApplicant = await simpleDatabaseService.getApplicant(id);
+      
+      if (updatedApplicant) {
+        setApplicants(prev => 
+          prev.map(applicant => 
+            applicant.id === id ? updatedApplicant : applicant
+          )
+        );
+        
         if (selectedApplicant?.id === id) {
-          setSelectedApplicant(data.applicant);
+          setSelectedApplicant(updatedApplicant);
         }
       }
     } catch (err) {
-      console.error('Failed to refresh applicant:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh applicant';
+      setError(errorMessage);
+      console.error('Error refreshing applicant:', err);
     }
-  }, [selectedApplicant]);
+  }, [selectedApplicant?.id]);
 
   const deleteApplicant = useCallback(async (id: string) => {
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const response = await fetch(`/api/applicants/${id}`, {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setApplicants(prev => prev.filter(a => a.id !== id));
-        if (selectedApplicant?.id === id) {
-          setSelectedApplicant(null);
-        }
-      } else {
-        setError(data.error || 'Failed to delete applicant');
+      setError(null);
+      await simpleDatabaseService.deleteApplicant(id);
+      
+      setApplicants(prev => prev.filter(applicant => applicant.id !== id));
+      
+      if (selectedApplicant?.id === id) {
+        setSelectedApplicant(null);
       }
-    } catch {
-      setError('Network error');
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete applicant';
+      setError(errorMessage);
+      console.error('Error deleting applicant:', err);
+      throw err;
     }
-  }, [selectedApplicant]);
+  }, [selectedApplicant?.id]);
+
+  const contextValue: ApplicantContextType = {
+    applicants,
+    selectedApplicant,
+    isLoading,
+    error,
+    fetchApplicants,
+    selectApplicant,
+    createApplicant,
+    refreshApplicant,
+    deleteApplicant,
+  };
 
   return (
-    <ApplicantContext.Provider value={{
-      applicants,
-      selectedApplicant,
-      isLoading,
-      error,
-      fetchApplicants,
-      selectApplicant,
-      createApplicant,
-      refreshApplicant,
-      deleteApplicant
-    }}>
+    <ApplicantContext.Provider value={contextValue}>
       {children}
     </ApplicantContext.Provider>
   );

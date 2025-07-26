@@ -112,9 +112,9 @@ export default function PersonalizePage() {
       name: applicant.name,
       email: applicant.email,
       role: applicant.role,
-      ...applicant.cvData,
-      github: applicant.githubData,
-      linkedin: applicant.linkedinData
+      ...applicant.cv_data,
+      github: applicant.github_data,
+      linkedin: applicant.linkedin_data
     };
     setCandidateProfile(profile);
     setShowCandidateOverlay(false);
@@ -364,13 +364,13 @@ export default function PersonalizePage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {applicant.cvData && (
+                          {applicant.cv_data && (
                             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">CV</span>
                           )}
-                          {applicant.linkedinData && (
+                          {applicant.linkedin_data && (
                             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">LinkedIn</span>
                           )}
-                          {applicant.githubData && (
+                          {applicant.github_data && (
                             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">GitHub</span>
                           )}
                           <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-2">

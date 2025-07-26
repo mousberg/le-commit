@@ -122,12 +122,12 @@ export default function DashboardPage() {
                           <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full border border-green-200 font-medium">
                             CV ✓
                           </span>
-                          {applicant.linkedinData && (
+                          {applicant.linkedin_data && (
                             <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium">
                               LinkedIn ✓
                             </span>
                           )}
-                          {applicant.githubData && (
+                          {applicant.github_data && (
                             <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200 font-medium">
                               GitHub ✓
                             </span>

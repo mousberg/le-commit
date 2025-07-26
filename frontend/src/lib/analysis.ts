@@ -47,18 +47,18 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     }
 
     const analysisResult = await performComprehensiveAnalysis(
-      applicant.cvData,
-      applicant.linkedinData,
-      applicant.githubData,
+      applicant.cv_data || undefined,
+      applicant.linkedin_data || undefined,
+      applicant.github_data || undefined,
       applicant.name,
-      applicant.email,
-      applicant.role
+      applicant.email || undefined,
+      applicant.role || undefined
     );
 
     // Update applicant with analysis results
     return {
       ...applicant,
-      analysisResult,
+      analysis_result: analysisResult,
       score: analysisResult.credibilityScore
     };
   } catch (error) {
@@ -67,7 +67,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     // Return applicant with basic analysis indicating error
     return {
       ...applicant,
-      analysisResult: {
+      analysis_result: {
         credibilityScore: 50,
         summary: 'Analysis failed due to technical error.',
         flags: [{

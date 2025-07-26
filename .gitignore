@@ -107,7 +107,7 @@ temp/
 .cursor/
 .mcp.json
 .claude
-
+.kiro/
 
 # Supabase
 supabase/.temp/

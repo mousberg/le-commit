@@ -1,236 +1,178 @@
 'use client';
 
-import { useApplicants } from '../../../lib/contexts/ApplicantContext';
-import { useEffect, useState, Suspense } from 'react';
-import { Plus, Search, Filter, Users, UserCheck, Clock, UserX } from 'lucide-react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Plus, Search, Users, UserCheck, Clock, UserX } from 'lucide-react';
+import { Applicant } from '@/lib/interfaces/applicant';
+import { simpleDatabaseService } from '@/lib/services/database';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
-function ApplicantsPageContent() {
-  const { applicants, fetchApplicants } = useApplicants();
+export default function ApplicantsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const searchParams = useSearchParams();
-  const statusFilter = searchParams.get('status');
-  const showNew = searchParams.get('new') === 'true';
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
+  // Load user's applicants
   useEffect(() => {
-    fetchApplicants();
-  }, [fetchApplicants]);
+    async function loadApplicants() {
+      if (!user || authLoading) return;
+      
+      try {
+        setLoading(true);
+        const userApplicants = await simpleDatabaseService.listUserApplicants({
+          search: searchTerm || undefined,
+          status: statusFilter || undefined
+        });
+        setApplicants(userApplicants);
+      } catch (error) {
+        console.error('Failed to load applicants:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  const filteredApplicants = applicants.filter(applicant => {
-    const matchesSearch = applicant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (applicant.role && applicant.role.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = !statusFilter || applicant.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+    loadApplicants();
+  }, [user, authLoading, searchTerm, statusFilter]);
 
-  const stats = {
+  const statusCounts = {
     total: applicants.length,
     completed: applicants.filter(a => a.status === 'completed').length,
-    processing: applicants.filter(a => a.status === 'processing' || a.status === 'analyzing' || a.status === 'uploading').length,
-    failed: applicants.filter(a => a.status === 'failed').length
+    processing: applicants.filter(a => a.status === 'processing' || a.status === 'analyzing').length,
+    failed: applicants.filter(a => a.status === 'failed').length,
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-700';
-      case 'failed':
-        return 'bg-red-100 text-red-700';
-      case 'processing':
-      case 'analyzing':
-      case 'uploading':
-        return 'bg-yellow-100 text-yellow-700';
-      default:
-        return 'bg-zinc-100 text-zinc-700';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <UserCheck className="h-4 w-4" />;
-      case 'failed':
-        return <UserX className="h-4 w-4" />;
-      case 'processing':
-      case 'analyzing':
-      case 'uploading':
-        return <Clock className="h-4 w-4" />;
-      default:
-        return <Users className="h-4 w-4" />;
-    }
-  };
-
-  if (showNew) {
+  if (authLoading || loading) {
     return (
-      <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-zinc-900 mb-2">Add New Applicant</h1>
-          <p className="text-zinc-600">Upload a new candidate resume for analysis.</p>
-        </div>
-        
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-zinc-200/50 shadow-sm max-w-2xl">
-          <div className="border-2 border-dashed border-zinc-300 rounded-lg p-12 text-center">
-            <Plus className="h-12 w-12 text-zinc-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-zinc-900 mb-2">Upload Resume</h3>
-            <p className="text-zinc-600 mb-4">Drag and drop a resume file here, or click to browse</p>
-            <button className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors">
-              Choose File
-            </button>
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Clock className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p>Loading your applicants...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 mb-2">
-            {statusFilter ? `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Applicants` : 'All Applicants'}
-          </h1>
-          <p className="text-zinc-600">Manage and review candidate applications.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Your Applicants</h1>
+          <p className="text-muted-foreground">Manage and analyze your job applicants</p>
         </div>
-        <Link 
-          href="/board/applicants?new=true"
-          className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
+        <button 
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-md flex items-center gap-2 hover:bg-primary/90"
+          onClick={() => {/* TODO: Open new applicant form */}}
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New
-        </Link>
+          <Plus className="h-4 w-4" />
+          Add Applicant
+        </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Link href="/board/applicants" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-zinc-200/50 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-zinc-100 rounded-lg">
-              <Users className="h-6 w-6 text-zinc-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-zinc-600">Total</p>
-              <p className="text-2xl font-bold text-zinc-900">{stats.total}</p>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-card text-card-foreground p-6 rounded-lg border">
+          <div className="flex items-center space-x-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Total</span>
           </div>
-        </Link>
-
-        <Link href="/board/applicants?status=completed" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-zinc-200/50 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <UserCheck className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-zinc-600">Completed</p>
-              <p className="text-2xl font-bold text-zinc-900">{stats.completed}</p>
-            </div>
+          <p className="text-2xl font-bold">{statusCounts.total}</p>
+        </div>
+        
+        <div className="bg-card text-card-foreground p-6 rounded-lg border">
+          <div className="flex items-center space-x-2">
+            <UserCheck className="h-4 w-4 text-green-600" />
+            <span className="text-sm font-medium text-muted-foreground">Completed</span>
           </div>
-        </Link>
-
-        <Link href="/board/applicants?status=processing" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-zinc-200/50 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-zinc-600">Processing</p>
-              <p className="text-2xl font-bold text-zinc-900">{stats.processing}</p>
-            </div>
+          <p className="text-2xl font-bold text-green-600">{statusCounts.completed}</p>
+        </div>
+        
+        <div className="bg-card text-card-foreground p-6 rounded-lg border">
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-muted-foreground">Processing</span>
           </div>
-        </Link>
-
-        <Link href="/board/applicants?status=failed" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-zinc-200/50 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <UserX className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-zinc-600">Failed</p>
-              <p className="text-2xl font-bold text-zinc-900">{stats.failed}</p>
-            </div>
+          <p className="text-2xl font-bold text-blue-600">{statusCounts.processing}</p>
+        </div>
+        
+        <div className="bg-card text-card-foreground p-6 rounded-lg border">
+          <div className="flex items-center space-x-2">
+            <UserX className="h-4 w-4 text-red-600" />
+            <span className="text-sm font-medium text-muted-foreground">Failed</span>
           </div>
-        </Link>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-zinc-200/50 shadow-sm mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search applicants..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black/20"
-            />
-          </div>
-          <button className="inline-flex items-center px-4 py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </button>
+          <p className="text-2xl font-bold text-red-600">{statusCounts.failed}</p>
         </div>
       </div>
 
+      {/* Search and Filters */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search applicants..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-md"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2 border rounded-md"
+        >
+          <option value="">All Status</option>
+          <option value="uploading">Uploading</option>
+          <option value="processing">Processing</option>
+          <option value="analyzing">Analyzing</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+
       {/* Applicants List */}
-      <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-zinc-200/50 shadow-sm overflow-hidden">
-        {filteredApplicants.length > 0 ? (
-          <div className="divide-y divide-zinc-200/50">
-            {filteredApplicants.map((applicant) => (
-              <div key={applicant.id} className="p-6 hover:bg-zinc-50/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-zinc-200 rounded-full flex items-center justify-center mr-4">
-                      <span className="text-lg font-medium text-zinc-700">
-                        {applicant.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium text-zinc-900">{applicant.name}</h3>
-                      <p className="text-sm text-zinc-500">{applicant.role || 'No role specified'}</p>
-                      {applicant.email && (
-                        <p className="text-sm text-zinc-400">{applicant.email}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${getStatusColor(applicant.status)}`}>
-                      {getStatusIcon(applicant.status)}
-                      {applicant.status}
-                    </div>
-                    <button className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+      <div className="space-y-4">
+        {applicants.length === 0 ? (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-medium mb-2">No applicants yet</h3>
+            <p className="text-muted-foreground mb-4">Start by adding your first job applicant</p>
+            <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
+              Add Your First Applicant
+            </button>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
-            <p className="text-zinc-500 mb-4">
-              {searchTerm || statusFilter ? 'No applicants match your criteria' : 'No applicants yet'}
-            </p>
-            <Link 
-              href="/board/applicants?new=true"
-              className="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add First Applicant
-            </Link>
-          </div>
+          applicants.map((applicant) => (
+            <div key={applicant.id} className="bg-card text-card-foreground p-6 rounded-lg border hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{applicant.name}</h3>
+                  <p className="text-muted-foreground">{applicant.email}</p>
+                  {applicant.role && (
+                    <p className="text-sm text-muted-foreground mt-1">Role: {applicant.role}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    applicant.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    applicant.status === 'failed' ? 'bg-red-100 text-red-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {applicant.status}
+                  </span>
+                  {applicant.score && (
+                    <p className="text-lg font-bold mt-2">Score: {applicant.score}</p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-muted-foreground">
+                Created: {applicant.created_at ? new Date(applicant.created_at).toLocaleDateString() : 'Unknown'}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
-  );
-}
-
-export default function ApplicantsPage() {
-  return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
-      <ApplicantsPageContent />
-    </Suspense>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '../../../components/ui/button';
 import { useApplicants } from '../../../lib/contexts/ApplicantContext';
 
@@ -121,32 +120,32 @@ function DropZone({ onDrop, accept, label, description, file, disabled = false, 
   );
 }
 
-export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
-  const { createApplicant, isLoading } = useApplicants();
-  const router = useRouter();
+export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
+  const { createApplicant, isLoading: applicantLoading } = useApplicants();
 
   // Form state
   const [cvFile, setCvFile] = useState<File | null>(null);
-  const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState<string>('');
   const [githubUrl, setGithubUrl] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
-  const [showLinkedinOptions, setShowLinkedinOptions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isLoading = applicantLoading;
 
   const resetForm = () => {
     setCvFile(null);
-    setLinkedinFile(null);
     setLinkedinUrl('');
     setGithubUrl('');
-    setShowLinkedinOptions(false);
+    setError(null);
   };
 
   const handleCreateCandidate = async () => {
-    if (!linkedinUrl.trim() && !cvFile) {
-      alert('Please provide either a LinkedIn profile URL or CV file');
+    if (!cvFile && !linkedinUrl.trim()) {
+      setError('Please provide either a CV file or LinkedIn profile URL');
       return;
     }
 
+    setError(null);
     setIsCreating(true);
 
     try {
@@ -159,111 +158,86 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
       if (applicantId) {
         resetForm();
 
-        // Navigate immediately to the processing screen to show progress
-        router.replace(`/board?id=${applicantId}&processing=true`);
-
         // Call success callback if provided
         onSuccess?.(applicantId);
       } else {
-        alert('Failed to create applicant. Please try again.');
+        setError('Failed to create applicant. Please try again.');
       }
-    } catch (error) {
-      console.error('Failed to create applicant:', error);
-      alert('Failed to create applicant. Please try again.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Failed to create applicant:', err);
     } finally {
       setIsCreating(false);
     }
   };
 
-  const isFormValid = (linkedinUrl.trim() || cvFile) && !isCreating && !isLoading;
+  const isFormValid = (cvFile || linkedinUrl.trim()) && !isCreating && !isLoading;
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="p-8">
-        <h2 className="text-3xl font-medium text-zinc-900 mb-2">New Applicant</h2>
-        <p className="text-zinc-500 mb-8">Provide LinkedIn profile URL or CV file to begin analysis. GitHub URL is optional.</p>
-        
-        <div className="max-w-2xl mx-auto">
-          <div className="flex flex-col gap-8">
-            {/* LinkedIn Profile Section */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-medium text-zinc-900">
-                  LinkedIn Profile {!cvFile ? <span className="text-red-500">*</span> : <span className="text-zinc-500">(Optional)</span>}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowLinkedinOptions(!showLinkedinOptions)}
-                  className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors px-3 py-1 rounded-md border border-zinc-200 bg-zinc-50 hover:bg-zinc-100"
-                >
-                  {showLinkedinOptions ? 'Use URL instead' : 'Upload file instead'}
-                </button>
-              </div>
-              
-              {!showLinkedinOptions ? (
-                <input
-                  type="url"
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  placeholder="https://linkedin.com/in/username"
-                  disabled={isCreating}
-                  className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
-                />
-              ) : (
-                <DropZone
-                  onDrop={setLinkedinFile}
-                  accept=".pdf,.png,.jpg,.jpeg"
-                  label=""
-                  description="Upload LinkedIn PDF export or screenshot"
-                  file={linkedinFile}
-                  disabled={isCreating}
-                />
-              )}
-            </div>
+    <div className="bg-white">
+      <div className="flex flex-col gap-8">
+        {/* CV Upload */}
+        <DropZone
+          onDrop={setCvFile}
+          accept=".pdf,.doc,.docx"
+          label={`CV${!linkedinUrl.trim() ? ' *' : ' (Optional)'}`}
+          description="PDF, DOC, or DOCX file (alternative to LinkedIn)"
+          file={cvFile}
+          disabled={isCreating || isLoading}
+          required={!linkedinUrl.trim()}
+        />
 
-            {/* CV Upload */}
-            <DropZone
-              onDrop={setCvFile}
-              accept=".pdf,.doc,.docx"
-              label={`CV${!linkedinUrl.trim() && !linkedinFile ? '' : ' (Optional)'}`}
-              description="PDF, DOC, or DOCX file (alternative to LinkedIn)"
-              file={cvFile}
-              disabled={isCreating}
-              required={!linkedinUrl.trim() && !linkedinFile}
-            />
-
-            {/* GitHub URL Input (Optional) */}
-            <div className="flex flex-col gap-3">
-              <label className="text-lg font-medium text-zinc-900">
-                GitHub (Optional)
-              </label>
-              <input
-                type="url"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/username"
-                disabled={isCreating}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
-              />
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleCreateCandidate}
-              disabled={!isFormValid}
-              size="lg"
-              className={`rounded-lg shadow-sm text-lg font-medium px-8 py-4 mt-4 transition-all duration-200 ${
-                isFormValid
-                  ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
-                  : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
-              }`}
-            >
-              {isCreating ? 
-                (linkedinUrl.trim() || linkedinFile ? 'LinkedIn Analysis...' : 'CV Analysis...') 
-                : 'Unmask'}
-            </Button>
-          </div>
+        {/* LinkedIn Profile URL */}
+        <div className="flex flex-col gap-3">
+          <label className="text-lg font-medium text-zinc-900">
+            LinkedIn Profile {!cvFile ? <span className="text-red-500">*</span> : <span className="text-zinc-500">(Optional)</span>}
+          </label>
+          <input
+            type="url"
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+            placeholder="https://linkedin.com/in/username"
+            disabled={isCreating || isLoading}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+          />
         </div>
+
+        {/* GitHub URL Input */}
+        <div className="flex flex-col gap-3">
+          <label className="text-lg font-medium text-zinc-900">GitHub (Optional)</label>
+          <input
+            type="url"
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+            placeholder="https://github.com/username"
+            disabled={isCreating || isLoading}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+          />
+        </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <Button
+          onClick={handleCreateCandidate}
+          disabled={!isFormValid}
+          size="lg"
+          className={`rounded-lg shadow-sm text-lg font-medium px-8 py-4 mt-4 transition-all duration-200 ${
+            isFormValid
+              ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
+              : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
+          }`}
+        >
+          {isCreating ?
+            (cvFile ? 'CV Analysis...' : 'LinkedIn Analysis...')
+            : 'Unmask'}
+        </Button>
       </div>
     </div>
   );

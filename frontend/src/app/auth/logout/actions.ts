@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+// Remove static import to prevent client-side bundling issues
 
 export async function logout() {
+  // Dynamic import to avoid pulling server code into client bundles
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
 
   const { error } = await supabase.auth.signOut()

@@ -1,100 +1,8 @@
 import { GitHubData } from './github';
 import { AnalysisResult, CvAnalysis, LinkedInAnalysis, GitHubAnalysis, CrossReferenceAnalysis } from './analysis';
+import { CvData } from './cv';
 
-// Profile and CV data types (moved from cv.ts)
-export interface ProfileData {
-  lastName: string
-  firstName: string
-  address: string
-  email: string
-  phone: string
-  linkedin: string
-  github: string
-  personalWebsite: string
-  professionalSummary: string
-  jobTitle: string
-  professionalExperiences: Experience[]
-  otherExperiences: Experience[]
-  educations: Education[]
-  skills: string[]
-  languages: Language[]
-  publications: string[]
-  distinctions: string[]
-  hobbies: string[]
-  references: string[]
-  certifications: Certification[]
-  other: Record<string, unknown> // Flexible field for any additional data
-  source: 'cv' | 'linkedin' // Track the source of this profile data
-}
-
-// Backward compatibility alias
-export type CvData = ProfileData;
-
-export interface Certification {
-  title: string
-  issuer: string
-  issuedYear: number
-  issuedMonth?: number // Optional month (1-12)
-}
-
-export interface Experience {
-  companyName?: string
-  title?: string
-  location: string
-  type: ContractType
-  startYear: number
-  startMonth?: number // Optional month (1-12)
-  endYear?: number // Optional if ongoing
-  endMonth?: number // Optional month (1-12)
-  ongoing: boolean
-  description: string
-  associatedSkills: string[]
-}
-
-export interface Education {
-  degree: string
-  institution: string
-  location: string
-  startYear: number
-  startMonth?: number // Optional month (1-12)
-  endYear?: number // Optional if ongoing
-  endMonth?: number // Optional month (1-12)
-  ongoing: boolean
-  description: string
-  associatedSkills: string[]
-}
-
-export interface Language {
-  language: string
-  level: LanguageLevel
-}
-
-export enum LanguageLevel {
-  BASIC_KNOWLEDGE = 'BASIC_KNOWLEDGE',
-  LIMITED_PROFESSIONAL = 'LIMITED_PROFESSIONAL',
-  PROFESSIONAL = 'PROFESSIONAL',
-  FULL_PROFESSIONAL = 'FULL_PROFESSIONAL',
-  NATIVE_BILINGUAL = 'NATIVE_BILINGUAL',
-}
-
-export enum ContractType {
-  PERMANENT_CONTRACT = 'PERMANENT_CONTRACT',
-  SELF_EMPLOYED = 'SELF_EMPLOYED',
-  FREELANCE = 'FREELANCE',
-  FIXED_TERM_CONTRACT = 'FIXED_TERM_CONTRACT',
-  INTERNSHIP = 'INTERNSHIP',
-  APPRENTICESHIP = 'APPRENTICESHIP',
-  PERFORMING_ARTS_INTERMITTENT = 'PERFORMING_ARTS_INTERMITTENT',
-  PART_TIME_PERMANENT = 'PART_TIME_PERMANENT',
-  CIVIC_SERVICE = 'CIVIC_SERVICE',
-  PART_TIME_FIXED_TERM = 'PART_TIME_FIXED_TERM',
-  SUPPORTED_EMPLOYMENT = 'SUPPORTED_EMPLOYMENT',
-  CIVIL_SERVANT = 'CIVIL_SERVANT',
-  TEMPORARY_WORKER = 'TEMPORARY_WORKER',
-  ASSOCIATIVE = 'ASSOCIATIVE',
-}
-
-// LinkedIn specific types
+// LinkedIn specific types (separate from CV data)
 export interface LinkedInData {
   name: string;
   headline: string;
@@ -154,42 +62,39 @@ export interface LinkedInCertification {
   credentialUrl?: string;
 }
 
+// Use Supabase generated types as the base, with proper type annotations for JSON fields
 export interface Applicant {
+  // Base database fields
   id: string;
+  user_id: string;
   name: string;
-  email: string;
-  cvData?: ProfileData;
-  linkedinData?: ProfileData;
-  githubData?: GitHubData;
-  status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
-  createdAt: string;
-  originalFileName?: string;
-  originalGithubUrl?: string;
-  originalLinkedinUrl?: string;
-  score?: number; // For compatibility with board page
-  role?: string; // Job title from CV
+  email: string | null;
+  status: string;
+  role: string | null;
+  score: number | null;
+  original_filename: string | null;
+  original_github_url: string | null;
+  original_linkedin_url?: string | null; // LinkedIn URL support
+  created_at: string | null;
+  updated_at: string | null;
 
-  // LinkedIn job tracking
-  linkedinJobId?: string; // BrightData snapshot ID
-  linkedinJobStatus?: 'pending' | 'running' | 'completed' | 'failed';
-  linkedinJobStartedAt?: string;
-  linkedinJobCompletedAt?: string;
+  // LinkedIn job tracking (for URL-based LinkedIn processing)
+  linkedin_job_id?: string | null; // BrightData snapshot ID
+  linkedin_job_status?: 'pending' | 'running' | 'completed' | 'failed' | null;
+  linkedin_job_started_at?: string | null;
+  linkedin_job_completed_at?: string | null;
 
-  // New analysis fields
-  analysisResult?: AnalysisResult;
-  individualAnalysis?: {
+  // JSON fields with proper types
+  cv_data?: CvData | null;
+  linkedin_data?: LinkedInData | null; // Always from LinkedIn URL API
+  github_data?: GitHubData | null;
+  analysis_result?: AnalysisResult | null;
+  individual_analysis?: {
     cv?: CvAnalysis;
     linkedin?: LinkedInAnalysis;
     github?: GitHubAnalysis;
-  };
-  crossReferenceAnalysis?: CrossReferenceAnalysis;
-
-  // Hackathon-specific data
-  hackathonData?: {
-    teamName?: string;
-    problemsInterested?: string;
-    hasTeam?: boolean;
-  };
+  } | null;
+  cross_reference_analysis?: CrossReferenceAnalysis | null;
 }
 
 export interface CreateApplicantRequest {
