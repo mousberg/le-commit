@@ -15,18 +15,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Navigate to frontend directory first**: `cd frontend`
 
-- Start development server: `npm run dev` (uses Turbopack)
-- Build for production: `npm run build`
-- Start production server: `npm start`
-- Run linting: `npm run lint`
-- Run CV parsing tests: `npm run test:cv`
-- Run evaluation tests: `npm run test:evaluation`
+- Start development server: `pnpm dev` (uses Turbopack)
+- Build for production: `pnpm build`
+- Start production server: `pnpm start`
+- Run linting: `pnpm lint`
+- Run CV parsing tests: `pnpm test:cv`
+- Run evaluation tests: `pnpm test:evaluation`
+- Test Ashby integration: `pnpm test:ashby`
 
 **Local Supabase (from frontend directory)**:
-- Start local Supabase: `npx supabase start`
-- Stop local Supabase: `npx supabase stop`
-- Reset database: `npx supabase db reset`
-- Generate TypeScript types: `npx supabase gen types typescript --local > src/lib/database.types.ts`
+- Start local Supabase: `pnpm supabase start`
+- Stop local Supabase: `pnpm supabase stop`
+- Reset database: `pnpm supabase db reset`
+- Generate TypeScript types: `pnpm supabase gen types typescript --local > src/lib/database.types.ts`
 
 **Deployment**:
 - Deploy to production: `./deploy.sh` (from root)
