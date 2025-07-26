@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X, LogOut } from "lucide-react";
-import { useAuth } from "@/lib/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
 
 const ArrowIcon = () => (
   <svg
@@ -46,7 +43,6 @@ interface HeaderProps {
 export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, signOut, loading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,9 +72,6 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
 
   return (
     <>

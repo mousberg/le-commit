@@ -26,14 +26,13 @@ async function testLinkedInApi() {
     
     console.log(`✅ LinkedIn API test completed in ${(endTime - startTime) / 1000}s`);
     console.log('📊 Extracted data:');
-    console.log(`- Name: ${result.firstName} ${result.lastName}`);
-    console.log(`- Job Title: ${result.jobTitle}`);
-    console.log(`- Location: ${result.address}`);
-    console.log(`- LinkedIn: ${result.linkedin}`);
-    console.log(`- Professional Summary: ${result.professionalSummary?.substring(0, 100)}...`);
-    console.log(`- Experience entries: ${result.professionalExperiences.length}`);
+    console.log(`- Name: ${result.name}`);
+    console.log(`- Headline: ${result.headline}`);
+    console.log(`- Location: ${result.location}`);
+    console.log(`- Profile URL: ${result.profileUrl}`);
+    console.log(`- Connections: ${result.connections}`);
+    console.log(`- Experience entries: ${result.experience.length}`);
     console.log(`- Skills: ${result.skills.length}`);
-    console.log(`- Languages: ${result.languages.length}`);
     
     return result;
     

@@ -1,4 +1,5 @@
-import { CvData, Experience, Language, ContractType, LanguageLevel } from './interfaces/applicant';
+import { CvData, Experience, Language, ContractType, LanguageLevel } from './interfaces/cv';
+import { LinkedInData, LinkedInExperience, LinkedInEducation, LinkedInActivity } from './interfaces/applicant';
 
 // LinkedIn API Response interfaces
 interface LinkedInApiExperience {
@@ -145,11 +146,67 @@ export function convertLinkedInApiToProfileData(linkedinApiData: LinkedInApiResp
       currentCompany: data.current_company,
       avatar: data.avatar,
       bannerImage: data.banner_image
-    },
-    source: 'linkedin'
+    }
   };
   
   return profileData;
+}
+
+/**
+ * Convert LinkedIn API response to LinkedIn-specific data format
+ * @param linkedinApiData - Response from LinkedIn API
+ * @returns LinkedInData with LinkedIn-specific fields
+ */
+export function convertLinkedInApiToLinkedInData(linkedinApiData: LinkedInApiResponse | LinkedInApiResponse[]): LinkedInData {
+  const data = Array.isArray(linkedinApiData) ? linkedinApiData[0] : linkedinApiData;
+  
+  // Extract name parts
+  const firstName = data.first_name || '';
+  const lastName = data.last_name || '';
+  const fullName = data.name || `${firstName} ${lastName}`.trim();
+  
+  // Convert experience to LinkedIn format
+  const experience: LinkedInExperience[] = (data.experience || []).map((exp: LinkedInApiExperience) => ({
+    company: exp.company || '',
+    title: exp.title || '',
+    duration: `${exp.start_date || ''} - ${exp.end_date || ''}`,
+    location: exp.location || '',
+    description: exp.description_html || '',
+    companyExists: true // We could enhance this with company verification
+  }));
+  
+  // Convert education (if available in API response)
+  const education: LinkedInEducation[] = []; // Would need education data from API
+  
+  // LinkedIn activity data
+  const activity: LinkedInActivity = {
+    posts: 0, // Would need activity data from API
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    lastActivityDate: undefined
+  };
+  
+  // Extract skills
+  const skills: string[] = [];
+  if (data.position) skills.push(data.position);
+  
+  const linkedinData: LinkedInData = {
+    name: fullName,
+    headline: data.about || data.position || '',
+    location: data.city || '',
+    connections: data.connections || 0,
+    profileUrl: data.url || data.input_url || '',
+    accountCreationDate: undefined, // Not typically available from API
+    experience,
+    education,
+    skills,
+    activity,
+    recommendations: [], // Would need recommendation data from API
+    certifications: [] // Would need certification data from API
+  };
+  
+  return linkedinData;
 }
 
 /**
@@ -254,9 +311,9 @@ export type LinkedInProgress = {
 /**
  * Process raw LinkedIn data from BrightData API
  * @param linkedinRawData - Raw data from BrightData API
- * @returns ProfileData from LinkedIn API
+ * @returns LinkedInData from LinkedIn API
  */
-export function processLinkedInData(linkedinRawData: unknown): CvData {
+export function processLinkedInData(linkedinRawData: unknown): LinkedInData {
   try {
     // Handle array of results (common case)
     const dataArray = Array.isArray(linkedinRawData) ? linkedinRawData : [linkedinRawData];
@@ -268,8 +325,8 @@ export function processLinkedInData(linkedinRawData: unknown): CvData {
     // Process the first result
     const result = dataArray[0];
     
-    // Convert using existing function
-    return convertLinkedInApiToProfileData(result as LinkedInApiResponse);
+    // Convert to LinkedInData (preserving LinkedIn-specific fields)
+    return convertLinkedInApiToLinkedInData(result as LinkedInApiResponse);
   } catch (error) {
     console.error('Error processing LinkedIn data:', error);
     throw new Error(`Failed to process LinkedIn data: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -285,7 +342,7 @@ export function processLinkedInData(linkedinRawData: unknown): CvData {
 export async function processLinkedInUrl(
   linkedinUrl: string,
   onProgress?: (progress: LinkedInProgress) => void
-): Promise<CvData> {
+): Promise<LinkedInData> {
   const apiKey = process.env.BRIGHTDATA_API_KEY;
   
   if (!apiKey) {
@@ -452,7 +509,7 @@ export async function findExistingLinkedInSnapshot(linkedinUrl: string): Promise
         let snapshotDetails;
         try {
           snapshotDetails = JSON.parse(responseText);
-        } catch (e) {
+        } catch {
           console.log(`⚠️ Invalid JSON response for snapshot ${snapshot.id}:`, responseText);
           continue;
         }
@@ -663,7 +720,7 @@ export async function pollLinkedInJob(
   jobId: string,
   onProgress?: (progress: LinkedInProgress) => void,
   isExisting?: boolean
-): Promise<CvData> {
+): Promise<LinkedInData> {
   const maxAttempts = 60; // 5 minutes with 5-second intervals
   const pollInterval = 5000; // 5 seconds
   
@@ -768,11 +825,12 @@ export async function testLinkedInJobId(jobId: string) {
             try {
               const processedData = processLinkedInData(data);
               console.log(`✅ Processed LinkedIn data:`, {
-                name: `${processedData.firstName} ${processedData.lastName}`,
-                jobTitle: processedData.jobTitle,
-                location: processedData.address,
-                experienceCount: processedData.professionalExperiences?.length || 0,
-                skillsCount: processedData.skills?.length || 0
+                name: processedData.name,
+                headline: processedData.headline,
+                location: processedData.location,
+                experienceCount: processedData.experience?.length || 0,
+                skillsCount: processedData.skills?.length || 0,
+                connections: processedData.connections
               });
               return { success: true, data: processedData, endpoint: endpoint };
             } catch (processError) {

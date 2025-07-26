@@ -1,4 +1,4 @@
-import { CvData, ContractType, LanguageLevel } from './interfaces/applicant'
+import { CvData, ContractType, LanguageLevel } from './interfaces/cv'
 import { Groq } from 'groq-sdk'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -607,7 +607,6 @@ function mergeCvData(dataArray: Partial<CvData>[]): CvData {
     references: [],
     certifications: [],
     other: {},
-    source: 'cv',
   }
 
   // Merge data from all sources
@@ -746,7 +745,7 @@ export async function processCvPdf(
  * @param cvData - Raw CV data to validate
  * @returns Validated and cleaned CV data
  */
-export function validateAndCleanCvData(cvData: Partial<CvData>, source: 'cv' | 'linkedin' = 'cv'): CvData {
+export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
   const cleanData: CvData = {
     lastName: cvData.lastName || '',
     firstName: cvData.firstName || '',
@@ -769,7 +768,6 @@ export function validateAndCleanCvData(cvData: Partial<CvData>, source: 'cv' | '
     references: cvData.references || [],
     certifications: cvData.certifications || [],
     other: cvData.other || {},
-    source: source,
   }
 
   // Validate email format

@@ -1,6 +1,7 @@
 import { Groq } from 'groq-sdk';
 import { Applicant } from './interfaces/applicant';
-import { CvData } from './interfaces/applicant';
+import { CvData } from './interfaces/cv';
+import { LinkedInData } from './interfaces/applicant';
 import { GitHubData } from './interfaces/github';
 import { AnalysisResult } from './interfaces/analysis';
 
@@ -17,9 +18,9 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
   try {
     // Count available data sources
     const availableDataSources = [
-      applicant.cvData,
-      applicant.linkedinData,
-      applicant.githubData
+      applicant.cv_data,
+      applicant.linkedin_data,
+      applicant.github_data
     ].filter(Boolean).length;
 
     // Check if we have at least 2 data sources for credibility analysis
@@ -29,7 +30,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
       // Return applicant with pending analysis
       return {
         ...applicant,
-        analysisResult: {
+        analysis_result: {
           credibilityScore: 50,
           summary: 'Waiting for additional data sources to perform credibility analysis.',
           flags: [{
@@ -90,7 +91,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
  */
 async function performComprehensiveAnalysis(
   cvData?: CvData,
-  linkedinData?: CvData,
+  linkedinData?: LinkedInData,
   githubData?: GitHubData,
   name?: string,
   email?: string,
