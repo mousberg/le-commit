@@ -75,6 +75,18 @@ export async function GET(request: NextRequest) {
 
     for (const candidate of candidates) {
       try {
+        // Debug logging when enabled
+        if (process.env.ASHBY_DEBUG_LOG === 'true') {
+          console.log('🔍 Raw Ashby candidate data:', {
+            id: candidate.id,
+            name: candidate.name,
+            email: candidate.email,
+            linkedInUrl: candidate.linkedInUrl,
+            resumeFileHandle: candidate.resumeFileHandle,
+            fullCandidate: candidate
+          });
+        }
+
         const processedCandidate: any = {
           ashby_id: candidate.id,
           name: candidate.name,
@@ -147,6 +159,18 @@ export async function GET(request: NextRequest) {
           }
         } else {
           processedCandidate.action = 'not_created';
+        }
+
+        // Debug logging for processed candidate
+        if (process.env.ASHBY_DEBUG_LOG === 'true') {
+          console.log('📤 Processed candidate data:', {
+            ashby_id: processedCandidate.ashby_id,
+            name: processedCandidate.name,
+            linkedin_url: processedCandidate.linkedin_url,
+            has_resume: processedCandidate.has_resume,
+            resume_url: processedCandidate.resume_url,
+            action: processedCandidate.action
+          });
         }
 
         processedCandidates.push(processedCandidate);
