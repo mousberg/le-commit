@@ -257,5 +257,6 @@
 
   .mobile-menu-animated {
     animation: mobile-menu-fade-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background-color: #ffffff !important;
   }
 }
