@@ -125,25 +125,23 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
 
   // Form state
   const [cvFile, setCvFile] = useState<File | null>(null);
-  const [linkedinFile, setLinkedinFile] = useState<File | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState<string>('');
   const [githubUrl, setGithubUrl] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<string>('');
 
   const isLoading = applicantLoading;
 
   const resetForm = () => {
     setCvFile(null);
-    setLinkedinFile(null);
+    setLinkedinUrl('');
     setGithubUrl('');
-    setRole('');
     setError(null);
   };
 
   const handleCreateCandidate = async () => {
-    if (!cvFile) {
-      setError('Please select a CV file');
+    if (!cvFile && !linkedinUrl.trim()) {
+      setError('Please provide either a CV file or LinkedIn profile URL');
       return;
     }
 
@@ -152,10 +150,9 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
 
     try {
       const applicantId = await createApplicant({
-        cvFile,
-        linkedinFile: linkedinFile || undefined,
-        githubUrl: githubUrl.trim() || undefined,
-        role: role.trim() || undefined
+        cvFile: cvFile || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        githubUrl: githubUrl.trim() || undefined
       });
 
       if (applicantId) {
@@ -163,6 +160,8 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
 
         // Call success callback if provided
         onSuccess?.(applicantId);
+      } else {
+        setError('Failed to create applicant. Please try again.');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -173,7 +172,7 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
     }
   };
 
-  const isFormValid = cvFile && !isCreating && !isLoading;
+  const isFormValid = (cvFile || linkedinUrl.trim()) && !isCreating && !isLoading;
 
   return (
     <div className="bg-white">
@@ -182,39 +181,31 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
         <DropZone
           onDrop={setCvFile}
           accept=".pdf,.doc,.docx"
-          label="CV"
-          description="PDF, DOC, or DOCX format"
+          label={`CV${!linkedinUrl.trim() ? ' *' : ' (Optional)'}`}
+          description="PDF, DOC, or DOCX file (alternative to LinkedIn)"
           file={cvFile}
           disabled={isCreating || isLoading}
-          required={true}
+          required={!linkedinUrl.trim()}
         />
 
-        {/* Role Input */}
+        {/* LinkedIn Profile URL */}
         <div className="flex flex-col gap-3">
-          <label className="text-lg font-medium text-zinc-900">Role</label>
+          <label className="text-lg font-medium text-zinc-900">
+            LinkedIn Profile {!cvFile ? <span className="text-red-500">*</span> : <span className="text-zinc-500">(Optional)</span>}
+          </label>
           <input
-            type="text"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            placeholder="e.g. Software Engineer, Product Manager"
+            type="url"
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+            placeholder="https://linkedin.com/in/username"
             disabled={isCreating || isLoading}
             className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
           />
         </div>
 
-        {/* LinkedIn Profile Upload */}
-        <DropZone
-          onDrop={setLinkedinFile}
-          accept=".pdf,.html,.txt"
-          label="LinkedIn"
-          description="Profile PDF Download (optional)"
-          file={linkedinFile}
-          disabled={isCreating || isLoading}
-        />
-
         {/* GitHub URL Input */}
         <div className="flex flex-col gap-3">
-          <label className="text-lg font-medium text-zinc-900">GitHub (optional)</label>
+          <label className="text-lg font-medium text-zinc-900">GitHub (Optional)</label>
           <input
             type="url"
             value={githubUrl}
@@ -243,7 +234,9 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
               : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
           }`}
         >
-          {isCreating ? 'Creating...' : 'Unmask'}
+          {isCreating ?
+            (cvFile ? 'CV Analysis...' : 'LinkedIn Analysis...')
+            : 'Unmask'}
         </Button>
       </div>
     </div>

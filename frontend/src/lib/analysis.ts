@@ -1,6 +1,7 @@
 import { Groq } from 'groq-sdk';
 import { Applicant } from './interfaces/applicant';
 import { CvData } from './interfaces/cv';
+import { LinkedInData } from './interfaces/applicant';
 import { GitHubData } from './interfaces/github';
 import { AnalysisResult } from './interfaces/analysis';
 
@@ -15,6 +16,37 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
   console.log(`Starting comprehensive analysis for applicant ${applicant.id}`);
 
   try {
+    // Count available data sources
+    const availableDataSources = [
+      applicant.cv_data,
+      applicant.linkedin_data,
+      applicant.github_data
+    ].filter(Boolean).length;
+
+    // Check if we have at least 2 data sources for credibility analysis
+    if (availableDataSources < 2) {
+      console.log(`Insufficient data sources (${availableDataSources}/3) for credibility analysis for applicant ${applicant.id}. Waiting for more data.`);
+      
+      // Return applicant with pending analysis
+      return {
+        ...applicant,
+        analysis_result: {
+          credibilityScore: 50,
+          summary: 'Waiting for additional data sources to perform credibility analysis.',
+          flags: [{
+            type: 'yellow',
+            category: 'verification',
+            message: 'Credibility analysis requires at least 2 data sources (CV, LinkedIn, or GitHub)',
+            severity: 3
+          }],
+          suggestedQuestions: ['Could you provide additional information sources (CV, LinkedIn, or GitHub)?'],
+          analysisDate: new Date().toISOString(),
+          sources: []
+        },
+        score: 50
+      };
+    }
+
     const analysisResult = await performComprehensiveAnalysis(
       applicant.cv_data || undefined,
       applicant.linkedin_data || undefined,
@@ -59,16 +91,20 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
  */
 async function performComprehensiveAnalysis(
   cvData?: CvData,
-  linkedinData?: CvData,
+  linkedinData?: LinkedInData,
   githubData?: GitHubData,
   name?: string,
   email?: string,
   role?: string
 ): Promise<AnalysisResult> {
+  const availableSourcesCount = [cvData, linkedinData, githubData].filter(Boolean).length;
+  
   const prompt = `
 You are a credibility-checking assistant inside Unmask, a tool used by hiring managers to verify whether candidates are being honest and consistent in their job applications.
 
 Your job is to review structured data about a candidate and assess the overall *authenticity* of the profile. You are not scoring technical ability — only consistency and believability.
+
+**Important:** You are analyzing a candidate with ${availableSourcesCount} data sources available. This analysis is performed because we have sufficient data sources to perform cross-verification.
 
 **Candidate Information:**
 - Name: ${name || 'Not provided'}

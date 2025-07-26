@@ -17,9 +17,9 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           variables?: Json
-          extensions?: Json
           query?: string
         }
         Returns: Json
@@ -45,9 +45,14 @@ export type Database = {
           id: string
           individual_analysis: Json | null
           linkedin_data: Json | null
+          linkedin_job_completed_at: string | null
+          linkedin_job_id: string | null
+          linkedin_job_started_at: string | null
+          linkedin_job_status: string | null
           name: string
           original_filename: string | null
           original_github_url: string | null
+          original_linkedin_url: string | null
           role: string | null
           score: number | null
           status: string
@@ -64,9 +69,14 @@ export type Database = {
           id?: string
           individual_analysis?: Json | null
           linkedin_data?: Json | null
+          linkedin_job_completed_at?: string | null
+          linkedin_job_id?: string | null
+          linkedin_job_started_at?: string | null
+          linkedin_job_status?: string | null
           name: string
           original_filename?: string | null
           original_github_url?: string | null
+          original_linkedin_url?: string | null
           role?: string | null
           score?: number | null
           status?: string
@@ -83,9 +93,14 @@ export type Database = {
           id?: string
           individual_analysis?: Json | null
           linkedin_data?: Json | null
+          linkedin_job_completed_at?: string | null
+          linkedin_job_id?: string | null
+          linkedin_job_started_at?: string | null
+          linkedin_job_status?: string | null
           name?: string
           original_filename?: string | null
           original_github_url?: string | null
+          original_linkedin_url?: string | null
           role?: string | null
           score?: number | null
           status?: string
@@ -178,15 +193,15 @@ export type Database = {
       get_user_applicants: {
         Args: Record<PropertyKey, never>
         Returns: {
-          updated_at: string
+          applicant_id: string
           applicant_name: string
           applicant_email: string
           status: string
           score: number
           role: string
-          file_count: number
+          updated_at: string
           created_at: string
-          applicant_id: string
+          file_count: number
         }[]
       }
     }

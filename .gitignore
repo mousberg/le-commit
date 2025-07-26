@@ -108,3 +108,7 @@ temp/
 .mcp.json
 .claude
 .kiro/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/

@@ -791,6 +791,7 @@ export function validateAndCleanCvData(cvData: Partial<CvData>): CvData {
   return cleanData
 }
 
+
 /**
  * Utility function to validate email format
  * @param email - Email string to validate
@@ -822,3 +823,6 @@ export function saveCvDataToJson(cvData: CvData, outputPath: string): void {
     throw new Error(`Failed to save CV data: ${error}`)
   }
 }
+
+// Import LinkedIn API functions
+export { processLinkedInUrl, convertLinkedInApiToProfileData } from './linkedin-api';

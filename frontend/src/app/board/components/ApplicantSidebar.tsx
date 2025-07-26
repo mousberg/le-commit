@@ -95,7 +95,7 @@ export default function ApplicantSidebar({
                       {applicant.status === 'processing' && (
                         <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                       )}
-                      {applicant.status === 'analyzing' && (
+                      {applicant.status === 'analyzing' && (applicant.cv_data || applicant.linkedin_data || applicant.github_data) && (
                         <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
                       )}
                       {applicant.status === 'uploading' && (
@@ -106,17 +106,17 @@ export default function ApplicantSidebar({
                       )}
                     </div>
                   </div>
-                </button>
-                <button
-                  onClick={(e) => onDeleteApplicant(applicant.id, applicant.name, e)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-50 rounded-lg text-red-600 hover:text-red-700 z-10"
-                  title={`Delete ${applicant.name}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
+              </button>
+              <button
+                onClick={(e) => onDeleteApplicant(applicant.id, applicant.name, e)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-50 rounded-lg text-red-600 hover:text-red-700 z-10"
+                title={`Delete ${applicant.name}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
         )}
       </div>
 

@@ -155,6 +155,10 @@ async function fetchGitHubApi(endpoint: string, username?: string): Promise<any>
           throw new Error(`Resource not found: ${endpoint}`)
         }
               } else if (response.status === 403) {
+          // Handle 403 errors for branch protection as expected behavior
+          if (endpoint.includes('/protection')) {
+              throw new Error(`Branch protection access denied: ${endpoint} (this is normal - insufficient permissions)`)
+          }
           throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
       } else {
         throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
@@ -165,7 +169,8 @@ async function fetchGitHubApi(endpoint: string, username?: string): Promise<any>
   } catch (error: any) {
     // Only log non-404 errors or 404s that aren't "normal" missing resources
     if (!error.message?.includes('Resource not found') &&
-        !error.message?.includes('Branch protection not found')) {
+        !error.message?.includes('Branch protection not found') &&
+        !error.message?.includes('Branch protection access denied')) {
       console.error(`Error fetching ${endpoint}:`, error)
     }
     throw error
@@ -540,8 +545,9 @@ async function getRepositoryStats(username: string, repositories: GitHubReposito
             requiresReviews = true
           }
         } catch (error: any) {
-          // 404 is normal (no branch protection), but log other errors
-          if (!error.message?.includes('Branch protection not found')) {
+          // 404 and 403 are normal (no branch protection or insufficient permissions)
+          if (!error.message?.includes('Branch protection not found') && 
+              !error.message?.includes('Branch protection access denied')) {
             console.warn(`Unexpected error checking branch protection for ${repo.name}:`, error.message)
           }
         }

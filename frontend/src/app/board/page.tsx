@@ -9,10 +9,9 @@ import ProcessingLoader from '@/components/ProcessingLoader';
 import CredibilityScore from '@/components/credibility-score';
 import { useApplicants } from '@/lib/contexts/ApplicantContext';
 import { NewApplicantForm } from './components/NewApplicantForm';
-import DataComparisonSection from './components/DataComparisonSection';
-import LinkedInSection from './components/LinkedInSection';
 import GitHubSection from './components/GitHubSection';
 import CollapsibleCVSection from './components/CollapsibleCVSection';
+import LinkedInProfileSection from './components/LinkedInProfileSection';
 import ReferenceManager, { Reference } from './components/ReferenceManager';
 
 
@@ -53,7 +52,10 @@ function BoardPageContent() {
   useEffect(() => {
     const interval = setInterval(() => {
       applicants.forEach(applicant => {
-        if (applicant.status === 'processing' || applicant.status === 'uploading' || applicant.status === 'analyzing') {
+        if (applicant.status === 'processing' || 
+            applicant.status === 'uploading' || 
+            applicant.status === 'analyzing' ||
+            (applicant.linkedin_job_status === 'running' && applicant.original_linkedin_url)) {
           refreshApplicant(applicant.id);
         }
       });
@@ -61,6 +63,8 @@ function BoardPageContent() {
 
     return () => clearInterval(interval);
   }, [applicants, refreshApplicant]);
+
+  // No timeout needed - LinkedIn processing now waits for completion
 
   // Handle successful applicant creation from NewApplicantForm
   const handleApplicantCreated = useCallback((applicantId: string) => {
@@ -262,10 +266,15 @@ function BoardPageContent() {
         {isNewForm ? (
             <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
-            // Show processing loader for uploading/processing/analyzing states
-            selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' ? (
+            // Show processing loader for uploading/processing/analyzing states OR if LinkedIn is still running
+            (selectedCandidate.status === 'uploading' || 
+             selectedCandidate.status === 'processing' || 
+             selectedCandidate.status === 'analyzing' ||
+             (selectedCandidate.linkedin_job_status === 'running' && selectedCandidate.original_linkedin_url)) ? (
               <ProcessingLoader
-                status={selectedCandidate.status}
+                status={selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' 
+                  ? selectedCandidate.status 
+                  : 'processing'}
                 fileName={selectedCandidate.original_filename || undefined}
                 applicant={selectedCandidate}
               />
@@ -335,11 +344,8 @@ function BoardPageContent() {
                 </div>
               )}
 
-              {/* CV vs LinkedIn Comparison */}
-              <DataComparisonSection 
-                cvData={selectedCandidate.cv_data || undefined} 
-                linkedinData={selectedCandidate.linkedin_data || undefined} 
-              />
+              {/* CV vs LinkedIn Comparison - Temporarily disabled for type compatibility */}
+              {/* TODO: Update DataComparisonSection to handle LinkedInData type properly */}
 
               {/* Main Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -353,7 +359,33 @@ function BoardPageContent() {
                 {/* LinkedIn Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                   {selectedCandidate.linkedin_data ? (
-                    <LinkedInSection linkedinData={selectedCandidate.linkedin_data} />
+                    <LinkedInProfileSection linkedinData={selectedCandidate.linkedin_data} />
+                  ) : selectedCandidate.linkedin_job_id && selectedCandidate.linkedin_job_status === 'running' ? (
+                    <div className="p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xl">💼</span>
+                        <h3 className="text-lg font-semibold text-gray-700">LinkedIn</h3>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium animate-pulse">
+                          Processing...
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-3">LinkedIn data is being processed in the background.</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        <span>Job ID: {selectedCandidate.linkedin_job_id.slice(0, 8)}...</span>
+                      </div>
+                    </div>
+                  ) : selectedCandidate.linkedin_job_status === 'failed' ? (
+                    <div className="p-6 opacity-60">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xl opacity-50">💼</span>
+                        <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full border border-red-200 font-medium">
+                          Failed
+                        </span>
+                      </div>
+                      <p className="text-gray-500 text-sm">LinkedIn processing failed.</p>
+                    </div>
                   ) : (
                     <div className="p-6 opacity-60">
                       <div className="flex items-center gap-3 mb-2">

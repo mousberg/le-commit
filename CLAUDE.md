@@ -144,17 +144,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Environment variables managed via `.env.local` on server
 - Zero-downtime deployment with container replacement
 
-**Monitoring**:
-- Docker container health checks
-- Application status verification via HTTP checks
-- Log aggregation via `docker logs`
-
-### Testing Strategy
-
-- Simple test scripts in `/lib/simple_tests/` for CV and evaluation logic
-- Manual testing workflows for AI analysis verification
-- No formal test framework currently implemented
-
 ### Security Considerations
 
 - API key validation and environment variable protection
