@@ -107,3 +107,8 @@ temp/
 .cursor/
 .mcp.json
 .claude
+
+
+# Supabase
+supabase/.temp/
+supabase/.branches/

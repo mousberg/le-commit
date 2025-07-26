@@ -142,35 +142,21 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
   };
 
   const handleCreateCandidate = async () => {
-    console.log('🔥 Unmask button clicked!');
-    console.log('Form state:', { 
-      linkedinUrl: linkedinUrl.trim(), 
-      cvFile: cvFile?.name, 
-      githubUrl: githubUrl.trim(),
-      isFormValid 
-    });
-
     if (!linkedinUrl.trim() && !cvFile) {
-      console.log('❌ Form validation failed');
       alert('Please provide either a LinkedIn profile URL or CV file');
       return;
     }
 
-    console.log('✅ Form validation passed, starting creation...');
     setIsCreating(true);
 
     try {
-      console.log('📤 Calling createApplicant...');
       const applicantId = await createApplicant({
         cvFile: cvFile || undefined,
         linkedinUrl: linkedinUrl.trim() || undefined,
         githubUrl: githubUrl.trim() || undefined
       });
 
-      console.log('📥 createApplicant returned:', applicantId);
-
       if (applicantId) {
-        console.log('✅ Success! Navigating to processing screen...');
         resetForm();
 
         // Navigate immediately to the processing screen to show progress
@@ -179,11 +165,10 @@ export default function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
         // Call success callback if provided
         onSuccess?.(applicantId);
       } else {
-        console.log('❌ createApplicant returned null');
         alert('Failed to create applicant. Please try again.');
       }
     } catch (error) {
-      console.error('❌ Failed to create applicant:', error);
+      console.error('Failed to create applicant:', error);
       alert('Failed to create applicant. Please try again.');
     } finally {
       setIsCreating(false);

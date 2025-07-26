@@ -393,7 +393,7 @@ export async function findExistingLinkedInSnapshot(linkedinUrl: string): Promise
   }
   
   try {
-    console.log(`🔍 Checking for existing LinkedIn snapshots for URL: ${linkedinUrl}`);
+    // console.log(`🔍 Checking for existing LinkedIn snapshots for URL: ${linkedinUrl}`);
     
     const response = await fetch(`https://api.brightdata.com/datasets/v3/snapshots?status=ready`, {
       headers: {
@@ -443,7 +443,19 @@ export async function findExistingLinkedInSnapshot(linkedinUrl: string): Promise
           continue;
         }
         
-        const snapshotDetails = await detailResponse.json();
+        const responseText = await detailResponse.text();
+        if (!responseText) {
+          console.log(`⚠️ Empty response for snapshot ${snapshot.id}`);
+          continue;
+        }
+        
+        let snapshotDetails;
+        try {
+          snapshotDetails = JSON.parse(responseText);
+        } catch (e) {
+          console.log(`⚠️ Invalid JSON response for snapshot ${snapshot.id}:`, responseText);
+          continue;
+        }
         const snapshotUrl = snapshotDetails.input?.[0]?.url || '';
         
         if (snapshotUrl && normalizeUrl(snapshotUrl) === targetUrl) {
@@ -503,7 +515,7 @@ export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: st
     return { jobId: existingJobId, isExisting: true };
   }
   
-  console.log(`🚀 No existing snapshot found, starting new LinkedIn job for URL: ${linkedinUrl}`);
+  console.log(`🚀 Starting new LinkedIn job for URL: ${linkedinUrl}`);
   
   try {
     const response = await fetch('https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_l1viktl72bvl7bjuj0&format=json&uncompressed_webhook=true', {
@@ -522,7 +534,7 @@ export async function startLinkedInJob(linkedinUrl: string): Promise<{ jobId: st
     }
     
     const data = await response.json();
-    console.log(`LinkedIn API response:`, data);
+    // console.log(`LinkedIn API response:`, data);
     const jobId = data.snapshot_id;
     
     if (!jobId) {
@@ -592,8 +604,10 @@ export async function checkLinkedInJob(jobId: string, isExisting?: boolean): Pro
     const statusData = await response.json();
     const status = statusData.status || statusData.state || statusData.job_status;
     
-    console.log(`LinkedIn job ${jobId} full response:`, statusData);
-    console.log(`LinkedIn job ${jobId} extracted status: ${status}`);
+    // Log only on status changes
+    if (status !== 'running') {
+      console.log(`LinkedIn job ${jobId} status: ${status}`);
+    }
     
     // Map BrightData statuses to our internal ones
     if (status === 'failed' || status === 'error' || status === 'cancelled') {
