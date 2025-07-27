@@ -84,16 +84,8 @@ alter table ashby_candidates enable row level security;
 -- Users can only see/manage their own Ashby candidates
 create policy "ashby_candidates_own" on ashby_candidates
   for all to authenticated
-  using (
-    user_id in (
-      select id from users where auth_user_id = auth.uid()
-    )
-  )
-  with check (
-    user_id in (
-      select id from users where auth_user_id = auth.uid()
-    )
-  );
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 -- ============================================================================
 -- UTILITY FUNCTIONS
@@ -176,8 +168,7 @@ begin
     ac.last_synced_at,
     ac.ashby_created_at
   from ashby_candidates ac
-  join users u on ac.user_id = u.id
-  where u.auth_user_id = auth.uid()
+  where ac.user_id = auth.uid()
   order by ac.ashby_created_at desc nulls last, ac.created_at desc;
 end;
 $$;

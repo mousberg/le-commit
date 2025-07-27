@@ -237,7 +237,16 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                   {/* LinkedIn */}
                   <td className="p-3">
                     {candidate.linkedin_url ? (
-                      <ExternalLink className="h-5 w-5 text-blue-600" />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent row click
+                          window.open(candidate.linkedin_url, '_blank');
+                        }}
+                        className="hover:bg-blue-100 p-1 rounded"
+                        title="Open LinkedIn Profile"
+                      >
+                        <ExternalLink className="h-5 w-5 text-blue-600" />
+                      </button>
                     ) : (
                       <ExternalLink className="h-5 w-5 text-gray-300" />
                     )}

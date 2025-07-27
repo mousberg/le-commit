@@ -6,18 +6,95 @@ export interface AshbyAuth {
   baseUrl?: string; // Default: https://api.ashbyhq.com
 }
 
-// Candidate Types
+// Candidate Types (matches actual Ashby API response)
 export interface AshbyCandidate {
   id: string;
-  email: string;
   name: string;
-  linkedInUrl?: string;
-  resumeFileHandle?: string;
-  phoneNumber?: string;
-  customFields?: Record<string, any>;
-  tags?: string[];
   createdAt: string;
   updatedAt: string;
+  
+  // Email addresses
+  primaryEmailAddress?: {
+    value: string;
+    type: string;
+    isPrimary: boolean;
+  };
+  emailAddresses?: Array<{
+    value: string;
+    type: string;
+    isPrimary: boolean;
+  }>;
+  
+  // Phone numbers
+  primaryPhoneNumber?: {
+    value: string;
+    type: string;
+    isPrimary: boolean;
+  };
+  phoneNumbers?: Array<{
+    value: string;
+    type: string;
+    isPrimary: boolean;
+  }>;
+  
+  // Social links (LinkedIn, GitHub, etc.)
+  socialLinks?: Array<{
+    type: string;
+    url: string;
+  }>;
+  
+  // Professional information
+  position?: string;
+  company?: string;
+  school?: string;
+  
+  // Location
+  location?: {
+    id: string;
+    locationSummary: string;
+    locationComponents: Array<{
+      type: string;
+      name: string;
+    }>;
+  };
+  timezone?: string;
+  
+  // Files
+  resumeFileHandle?: {
+    id: string;
+    name: string;
+    handle: string;
+  } | string; // Can be string or object depending on API
+  fileHandles?: Array<{
+    id: string;
+    name: string;
+    handle: string;
+  }>;
+  
+  // Metadata
+  tags?: string[];
+  customFields?: Record<string, any>;
+  applicationIds?: string[];
+  source?: {
+    id: string;
+    title: string;
+    isArchived: boolean;
+    sourceType: {
+      id: string;
+      title: string;
+      isArchived: boolean;
+    };
+  };
+  creditedToUser?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    globalRole: string;
+    isEnabled: boolean;
+    updatedAt: string;
+  } | null;
+  profileUrl?: string;
 }
 
 export interface AshbyCandidateListRequest {

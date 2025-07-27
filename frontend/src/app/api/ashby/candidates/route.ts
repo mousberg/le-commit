@@ -4,7 +4,7 @@ import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
 
 // GET - Fetch cached candidates with auto-sync of new ones
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -16,21 +16,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user ID
-    const userResult = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userResult.error || !userResult.data) {
-      return NextResponse.json(
-        { error: 'User not found', success: false },
-        { status: 404 }
-      );
-    }
-
-    const userId = userResult.data.id;
+    // Use auth.uid() directly as user ID (after migration fix)
+    const userId = user.id;
 
     // Get cached candidates
     const cachedResult = await supabase
@@ -76,15 +63,29 @@ export async function GET(request: NextRequest) {
       ashby_id: candidate.ashby_id,
       name: candidate.name,
       email: candidate.email,
+      phone_number: candidate.phone_number,
+      all_emails: candidate.all_emails || [],
+      all_phone_numbers: candidate.all_phone_numbers || [],
+      social_links: candidate.social_links || [],
       linkedin_url: candidate.linkedin_url,
+      github_url: candidate.github_url,
+      position: candidate.position,
+      company: candidate.company,
+      school: candidate.school,
+      location_summary: candidate.location_summary,
+      location_details: candidate.location_details,
+      timezone: candidate.timezone,
+      source_info: candidate.source_info,
+      profile_url: candidate.profile_url,
       has_resume: candidate.has_resume,
       resume_url: candidate.resume_url,
+      all_file_handles: candidate.all_file_handles || [],
       created_at: candidate.ashby_created_at,
       tags: candidate.tags || [],
       unmask_applicant_id: candidate.unmask_applicant_id,
       unmask_status: candidate.unmask_applicant_id ? 'linked' : 'not_linked',
       action: candidate.unmask_applicant_id ? 'existing' : 'not_created',
-      ready_for_processing: !!(candidate.linkedin_url || candidate.has_resume),
+      ready_for_processing: !!(candidate.linkedin_url || candidate.has_resume || candidate.github_url),
       fraud_likelihood: candidate.fraud_likelihood,
       fraud_reason: candidate.fraud_reason,
       last_synced_at: candidate.last_synced_at
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Force refresh all candidates from Ashby
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -128,21 +129,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user ID
-    const userResult = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (userResult.error || !userResult.data) {
-      return NextResponse.json(
-        { error: 'User not found', success: false },
-        { status: 404 }
-      );
-    }
-
-    const userId = userResult.data.id;
+    // Use auth.uid() directly as user ID (after migration fix)
+    const userId = user.id;
 
     console.log('🔄 Force refreshing all Ashby candidates');
     
@@ -151,7 +139,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Candidates refreshed successfully',
       ...refreshResults
     });
 
@@ -219,15 +206,33 @@ async function syncNewCandidates(userId: string, supabase: any) {
       }
     }
 
+    // Extract LinkedIn URL from social links
+    const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
+    const githubLink = candidate.socialLinks?.find((link: any) => link.type === 'GitHub');
+    
     insertData.push({
       user_id: userId,
       ashby_id: candidate.id,
       name: candidate.name || 'Unknown',
-      email: candidate.email,
-      linkedin_url: candidate.linkedInUrl,
+      email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
+      phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
+      all_emails: candidate.emailAddresses || [],
+      all_phone_numbers: candidate.phoneNumbers || [],
+      social_links: candidate.socialLinks || [],
+      linkedin_url: linkedinLink?.url,
+      github_url: githubLink?.url,
+      position: candidate.position,
+      company: candidate.company,
+      school: candidate.school,
+      location_summary: candidate.location?.locationSummary,
+      location_details: candidate.location,
+      timezone: candidate.timezone,
+      source_info: candidate.source,
+      profile_url: candidate.profileUrl,
       has_resume: !!candidate.resumeFileHandle,
-      resume_file_handle: candidate.resumeFileHandle,
+      resume_file_handle: candidate.resumeFileHandle?.handle || candidate.resumeFileHandle,
       resume_url: resumeUrl,
+      all_file_handles: candidate.fileHandles || [],
       tags: candidate.tags || [],
       custom_fields: candidate.customFields || {},
       ashby_created_at: candidate.createdAt,
@@ -309,15 +314,33 @@ async function refreshAllCandidates(userId: string, supabase: any) {
       }
     }
 
+    // Extract LinkedIn URL from social links
+    const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
+    const githubLink = candidate.socialLinks?.find((link: any) => link.type === 'GitHub');
+    
     insertData.push({
       user_id: userId,
       ashby_id: candidate.id,
       name: candidate.name || 'Unknown',
-      email: candidate.email,
-      linkedin_url: candidate.linkedInUrl,
+      email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
+      phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
+      all_emails: candidate.emailAddresses || [],
+      all_phone_numbers: candidate.phoneNumbers || [],
+      social_links: candidate.socialLinks || [],
+      linkedin_url: linkedinLink?.url,
+      github_url: githubLink?.url,
+      position: candidate.position,
+      company: candidate.company,
+      school: candidate.school,
+      location_summary: candidate.location?.locationSummary,
+      location_details: candidate.location,
+      timezone: candidate.timezone,
+      source_info: candidate.source,
+      profile_url: candidate.profileUrl,
       has_resume: !!candidate.resumeFileHandle,
-      resume_file_handle: candidate.resumeFileHandle,
+      resume_file_handle: candidate.resumeFileHandle?.handle || candidate.resumeFileHandle,
       resume_url: resumeUrl,
+      all_file_handles: candidate.fileHandles || [],
       tags: candidate.tags || [],
       custom_fields: candidate.customFields || {},
       ashby_created_at: candidate.createdAt,
