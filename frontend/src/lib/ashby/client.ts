@@ -110,7 +110,7 @@ export class AshbyClient {
   }
 
   async getResumeUrl(fileHandle: string): Promise<AshbyApiResponse<{ url: string }>> {
-    return this.request<{ url: string }>('/file.getUrl', 'POST', {
+    return this.request<{ url: string }>('/file.info', 'POST', {
       fileHandle
     });
   }

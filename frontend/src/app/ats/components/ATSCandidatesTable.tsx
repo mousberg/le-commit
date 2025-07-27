@@ -24,9 +24,24 @@ interface ATSCandidate {
   ashby_id: string;
   name: string;
   email: string;
+  phone_number?: string;
+  all_emails?: Array<{value: string; type: string; isPrimary: boolean}>;
+  all_phone_numbers?: Array<{value: string; type: string; isPrimary: boolean}>;
+  social_links?: Array<{type: string; url: string}>;
   linkedin_url?: string;
+  github_url?: string;
+  position?: string;
+  company?: string;
+  school?: string;
+  location_summary?: string;
+  location_details?: any;
+  timezone?: string;
+  source_info?: any;
+  profile_url?: string;
   has_resume: boolean;
+  resume_file_handle?: string;
   resume_url?: string;
+  all_file_handles?: Array<any>;
   created_at: string;
   tags: string[];
   unmask_applicant_id?: string;
@@ -35,6 +50,7 @@ interface ATSCandidate {
   ready_for_processing?: boolean;
   fraud_likelihood?: 'low' | 'medium' | 'high';
   fraud_reason?: string;
+  last_synced_at?: string;
 }
 
 interface ATSCandidatesTableProps {
@@ -227,11 +243,46 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
                   {/* CV */}
                   <td className="p-3">
-                    {candidate.has_resume ? (
-                      <FileText className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <FileText className="h-5 w-5 text-gray-300" />
-                    )}
+                    <div className="flex gap-1">
+                      {candidate.has_resume && candidate.resume_file_handle ? (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation(); // Prevent row click
+                            try {
+                              const response = await fetch('/api/ashby/resume', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                  fileHandle: candidate.resume_file_handle
+                                })
+                              });
+                              
+                              const result = await response.json();
+                              
+                              if (result.success && result.url) {
+                                // Open download URL in new tab
+                                window.open(result.url, '_blank');
+                              } else {
+                                console.error('Failed to get resume URL:', result.error);
+                                alert('Failed to download resume');
+                              }
+                            } catch (error) {
+                              console.error('Error downloading resume:', error);
+                              alert('Failed to download resume');
+                            }
+                          }}
+                          className="hover:bg-green-100 p-1 rounded"
+                          title="Download Resume/CV"
+                        >
+                          <FileText className="h-5 w-5 text-green-600" />
+                        </button>
+                      ) : (
+                        <FileText className="h-5 w-5 text-gray-300" />
+                      )}
+                      
+                    </div>
                   </td>
 
                   {/* LinkedIn */}

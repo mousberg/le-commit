@@ -78,6 +78,7 @@ export async function GET() {
       source_info: candidate.source_info,
       profile_url: candidate.profile_url,
       has_resume: candidate.has_resume,
+      resume_file_handle: candidate.resume_file_handle,
       resume_url: candidate.resume_url,
       all_file_handles: candidate.all_file_handles || [],
       created_at: candidate.ashby_created_at,
@@ -195,14 +196,16 @@ async function syncNewCandidates(userId: string, supabase: any) {
     }
 
     let resumeUrl = null;
-    if (candidate.resumeFileHandle) {
+    if (fileHandle) {
       try {
-        const resumeResponse = await ashbyClient.getResumeUrl(candidate.resumeFileHandle);
+        const resumeResponse = await ashbyClient.getResumeUrl(fileHandle);
         if (resumeResponse.success) {
           resumeUrl = resumeResponse.results?.url;
+        } else {
+          console.warn(`Failed to get resume URL for ${candidate.name}:`, resumeResponse.error?.message);
         }
       } catch (error) {
-        console.warn(`Failed to get resume URL for ${candidate.id}:`, error);
+        console.warn(`Exception getting resume URL for ${candidate.name}:`, error);
       }
     }
 
@@ -210,6 +213,25 @@ async function syncNewCandidates(userId: string, supabase: any) {
     const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
     const githubLink = candidate.socialLinks?.find((link: any) => link.type === 'GitHub');
     
+    // Extract file handle properly
+    let fileHandle = null;
+    if (candidate.resumeFileHandle) {
+      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
+        fileHandle = candidate.resumeFileHandle.handle;
+      } else if (typeof candidate.resumeFileHandle === 'string') {
+        fileHandle = candidate.resumeFileHandle;
+      }
+    }
+
+    if (process.env.ASHBY_DEBUG_LOG === 'true') {
+      console.log('📄 Processing candidate resume:', {
+        name: candidate.name,
+        hasResumeFileHandle: !!candidate.resumeFileHandle,
+        resumeFileHandleType: typeof candidate.resumeFileHandle,
+        extractedHandle: fileHandle?.substring(0, 50) + '...' || 'none'
+      });
+    }
+
     insertData.push({
       user_id: userId,
       ashby_id: candidate.id,
@@ -229,8 +251,8 @@ async function syncNewCandidates(userId: string, supabase: any) {
       timezone: candidate.timezone,
       source_info: candidate.source,
       profile_url: candidate.profileUrl,
-      has_resume: !!candidate.resumeFileHandle,
-      resume_file_handle: candidate.resumeFileHandle?.handle || candidate.resumeFileHandle,
+      has_resume: !!fileHandle,
+      resume_file_handle: fileHandle,
       resume_url: resumeUrl,
       all_file_handles: candidate.fileHandles || [],
       tags: candidate.tags || [],
@@ -303,14 +325,16 @@ async function refreshAllCandidates(userId: string, supabase: any) {
     }
 
     let resumeUrl = null;
-    if (candidate.resumeFileHandle) {
+    if (fileHandle) {
       try {
-        const resumeResponse = await ashbyClient.getResumeUrl(candidate.resumeFileHandle);
+        const resumeResponse = await ashbyClient.getResumeUrl(fileHandle);
         if (resumeResponse.success) {
           resumeUrl = resumeResponse.results?.url;
+        } else {
+          console.warn(`Failed to get resume URL for ${candidate.name}:`, resumeResponse.error?.message);
         }
       } catch (error) {
-        console.warn(`Failed to get resume URL for ${candidate.id}:`, error);
+        console.warn(`Exception getting resume URL for ${candidate.name}:`, error);
       }
     }
 
@@ -318,6 +342,25 @@ async function refreshAllCandidates(userId: string, supabase: any) {
     const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
     const githubLink = candidate.socialLinks?.find((link: any) => link.type === 'GitHub');
     
+    // Extract file handle properly
+    let fileHandle = null;
+    if (candidate.resumeFileHandle) {
+      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
+        fileHandle = candidate.resumeFileHandle.handle;
+      } else if (typeof candidate.resumeFileHandle === 'string') {
+        fileHandle = candidate.resumeFileHandle;
+      }
+    }
+
+    if (process.env.ASHBY_DEBUG_LOG === 'true') {
+      console.log('📄 Processing candidate resume:', {
+        name: candidate.name,
+        hasResumeFileHandle: !!candidate.resumeFileHandle,
+        resumeFileHandleType: typeof candidate.resumeFileHandle,
+        extractedHandle: fileHandle?.substring(0, 50) + '...' || 'none'
+      });
+    }
+
     insertData.push({
       user_id: userId,
       ashby_id: candidate.id,
@@ -337,8 +380,8 @@ async function refreshAllCandidates(userId: string, supabase: any) {
       timezone: candidate.timezone,
       source_info: candidate.source,
       profile_url: candidate.profileUrl,
-      has_resume: !!candidate.resumeFileHandle,
-      resume_file_handle: candidate.resumeFileHandle?.handle || candidate.resumeFileHandle,
+      has_resume: !!fileHandle,
+      resume_file_handle: fileHandle,
       resume_url: resumeUrl,
       all_file_handles: candidate.fileHandles || [],
       tags: candidate.tags || [],
