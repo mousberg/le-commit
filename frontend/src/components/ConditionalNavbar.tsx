@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Navbar from './NerdBusterHeaderLogo';
+import CenteredLogo from './CenteredLogo';
 
 export default function ConditionalNavbar() {
   const pathname = usePathname();
@@ -11,5 +12,11 @@ export default function ConditionalNavbar() {
     return null;
   }
   
+  // Show centered logo on ATS route
+  if (pathname === '/ats') {
+    return <CenteredLogo />;
+  }
+  
+  // Show regular navbar everywhere else
   return <Navbar />;
 }

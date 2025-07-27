@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,41 +28,36 @@ interface ATSCandidate {
 
 interface ATSPageData {
   candidates: ATSCandidate[];
-  summary: {
-    total_fetched: number;
-    filtered_count: number;
-    created_in_unmask: number;
-    already_existing: number;
-    with_linkedin: number;
-    with_resume: number;
-    ready_for_verification: number;
+  cached_count: number;
+  auto_synced: boolean;
+  sync_results?: {
+    new_candidates?: number;
+    message?: string;
   };
-  pagination?: {
-    next_cursor?: string;
-    more_available: boolean;
-  };
+  last_sync: number | null;
 }
 
 export default function ATSPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState<ATSPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoCreate, setAutoCreate] = useState(false);
-  const [onlyWithData, setOnlyWithData] = useState(true);
-  const [limit, setLimit] = useState(20);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const fetchCandidates = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        limit: limit.toString(),
-        auto_create: autoCreate.toString(),
-        only_with_data: onlyWithData.toString()
-      });
-
-      const response = await fetch(`/api/ashby/pull?${params}`, {
+      const response = await fetch('/api/ashby/candidates', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -74,6 +71,10 @@ export default function ATSPage() {
       }
 
       setData(result);
+      
+      if (result.auto_synced && result.sync_results) {
+        console.log('🔄 Auto-synced candidates:', result.sync_results);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -81,13 +82,40 @@ export default function ATSPage() {
     }
   };
 
-  // Initial load
+  // Initial load - only fetch when authenticated
   useEffect(() => {
-    fetchCandidates();
-  }, []);
+    if (user && !authLoading) {
+      fetchCandidates();
+    }
+  }, [user, authLoading]);
 
-  const handleRefresh = () => {
-    fetchCandidates();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/ashby/candidates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to refresh candidates');
+      }
+
+      console.log('🔄 Full refresh completed:', result);
+      
+      // Fetch updated candidates
+      await fetchCandidates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -131,6 +159,23 @@ export default function ATSPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="container mx-auto p-6 pt-20">
@@ -152,16 +197,16 @@ export default function ATSPage() {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <Button onClick={handleRefresh} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+              <Button onClick={handleRefresh} disabled={loading || refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing All...' : 'Refresh All'}
               </Button>
             </div>
           </div>
         </div>
 
         {/* Summary Cards */}
-        {data?.summary && (
+        {data && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
@@ -170,8 +215,8 @@ export default function ATSPage() {
                     <ExternalLink className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Total Candidates</p>
-                    <p className="text-2xl font-bold">{data.summary.total_fetched}</p>
+                    <p className="text-sm text-gray-600">Cached Candidates</p>
+                    <p className="text-2xl font-bold">{data.cached_count}</p>
                   </div>
                 </div>
               </CardContent>
@@ -184,8 +229,8 @@ export default function ATSPage() {
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">With Data</p>
-                    <p className="text-2xl font-bold">{data.summary.filtered_count}</p>
+                    <p className="text-sm text-gray-600">With LinkedIn</p>
+                    <p className="text-2xl font-bold">{data.candidates.filter(c => c.linkedin_url).length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -198,8 +243,8 @@ export default function ATSPage() {
                     <Clock className="h-4 w-4 text-yellow-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Ready for Verification</p>
-                    <p className="text-2xl font-bold">{data.summary.ready_for_verification}</p>
+                    <p className="text-sm text-gray-600">With Resume</p>
+                    <p className="text-2xl font-bold">{data.candidates.filter(c => c.has_resume).length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -212,9 +257,9 @@ export default function ATSPage() {
                     <AlertTriangle className="h-4 w-4 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">In Unmask</p>
+                    <p className="text-sm text-gray-600">High Risk</p>
                     <p className="text-2xl font-bold">
-                      {data.summary.created_in_unmask + data.summary.already_existing}
+                      {data.candidates.filter(c => c.fraud_likelihood === 'high').length}
                     </p>
                   </div>
                 </div>
@@ -223,59 +268,30 @@ export default function ATSPage() {
           </div>
         )}
 
-        {/* Controls */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Sync Settings</CardTitle>
-            <CardDescription>
-              Configure how candidates are pulled from your ATS
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Limit:</label>
-                <select 
-                  value={limit} 
-                  onChange={(e) => setLimit(Number(e.target.value))}
-                  className="border rounded px-2 py-1 text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
+        {/* Sync Status */}
+        {data && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Sync Status</CardTitle>
+              <CardDescription>
+                Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
+                {data.auto_synced && data.sync_results && (
+                  <Badge variant="outline" className="ml-2">
+                    Auto-synced: {data.sync_results.message}
+                  </Badge>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600">
+                  Candidates are automatically synced when you visit this page. 
+                  Use the refresh button to force a full sync of all candidates.
+                </p>
               </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="onlyWithData"
-                  checked={onlyWithData}
-                  onChange={(e) => setOnlyWithData(e.target.checked)}
-                />
-                <label htmlFor="onlyWithData" className="text-sm font-medium">
-                  Only candidates with LinkedIn/Resume
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="autoCreate"
-                  checked={autoCreate}
-                  onChange={(e) => setAutoCreate(e.target.checked)}
-                />
-                <label htmlFor="autoCreate" className="text-sm font-medium">
-                  Auto-create in Unmask
-                </label>
-              </div>
-
-              <Button onClick={fetchCandidates} variant="outline" size="sm">
-                Apply Filters
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Error State */}
         {error && (
@@ -305,14 +321,6 @@ export default function ATSPage() {
           <ATSCandidatesTable candidates={data.candidates} />
         )}
 
-        {/* Pagination */}
-        {data?.pagination?.more_available && (
-          <div className="mt-6 text-center">
-            <Button variant="outline">
-              Load More Candidates
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

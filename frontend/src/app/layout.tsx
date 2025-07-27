@@ -2,8 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ConditionalNavbar from "../components/ConditionalNavbar";
 import { AuthProvider } from "../lib/contexts/AuthContext";
-import CenteredLogo from "../components/CenteredLogo";
 import { GoogleTagManager } from '@next/third-parties/google'
 
 const geistSans = Geist({
@@ -33,7 +33,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <CenteredLogo />
+          <ConditionalNavbar />
           {children}
         </AuthProvider>
       </body>
