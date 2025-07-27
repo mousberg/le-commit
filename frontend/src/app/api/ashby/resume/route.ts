@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Ashby Resume Download API
 import { NextRequest, NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle nested response structure from Ashby
-    const downloadUrl = fileResponse.results?.results?.url || fileResponse.results?.url;
+    const downloadUrl = (fileResponse.results as any)?.results?.url || fileResponse.results?.url;
     
     if (!downloadUrl) {
       return NextResponse.json(

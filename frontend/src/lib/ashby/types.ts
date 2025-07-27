@@ -73,7 +73,7 @@ export interface AshbyCandidate {
   
   // Metadata
   tags?: string[];
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   applicationIds?: string[];
   source?: {
     id: string;
@@ -118,7 +118,7 @@ export interface AshbyApplication {
   status: string;
   stage: string;
   source?: string;
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -139,7 +139,7 @@ export interface AshbyResumeUploadResponse {
 // Update Types
 export interface AshbyCandidateUpdateRequest {
   candidateId: string;
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   tags?: {
     add?: string[];
     remove?: string[];
@@ -149,7 +149,7 @@ export interface AshbyCandidateUpdateRequest {
 export interface AshbyApplicationUpdateRequest {
   applicationId: string;
   source?: string;
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
 }
 
 // Webhook Types
@@ -162,7 +162,7 @@ export interface AshbyWebhookEvent {
     applicationId?: string;
     previousStage?: string;
     currentStage?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

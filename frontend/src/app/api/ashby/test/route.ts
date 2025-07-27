@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Ashby Test API - Fetch first few candidates for testing
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -72,11 +73,26 @@ export async function GET(request: NextRequest) {
 
     for (const candidate of candidates) {
       try {
-        const processedCandidate: any = {
+        const processedCandidate: {
+          ashby_id: string;
+          name: string;
+          email: string;
+          linkedin_url: string | null;
+          has_resume: boolean;
+          created_at: string;
+          tags: string[];
+          resume_url?: string;
+          resume_file_handle?: string;
+          resume_error?: string;
+          unmask_applicant_id?: string;
+          created_in_unmask?: boolean;
+          already_exists?: boolean;
+          db_error?: string;
+        } = {
           ashby_id: candidate.id,
           name: candidate.name,
-          email: candidate.email,
-          linkedin_url: candidate.linkedInUrl || null,
+          email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value || '',
+          linkedin_url: candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn')?.url || null,
           has_resume: !!candidate.resumeFileHandle,
           created_at: candidate.createdAt,
           tags: candidate.tags || []
@@ -85,10 +101,11 @@ export async function GET(request: NextRequest) {
         // Optionally fetch resume details
         if (includeResume && candidate.resumeFileHandle) {
           try {
-            const resumeResponse = await ashbyClient.getResumeUrl(candidate.resumeFileHandle);
+            const fileHandle = typeof candidate.resumeFileHandle === 'string' ? candidate.resumeFileHandle : (candidate.resumeFileHandle as any)?.handle;
+            const resumeResponse = await ashbyClient.getResumeUrl(fileHandle);
             if (resumeResponse.success) {
               processedCandidate.resume_url = resumeResponse.results?.url;
-              processedCandidate.resume_file_handle = candidate.resumeFileHandle;
+              processedCandidate.resume_file_handle = fileHandle;
             }
           } catch (resumeError) {
             console.warn(`Failed to get resume URL for candidate ${candidate.id}:`, resumeError);
@@ -115,9 +132,9 @@ export async function GET(request: NextRequest) {
               const applicantData = {
                 user_id: user.id,
                 name: candidate.name || 'Unknown',
-                email: candidate.email || '',
+                email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value || '',
                 status: 'pending_ashby_test',
-                original_linkedin_url: candidate.linkedInUrl || null,
+                original_linkedin_url: candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn')?.url || null,
                 ashby_candidate_id: candidate.id,
                 ashby_sync_status: 'pending',
                 created_at: new Date().toISOString()

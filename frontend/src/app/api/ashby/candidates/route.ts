@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Ashby Candidates API - Cached candidate management with auto-sync
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
 
@@ -153,7 +154,7 @@ export async function POST() {
 }
 
 // Helper function to sync only new candidates
-async function syncNewCandidates(userId: string, supabase: any) {
+async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   const ashbyClient = new AshbyClient({
     apiKey: process.env.ASHBY_API_KEY!
   });
@@ -164,7 +165,7 @@ async function syncNewCandidates(userId: string, supabase: any) {
     .select('ashby_id')
     .eq('user_id', userId);
 
-  const existingIds = new Set(existingResult.data?.map((c: any) => c.ashby_id) || []);
+  const existingIds = new Set(existingResult.data?.map((c: { ashby_id: string }) => c.ashby_id) || []);
 
   // Fetch recent candidates from Ashby (last 50)
   const candidatesResponse = await ashbyClient.listCandidates({
@@ -190,9 +191,19 @@ async function syncNewCandidates(userId: string, supabase: any) {
       console.log('🆕 New Ashby candidate:', {
         id: candidate.id,
         name: candidate.name,
-        linkedInUrl: candidate.linkedInUrl,
+        socialLinks: candidate.socialLinks,
         resumeFileHandle: candidate.resumeFileHandle
       });
+    }
+
+    // Extract file handle properly
+    let fileHandle = null;
+    if (candidate.resumeFileHandle) {
+      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
+        fileHandle = candidate.resumeFileHandle.handle;
+      } else if (typeof candidate.resumeFileHandle === 'string') {
+        fileHandle = candidate.resumeFileHandle;
+      }
     }
 
     let resumeUrl = null;
@@ -210,18 +221,8 @@ async function syncNewCandidates(userId: string, supabase: any) {
     }
 
     // Extract LinkedIn URL from social links
-    const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
-    const githubLink = candidate.socialLinks?.find((link: any) => link.type === 'GitHub');
-    
-    // Extract file handle properly
-    let fileHandle = null;
-    if (candidate.resumeFileHandle) {
-      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
-        fileHandle = candidate.resumeFileHandle.handle;
-      } else if (typeof candidate.resumeFileHandle === 'string') {
-        fileHandle = candidate.resumeFileHandle;
-      }
-    }
+    const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
+    const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
 
     if (process.env.ASHBY_DEBUG_LOG === 'true') {
       console.log('📄 Processing candidate resume:', {
@@ -278,12 +279,12 @@ async function syncNewCandidates(userId: string, supabase: any) {
 }
 
 // Helper function to refresh all candidates
-async function refreshAllCandidates(userId: string, supabase: any) {
+async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   const ashbyClient = new AshbyClient({
     apiKey: process.env.ASHBY_API_KEY!
   });
 
-  let allCandidates: any[] = [];
+  const allCandidates: any[] = [];
   let cursor: string | undefined;
   let hasMore = true;
 
@@ -319,9 +320,19 @@ async function refreshAllCandidates(userId: string, supabase: any) {
       console.log('🔄 Refreshing candidate:', {
         id: candidate.id,
         name: candidate.name,
-        linkedInUrl: candidate.linkedInUrl,
+        socialLinks: candidate.socialLinks,
         resumeFileHandle: candidate.resumeFileHandle
       });
+    }
+
+    // Extract file handle properly
+    let fileHandle = null;
+    if (candidate.resumeFileHandle) {
+      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
+        fileHandle = candidate.resumeFileHandle.handle;
+      } else if (typeof candidate.resumeFileHandle === 'string') {
+        fileHandle = candidate.resumeFileHandle;
+      }
     }
 
     let resumeUrl = null;
@@ -339,18 +350,8 @@ async function refreshAllCandidates(userId: string, supabase: any) {
     }
 
     // Extract LinkedIn URL from social links
-    const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
-    const githubLink = candidate.socialLinks?.find((link: any) => link.type === 'GitHub');
-    
-    // Extract file handle properly
-    let fileHandle = null;
-    if (candidate.resumeFileHandle) {
-      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
-        fileHandle = candidate.resumeFileHandle.handle;
-      } else if (typeof candidate.resumeFileHandle === 'string') {
-        fileHandle = candidate.resumeFileHandle;
-      }
-    }
+    const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
+    const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
 
     if (process.env.ASHBY_DEBUG_LOG === 'true') {
       console.log('📄 Processing candidate resume:', {
