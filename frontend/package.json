@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:ashby": "dotenv -e .env.local -- tsx src/lib/simple_tests/ashby-test.ts",
+    "test:ashby-api": "curl -X GET 'http://localhost:3000/api/ashby/test?limit=3&test=true' -H 'Authorization: Bearer YOUR_TOKEN'"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.5.0",
@@ -52,6 +54,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/ui": "^3.2.4",
+    "dotenv-cli": "^9.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "supabase": "^2.31.4",

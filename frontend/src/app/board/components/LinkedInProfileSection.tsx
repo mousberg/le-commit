@@ -66,7 +66,9 @@ export default function LinkedInProfileSection({ linkedinData }: LinkedInProfile
                 <span>🤝</span>
                 Connections
               </h4>
-              <p className="text-gray-700 text-sm font-medium">{linkedinData.connections.toLocaleString()}</p>
+              <p className="text-gray-700 text-sm font-medium">
+                {linkedinData.connections === 500 ? '500+' : linkedinData.connections.toLocaleString()}
+              </p>
             </div>
 
             {/* Experience */}
