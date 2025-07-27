@@ -49,6 +49,11 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 - **Radix UI** - Accessible component primitives
 - **Framer Motion** - Smooth animations
 
+### **Backend & Storage**
+- **Supabase** - PostgreSQL database with real-time capabilities
+- **Supabase Storage** - Secure file storage for CVs and documents
+- **Ashby ATS Integration** - Seamless candidate import and sync
+
 ### **AI & Analysis**
 - **Groq API** - Fast AI inference for document analysis
 - **OpenAI GPT-4** - Advanced reasoning and summarization
@@ -58,7 +63,6 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 ### **Infrastructure**
 - **Docker** - Containerized deployment
 - **Vultr** - Cloud hosting platform
-- **File Storage** - Local JSON-based data persistence
 - **Real-time Processing** - Async job processing
 
 ---
@@ -91,6 +95,11 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 
    Required environment variables:
    ```env
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
    # AI Services
    GROQ_API_KEY=your_groq_api_key
    OPENAI_API_KEY=your_openai_api_key
@@ -104,6 +113,9 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
    TWILIO_ACCOUNT_SID=your_twilio_sid
    TWILIO_AUTH_TOKEN=your_twilio_token
    TWILIO_PHONE_NUMBER=your_twilio_number
+
+   # Ashby ATS Integration
+   ASHBY_API_KEY=your_ashby_api_key
    ```
 
 4. **Start development server**
@@ -183,6 +195,11 @@ We provide automated deployment scripts for seamless production deployment:
 - `GET /api/applicants/[id]` - Get specific applicant
 - `PUT /api/applicants/[id]` - Update applicant information
 - `DELETE /api/applicants/[id]` - Delete applicant
+
+### **Ashby ATS Integration**
+- `GET /api/ashby/candidates` - List and sync candidates from Ashby
+- `POST /api/ashby/candidates` - Force refresh all candidates
+- `POST /api/ashby/store-cv` - Download and store CV in Supabase Storage
 
 ### **Reference Calling**
 - `POST /api/reference-call` - Initiate automated reference call
@@ -294,6 +311,7 @@ We welcome contributions! Please see our [development guide](docs/) for:
 ## 📚 Documentation
 
 - [Deployment Scripts Guide](docs/DEPLOYMENT_SCRIPTS.md)
+- [Supabase Storage Setup](docs/SUPABASE_STORAGE_SETUP.md)
 - [Reference Calling Setup](docs/REFERENCE_CALLING_FEATURE.md)
 - [Vultr Deployment Guide](docs/VULTR_DEPLOYMENT.md)
 - [API Documentation](docs/SETUP_GUIDE_CALLING.md)

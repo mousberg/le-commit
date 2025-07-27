@@ -106,12 +106,12 @@ file_size_limit = "50MiB"
 # [storage.image_transformation]
 # enabled = true
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# Configure local storage buckets
+[storage.buckets.candidate-cvs]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
+objects_path = "./candidate-cvs"
 
 [auth]
 enabled = true

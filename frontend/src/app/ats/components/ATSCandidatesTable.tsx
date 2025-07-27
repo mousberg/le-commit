@@ -249,37 +249,37 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                           onClick={async (e) => {
                             e.stopPropagation(); // Prevent row click
                             try {
-                              const response = await fetch('/api/ashby/resume', {
+                              const response = await fetch('/api/ashby/store-cv', {
                                 method: 'POST',
                                 headers: {
                                   'Content-Type': 'application/json',
                                 },
                                 body: JSON.stringify({
-                                  fileHandle: candidate.resume_file_handle
+                                  candidateId: candidate.ashby_id
                                 })
                               });
                               
                               const result = await response.json();
                               
                               if (result.success && result.url) {
-                                // Open download URL in new tab
+                                // Open stored CV in new tab
                                 window.open(result.url, '_blank');
                               } else {
-                                console.error('Failed to get resume URL:', result.error);
-                                alert('Failed to download resume');
+                                console.error('Failed to get CV:', result.error);
+                                alert('Failed to download CV');
                               }
                             } catch (error) {
-                              console.error('Error downloading resume:', error);
-                              alert('Failed to download resume');
+                              console.error('Error downloading CV:', error);
+                              alert('Failed to download CV');
                             }
                           }}
                           className="hover:bg-green-100 p-1 rounded"
-                          title="Download Resume/CV"
+                          title="View Stored CV"
                         >
                           <FileText className="h-5 w-5 text-green-600" />
                         </button>
                       ) : (
-                        <FileText className="h-5 w-5 text-gray-300" />
+                        <FileText className="h-5 w-5 text-gray-300" title="No CV available" />
                       )}
                       
                     </div>
