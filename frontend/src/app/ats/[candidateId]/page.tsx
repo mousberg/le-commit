@@ -27,7 +27,7 @@ interface CandidateDetail {
   resume_url?: string;
   created_at: string;
   tags: string[];
-  custom_fields?: Record<string, any>;
+  custom_fields?: Record<string, unknown>;
   unmask_applicant_id?: string;
   unmask_status?: string;
   fraud_likelihood?: 'low' | 'medium' | 'high';
