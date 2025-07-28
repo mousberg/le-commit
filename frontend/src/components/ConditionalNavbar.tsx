@@ -17,6 +17,14 @@ export default function ConditionalNavbar() {
     return <CenteredLogo />;
   }
   
+  if (pathname === '/blog') {
+    return <Navbar scrollThreshold={40} />;
+  }
+
+  if (pathname?.startsWith('/blog/')) {
+    return <Navbar scrollThreshold={20} />;
+  }
+
   // Show regular navbar everywhere else
   return <Navbar />;
 }

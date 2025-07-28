@@ -38,21 +38,22 @@ const ArrowIcon = () => (
 interface HeaderProps {
   onDemoOpen?: () => void;
   onWaitlistOpen?: () => void;
+  scrollThreshold?: number;
 }
 
-export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {}) {
+export default function Navbar({ onDemoOpen, onWaitlistOpen, scrollThreshold = 100 }: HeaderProps = {}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.scrollY;
-      setIsScrolled(scrollTop > 100);
+      setIsScrolled(scrollTop > scrollThreshold);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [scrollThreshold]);
 
   const handleWaitlistClick = () => {
     if (onWaitlistOpen) {
@@ -133,6 +134,12 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
               >
                 Testimonials
               </Link>
+              <Link
+                href="/blog"
+                className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
+              >
+                Blog
+              </Link>
             </div>
 
             {/* Desktop CTA buttons */}
@@ -209,6 +216,13 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Testimonials
+                </Link>
+                <Link
+                  href="/blog"
+                  className="text-xl font-semibold text-zinc-900 hover:text-pink-500 transition-colors py-4 px-4 hover:bg-pink-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Blog
                 </Link>
               </nav>
 
