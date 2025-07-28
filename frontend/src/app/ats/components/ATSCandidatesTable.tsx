@@ -11,9 +11,6 @@ import {
   CheckCircle, 
   Clock,
   User,
-  Mail,
-  Calendar,
-  Tag,
   Shield,
   ShieldAlert,
   ShieldCheck
@@ -34,14 +31,14 @@ interface ATSCandidate {
   company?: string;
   school?: string;
   location_summary?: string;
-  location_details?: any;
+  location_details?: Record<string, unknown>;
   timezone?: string;
-  source_info?: any;
+  source_info?: Record<string, unknown>;
   profile_url?: string;
   has_resume: boolean;
   resume_file_handle?: string;
   resume_url?: string;
-  all_file_handles?: Array<any>;
+  all_file_handles?: Array<Record<string, unknown>>;
   created_at: string;
   tags: string[];
   unmask_applicant_id?: string;
@@ -124,13 +121,13 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleDateString('en-US', {
+  //     year: 'numeric',
+  //     month: 'short',
+  //     day: 'numeric'
+  //   });
+  // };
 
   const handleBulkVerification = async () => {
     if (selectedCandidates.length === 0) return;

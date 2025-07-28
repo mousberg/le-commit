@@ -115,7 +115,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function syncVerificationResults(ashbyClient: AshbyClient, applicant: any) {
+interface Applicant {
+  id: string;
+  ashby_candidate_id: string;
+  status: string;
+  analysis_result?: {
+    credibilityScore?: number;
+    flags?: Array<{ type: string; message: string }>;
+  };
+}
+
+async function syncVerificationResults(ashbyClient: AshbyClient, applicant: Applicant) {
   const analysisResult = applicant.analysis_result;
   
   if (!analysisResult) {
@@ -129,7 +139,7 @@ async function syncVerificationResults(ashbyClient: AshbyClient, applicant: any)
   let verificationStatus: 'verified' | 'flagged' | 'pending' = 'pending';
   
   if (applicant.status === 'completed') {
-    const redFlags = analysisResult.flags?.filter((f: any) => f.type === 'red') || [];
+    const redFlags = analysisResult.flags?.filter((f) => f.type === 'red') || [];
     verificationStatus = redFlags.length > 0 ? 'flagged' : 'verified';
   }
 
@@ -147,9 +157,9 @@ async function syncVerificationResults(ashbyClient: AshbyClient, applicant: any)
   );
 }
 
-async function syncVerificationStatus(ashbyClient: AshbyClient, applicant: any) {
+async function syncVerificationStatus(ashbyClient: AshbyClient, applicant: Applicant) {
   // Map Unmask status to Ashby custom field
-  const statusMapping = {
+  const statusMapping: Record<string, string> = {
     'pending': 'Verification Pending',
     'processing': 'Verification In Progress',
     'analyzing': 'Analysis In Progress',
@@ -166,7 +176,7 @@ async function syncVerificationStatus(ashbyClient: AshbyClient, applicant: any) 
   });
 }
 
-async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: any) {
+async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: Applicant) {
   const analysisResult = applicant.analysis_result;
   
   if (!analysisResult?.flags) {
@@ -177,9 +187,9 @@ async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: any) {
   }
 
   // Categorize flags
-  const redFlags = analysisResult.flags.filter((f: any) => f.type === 'red');
-  const yellowFlags = analysisResult.flags.filter((f: any) => f.type === 'yellow');
-  const greenFlags = analysisResult.flags.filter((f: any) => f.type === 'green');
+  const redFlags = analysisResult.flags.filter((f) => f.type === 'red');
+  const yellowFlags = analysisResult.flags.filter((f) => f.type === 'yellow');
+  const greenFlags = analysisResult.flags.filter((f) => f.type === 'green');
 
   const tags: { add?: string[]; remove?: string[] } = { add: [], remove: [] };
 
@@ -207,7 +217,7 @@ async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: any) {
       unmask_yellow_flags: yellowFlags.length,
       unmask_green_flags: greenFlags.length,
       unmask_flag_summary: analysisResult.flags
-        .map((f: any) => `${f.type.toUpperCase()}: ${f.message}`)
+        .map((f) => `${f.type.toUpperCase()}: ${f.message}`)
         .join('; ')
         .substring(0, 1000) // Limit length for Ashby field
     },
@@ -216,7 +226,7 @@ async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: any) {
 }
 
 // Batch sync endpoint
-export async function PUT(request: NextRequest) {
+export async function PUT() {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -293,11 +303,11 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-function determineVerificationStatus(applicant: any): 'verified' | 'flagged' | 'pending' {
+function determineVerificationStatus(applicant: Applicant): 'verified' | 'flagged' | 'pending' {
   if (applicant.status !== 'completed') {
     return 'pending';
   }
 
-  const redFlags = applicant.analysis_result?.flags?.filter((f: any) => f.type === 'red') || [];
+  const redFlags = applicant.analysis_result?.flags?.filter((f) => f.type === 'red') || [];
   return redFlags.length > 0 ? 'flagged' : 'verified';
 }

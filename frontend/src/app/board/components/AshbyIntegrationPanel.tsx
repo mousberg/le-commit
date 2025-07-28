@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { RefreshCw, ExternalLink, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 interface AshbyIntegrationPanelProps {
@@ -53,7 +52,7 @@ export default function AshbyIntegrationPanel({ applicant }: AshbyIntegrationPan
         setSyncStatus('error');
         setSyncMessage(data.error || 'Sync failed');
       }
-    } catch (error) {
+    } catch {
       setSyncStatus('error');
       setSyncMessage('Network error occurred');
     }
@@ -142,7 +141,7 @@ export default function AshbyIntegrationPanel({ applicant }: AshbyIntegrationPan
           </div>
         </div>
 
-        <Separator />
+        <div className="border-t border-gray-200" />
 
         {/* Last Sync Information */}
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -160,7 +159,7 @@ export default function AshbyIntegrationPanel({ applicant }: AshbyIntegrationPan
           </div>
         </div>
 
-        <Separator />
+        <div className="border-t border-gray-200" />
 
         {/* Sync Actions */}
         <div className="space-y-3">
@@ -230,7 +229,7 @@ export default function AshbyIntegrationPanel({ applicant }: AshbyIntegrationPan
         {/* Verification Summary */}
         {hasAnalysisResults && (
           <>
-            <Separator />
+            <div className="border-t border-gray-200" />
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Verification Summary</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">

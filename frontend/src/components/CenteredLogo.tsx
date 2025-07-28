@@ -11,6 +11,7 @@ export default function CenteredLogo() {
       
       {/* Centered Logo */}
       <Link href="/" className="flex items-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/Logo-full.svg"
           alt="Unmask"

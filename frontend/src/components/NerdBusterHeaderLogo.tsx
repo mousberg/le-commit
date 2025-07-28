@@ -88,6 +88,7 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                 href="/"
                 className="flex items-center"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/Logo-full.svg"
                   alt="Unmask"
@@ -166,6 +167,7 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                 className="flex items-center"
                 onClick={() => setIsMenuOpen(false)}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/Logo-full.svg"
                   alt="Unmask"

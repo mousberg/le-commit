@@ -49,7 +49,7 @@ async function processAshbyWebhook(event: AshbyWebhookEvent) {
       break;
     
     case 'candidate.updated':
-      await handleCandidateUpdated(event, supabase);
+      await handleCandidateUpdated(event);
       break;
     
     case 'application.created':
@@ -65,7 +65,7 @@ async function processAshbyWebhook(event: AshbyWebhookEvent) {
   }
 }
 
-async function handleCandidateCreated(event: AshbyWebhookEvent, supabase: any) {
+async function handleCandidateCreated(event: AshbyWebhookEvent, supabase: Awaited<ReturnType<typeof createClient>>) {
   const { candidateId } = event.data;
   
   if (!candidateId) {
@@ -105,7 +105,7 @@ async function handleCandidateCreated(event: AshbyWebhookEvent, supabase: any) {
   }
 }
 
-async function handleCandidateUpdated(event: AshbyWebhookEvent, supabase: any) {
+async function handleCandidateUpdated(event: AshbyWebhookEvent) {
   const { candidateId } = event.data;
   
   console.log(`Candidate ${candidateId} updated in Ashby`);
@@ -116,7 +116,7 @@ async function handleCandidateUpdated(event: AshbyWebhookEvent, supabase: any) {
   // Implementation depends on specific update triggers you want to handle
 }
 
-async function handleApplicationCreated(event: AshbyWebhookEvent, supabase: any) {
+async function handleApplicationCreated(event: AshbyWebhookEvent, supabase: Awaited<ReturnType<typeof createClient>>) {
   const { candidateId, applicationId } = event.data;
   
   if (!candidateId) {
@@ -132,7 +132,7 @@ async function handleApplicationCreated(event: AshbyWebhookEvent, supabase: any)
   await prioritizeVerification(candidateId, supabase);
 }
 
-async function handleApplicationStageChanged(event: AshbyWebhookEvent, supabase: any) {
+async function handleApplicationStageChanged(event: AshbyWebhookEvent, supabase: Awaited<ReturnType<typeof createClient>>) {
   const { candidateId, applicationId, currentStage, previousStage } = event.data;
   
   console.log(`Application ${applicationId} moved from ${previousStage} to ${currentStage}`);
@@ -140,30 +140,41 @@ async function handleApplicationStageChanged(event: AshbyWebhookEvent, supabase:
   // Trigger verification at key stages (e.g., "Phone Screen", "Technical Interview")
   const verificationStages = ['phone_screen', 'technical_interview', 'final_interview'];
   
-  if (verificationStages.includes(currentStage?.toLowerCase())) {
-    await triggerUrgentVerification(candidateId, supabase);
+  if (currentStage && verificationStages.includes(currentStage.toLowerCase())) {
+    if (candidateId) {
+      await triggerUrgentVerification(candidateId, supabase);
+    }
   }
 }
 
-async function shouldAutoProcessCandidate(candidate: any): Promise<boolean> {
+interface CandidateData {
+  socialLinks?: Array<{ type: string; url?: string }>;
+  resumeFileHandle?: string | { id: string; name: string; handle: string };
+  name?: string;
+  primaryEmailAddress?: { value: string };
+  emailAddresses?: Array<{ value: string }>;
+  id: string;
+}
+
+async function shouldAutoProcessCandidate(candidate: CandidateData): Promise<boolean> {
   // Define rules for auto-processing
   // For example: only process if LinkedIn URL or resume is present
   
-  const hasLinkedIn = !!candidate.linkedInUrl;
+  const hasLinkedIn = !!candidate.socialLinks?.find(link => link.type === 'LinkedIn');
   const hasResume = !!candidate.resumeFileHandle;
   
   // You might also check for specific tags, job types, etc.
   return hasLinkedIn || hasResume;
 }
 
-async function createUnmaskApplicant(candidate: any, supabase: any) {
+async function createUnmaskApplicant(candidate: CandidateData, supabase: Awaited<ReturnType<typeof createClient>>) {
   try {
     // Map Ashby candidate to Unmask applicant format
     const applicantData = {
       name: candidate.name || 'Unknown',
-      email: candidate.email || '',
+      email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value || '',
       status: 'pending_ashby_sync',
-      original_linkedin_url: candidate.linkedInUrl || null,
+      original_linkedin_url: candidate.socialLinks?.find(link => link.type === 'LinkedIn')?.url || null,
       ashby_candidate_id: candidate.id,
       user_id: 'system', // Use system user for Ashby-created applicants
       created_at: new Date().toISOString()
@@ -185,7 +196,10 @@ async function createUnmaskApplicant(candidate: any, supabase: any) {
 
     // Download and process resume if available
     if (candidate.resumeFileHandle) {
-      await processAshbyResume(applicant.id, candidate.resumeFileHandle);
+      const fileHandle = typeof candidate.resumeFileHandle === 'string' 
+        ? candidate.resumeFileHandle 
+        : candidate.resumeFileHandle.handle;
+      await processAshbyResume(applicant.id, fileHandle);
     }
 
     // Start verification process
@@ -216,7 +230,7 @@ async function processAshbyResume(applicantId: string, fileHandle: string) {
     const resumeBuffer = await resumeResponse.arrayBuffer();
 
     // Convert to File-like object for processing
-    const resumeFile = new File([resumeBuffer], 'resume.pdf', { type: 'application/pdf' });
+    // const resumeFile = new File([resumeBuffer], 'resume.pdf', { type: 'application/pdf' });
 
     // TODO: Integrate with existing CV processing pipeline
     // This would call your existing processCvPdf function
@@ -227,7 +241,7 @@ async function processAshbyResume(applicantId: string, fileHandle: string) {
   }
 }
 
-async function startVerificationProcess(applicantId: string, candidate: any) {
+async function startVerificationProcess(applicantId: string, candidate: CandidateData) {
   // This would trigger your existing verification pipeline
   // Similar to the processApplicantAsync function but adapted for Ashby integration
   
@@ -237,7 +251,7 @@ async function startVerificationProcess(applicantId: string, candidate: any) {
   // or call your existing processing functions directly
 }
 
-async function prioritizeVerification(candidateId: string, supabase: any) {
+async function prioritizeVerification(candidateId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   // Mark existing verification as high priority
   await supabase
     .from('applicants')
@@ -248,7 +262,7 @@ async function prioritizeVerification(candidateId: string, supabase: any) {
     .eq('ashby_candidate_id', candidateId);
 }
 
-async function triggerUrgentVerification(candidateId: string, supabase: any) {
+async function triggerUrgentVerification(candidateId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   // Mark for urgent processing (e.g., complete within 1 hour)
   await supabase
     .from('applicants')

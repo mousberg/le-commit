@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Ashby Pull API - Read-only candidate pulling for testing
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -61,7 +62,10 @@ export async function GET(request: NextRequest) {
     // Filter candidates if requested
     let candidates = allCandidates;
     if (onlyWithData) {
-      candidates = allCandidates.filter(c => c.linkedInUrl || c.resumeFileHandle);
+      candidates = allCandidates.filter((c: any) => {
+        const linkedinLink = c.socialLinks?.find((link: any) => link.type === 'LinkedIn');
+        return linkedinLink || c.resumeFileHandle;
+      });
       console.log(`🔍 Filtered to ${candidates.length} candidates with LinkedIn or resume data`);
     }
 
@@ -80,20 +84,37 @@ export async function GET(request: NextRequest) {
           console.log('🔍 Raw Ashby candidate data:', {
             id: candidate.id,
             name: candidate.name,
-            email: candidate.email,
-            linkedInUrl: candidate.linkedInUrl,
+            email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
+            socialLinks: candidate.socialLinks,
             resumeFileHandle: candidate.resumeFileHandle,
             fullCandidate: candidate
           });
         }
 
-        const processedCandidate: any = {
+        const processedCandidate: {
+          ashby_id: string;
+          name: string;
+          email: string;
+          linkedin_url: string | null;
+          has_resume: boolean;
+          resume_file_handle: string | null;
+          created_at: string;
+          tags: string[];
+          custom_fields: Record<string, unknown>;
+          resume_url?: string;
+          resume_fetch_error?: string;
+          unmask_applicant_id?: string;
+          unmask_status?: string;
+          sync_status?: string;
+          action?: string;
+          ready_for_processing?: boolean;
+        } = {
           ashby_id: candidate.id,
           name: candidate.name,
-          email: candidate.email,
-          linkedin_url: candidate.linkedInUrl || null,
+          email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value || '',
+          linkedin_url: candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn')?.url || null,
           has_resume: !!candidate.resumeFileHandle,
-          resume_file_handle: candidate.resumeFileHandle || null,
+          resume_file_handle: typeof candidate.resumeFileHandle === 'string' ? candidate.resumeFileHandle : (candidate.resumeFileHandle as any)?.handle || null,
           created_at: candidate.createdAt,
           tags: candidate.tags || [],
           custom_fields: candidate.customFields || {}
@@ -102,7 +123,8 @@ export async function GET(request: NextRequest) {
         // Get resume URL if available (read-only operation)
         if (candidate.resumeFileHandle) {
           try {
-            const resumeResponse = await ashbyClient.getResumeUrl(candidate.resumeFileHandle);
+            const fileHandle = typeof candidate.resumeFileHandle === 'string' ? candidate.resumeFileHandle : (candidate.resumeFileHandle as any)?.handle;
+            const resumeResponse = await ashbyClient.getResumeUrl(fileHandle);
             if (resumeResponse.success) {
               processedCandidate.resume_url = resumeResponse.results?.url;
             }
@@ -130,9 +152,9 @@ export async function GET(request: NextRequest) {
           const applicantData = {
             user_id: user.id,
             name: candidate.name || 'Unknown',
-            email: candidate.email || '',
+            email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value || '',
             status: 'pending_from_ashby',
-            original_linkedin_url: candidate.linkedInUrl || null,
+            original_linkedin_url: candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn')?.url || null,
             ashby_candidate_id: candidate.id,
             ashby_sync_status: 'pending',
             priority: 'normal',
@@ -154,7 +176,8 @@ export async function GET(request: NextRequest) {
           created++;
 
           // If we have resume data, we could trigger processing here
-          if (candidate.resumeFileHandle || candidate.linkedInUrl) {
+          const linkedinLink = candidate.socialLinks?.find((link: any) => link.type === 'LinkedIn');
+          if (candidate.resumeFileHandle || linkedinLink) {
             processedCandidate.ready_for_processing = true;
           }
         } else {
@@ -194,9 +217,9 @@ export async function GET(request: NextRequest) {
       created_in_unmask: created,
       already_existing: existing,
       processing_errors: errors,
-      with_linkedin: candidates.filter(c => c.linkedInUrl).length,
+      with_linkedin: candidates.filter((c: any) => c.socialLinks?.find((link: any) => link.type === 'LinkedIn')).length,
       with_resume: candidates.filter(c => c.resumeFileHandle).length,
-      ready_for_verification: processedCandidates.filter(pc => pc.ready_for_processing).length
+      ready_for_verification: processedCandidates.filter((pc: any) => pc.ready_for_processing).length
     };
 
     return NextResponse.json({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, FileText, ExternalLink, Mail, Phone, MapPin, Calendar, Tag, Shield, ShieldAlert, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { X, FileText, ExternalLink, Mail, Calendar, Tag, Shield, ShieldAlert, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
