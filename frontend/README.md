@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.svg" alt="le-commit" width="200" />
+  <img src="public/unmask-logo.svg" alt="le-commit" width="200" />
 </p>
 
 <h1 align="center">le-commit</h1>
