@@ -276,7 +276,9 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                           <FileText className="h-5 w-5 text-green-600" />
                         </button>
                       ) : (
-                        <FileText className="h-5 w-5 text-gray-300" title="No CV available" />
+                        <div title="No CV available">
+                          <FileText className="h-5 w-5 text-gray-300" />
+                        </div>
                       )}
                       
                     </div>

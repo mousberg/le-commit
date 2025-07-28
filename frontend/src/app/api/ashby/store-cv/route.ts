@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const downloadUrl = fileResponse.results?.results?.url || fileResponse.results?.url;
+    const downloadUrl = fileResponse.results?.url;
     
     if (!downloadUrl) {
       return NextResponse.json(
