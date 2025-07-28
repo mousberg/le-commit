@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react';
+import { isAuthorizedForATS, UNAUTHORIZED_ATS_MESSAGE } from '@/lib/auth/ats-access';
 
 interface CandidateDetail {
   ashby_id: string;
@@ -38,11 +40,22 @@ interface CandidateDetail {
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const candidateId = params.candidateId as string;
   
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  // Check if user is authorized for ATS access
+  const isAuthorized = user ? isAuthorizedForATS(user.email) : false;
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -94,6 +107,54 @@ export default function CandidateDetailPage() {
       default: return <Clock className="h-5 w-5" />;
     }
   };
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="text-center">
+          <Clock className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
+
+  // Show access denied if user is not authorized for ATS
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="max-w-md w-full mx-auto p-6">
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-6 text-center">
+              <Shield className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-amber-800 mb-2">
+                Access Restricted
+              </h2>
+              <p className="text-amber-700 mb-4">
+                {UNAUTHORIZED_ATS_MESSAGE}
+              </p>
+              <p className="text-sm text-amber-600 mb-4">
+                You are currently signed in as: <strong>{user.email}</strong>
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push('/board')}
+                className="w-full"
+              >
+                Go to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

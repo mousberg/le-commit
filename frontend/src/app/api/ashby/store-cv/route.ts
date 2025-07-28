@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
     const fileResponse = await ashbyClient.getResumeUrl(candidate.resume_file_handle);
 
     if (!fileResponse.success) {
+      console.error('Failed to get resume URL from Ashby:', fileResponse.error);
       return NextResponse.json(
         { error: fileResponse.error?.message || 'Failed to get resume URL from Ashby', success: false },
         { status: 500 }
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
     const downloadUrl = fileResponse.results?.url;
     
     if (!downloadUrl) {
+      console.error('No download URL in Ashby response:', fileResponse.results);
       return NextResponse.json(
         { error: 'No download URL returned from Ashby', success: false },
         { status: 500 }

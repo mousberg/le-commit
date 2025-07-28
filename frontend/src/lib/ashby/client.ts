@@ -48,15 +48,16 @@ export class AshbyClient {
         return {
           success: false,
           error: {
-            message: data.error?.message || `API request failed with status ${response.status}`,
-            code: data.error?.code
+            message: data.error?.message || data.message || `API request failed with status ${response.status}`,
+            code: data.error?.code || data.code
           }
         };
       }
 
+      // Ashby API wraps responses in a "results" property
       return {
         success: true,
-        results: data
+        results: data.results || data
       };
     } catch (error) {
       return {
@@ -110,9 +111,22 @@ export class AshbyClient {
   }
 
   async getResumeUrl(fileHandle: string): Promise<AshbyApiResponse<{ url: string }>> {
-    return this.request<{ url: string }>('/file.info', 'POST', {
+    const response = await this.request<{ downloadUrl?: string; url?: string }>('/file.info', 'POST', {
       fileHandle
     });
+    
+    // Normalize the response to always have a url property
+    if (response.success && response.results) {
+      const url = response.results.downloadUrl || response.results.url;
+      if (url) {
+        return {
+          success: true,
+          results: { url }
+        };
+      }
+    }
+    
+    return response as AshbyApiResponse<{ url: string }>;
   }
 
   // Application Methods

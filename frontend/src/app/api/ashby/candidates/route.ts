@@ -3,19 +3,19 @@
 import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
+import { withATSAuth } from '@/lib/auth/api-middleware';
 
 // GET - Fetch cached candidates with auto-sync of new ones
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
+    const supabase = await createClient();
 
     // Use auth.uid() directly as user ID (after migration fix)
     const userId = user.id;
@@ -65,8 +65,8 @@ export async function GET() {
       name: candidate.name,
       email: candidate.email,
       phone_number: candidate.phone_number,
-      all_emails: candidate.all_emails || [],
-      all_phone_numbers: candidate.all_phone_numbers || [],
+      emails: candidate.emails || [],
+      phone_numbers: candidate.phone_numbers || [],
       social_links: candidate.social_links || [],
       linkedin_url: candidate.linkedin_url,
       github_url: candidate.github_url,
@@ -114,15 +114,14 @@ export async function GET() {
 // POST - Force refresh all candidates from Ashby
 export async function POST() {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
+    const supabase = await createClient();
 
     if (!process.env.ASHBY_API_KEY) {
       return NextResponse.json(
@@ -239,8 +238,8 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
       name: candidate.name || 'Unknown',
       email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
       phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-      all_emails: candidate.emailAddresses || [],
-      all_phone_numbers: candidate.phoneNumbers || [],
+      emails: candidate.emailAddresses || [],
+      phone_numbers: candidate.phoneNumbers || [],
       social_links: candidate.socialLinks || [],
       linkedin_url: linkedinLink?.url,
       github_url: githubLink?.url,
@@ -368,8 +367,8 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
       name: candidate.name || 'Unknown',
       email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
       phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-      all_emails: candidate.emailAddresses || [],
-      all_phone_numbers: candidate.phoneNumbers || [],
+      emails: candidate.emailAddresses || [],
+      phone_numbers: candidate.phoneNumbers || [],
       social_links: candidate.socialLinks || [],
       linkedin_url: linkedinLink?.url,
       github_url: githubLink?.url,

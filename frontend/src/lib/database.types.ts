@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
-          extensions?: Json
           operationName?: string
-          variables?: Json
           query?: string
+          variables?: Json
+          extensions?: Json
         }
         Returns: Json
       }
@@ -36,75 +36,51 @@ export type Database = {
     Tables: {
       applicants: {
         Row: {
-          analysis_result: Json | null
-          created_at: string | null
-          cross_reference_analysis: Json | null
-          cv_data: Json | null
-          email: string | null
-          github_data: Json | null
+          analysis: Json | null
+          ashby_candidate_id: string | null
+          ashby_last_synced_at: string | null
+          ashby_sync_status: string | null
+          created_at: string
+          email: string
+          github_url: string | null
           id: string
-          individual_analysis: Json | null
-          linkedin_data: Json | null
-          linkedin_job_completed_at: string | null
-          linkedin_job_id: string | null
-          linkedin_job_started_at: string | null
-          linkedin_job_status: string | null
+          linkedin_url: string | null
           name: string
-          original_filename: string | null
-          original_github_url: string | null
-          original_linkedin_url: string | null
-          role: string | null
-          score: number | null
-          status: string
-          updated_at: string | null
+          phone: string | null
+          status: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          analysis_result?: Json | null
-          created_at?: string | null
-          cross_reference_analysis?: Json | null
-          cv_data?: Json | null
-          email?: string | null
-          github_data?: Json | null
+          analysis?: Json | null
+          ashby_candidate_id?: string | null
+          ashby_last_synced_at?: string | null
+          ashby_sync_status?: string | null
+          created_at?: string
+          email: string
+          github_url?: string | null
           id?: string
-          individual_analysis?: Json | null
-          linkedin_data?: Json | null
-          linkedin_job_completed_at?: string | null
-          linkedin_job_id?: string | null
-          linkedin_job_started_at?: string | null
-          linkedin_job_status?: string | null
+          linkedin_url?: string | null
           name: string
-          original_filename?: string | null
-          original_github_url?: string | null
-          original_linkedin_url?: string | null
-          role?: string | null
-          score?: number | null
-          status?: string
-          updated_at?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          analysis_result?: Json | null
-          created_at?: string | null
-          cross_reference_analysis?: Json | null
-          cv_data?: Json | null
-          email?: string | null
-          github_data?: Json | null
+          analysis?: Json | null
+          ashby_candidate_id?: string | null
+          ashby_last_synced_at?: string | null
+          ashby_sync_status?: string | null
+          created_at?: string
+          email?: string
+          github_url?: string | null
           id?: string
-          individual_analysis?: Json | null
-          linkedin_data?: Json | null
-          linkedin_job_completed_at?: string | null
-          linkedin_job_id?: string | null
-          linkedin_job_started_at?: string | null
-          linkedin_job_status?: string | null
+          linkedin_url?: string | null
           name?: string
-          original_filename?: string | null
-          original_github_url?: string | null
-          original_linkedin_url?: string | null
-          role?: string | null
-          score?: number | null
-          status?: string
-          updated_at?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -117,39 +93,206 @@ export type Database = {
           },
         ]
       }
+      ashby_candidates: {
+        Row: {
+          all_file_handles: Json | null
+          analysis_completed_at: string | null
+          analysis_result: Json | null
+          analysis_status: string | null
+          application_archived_at: string | null
+          application_id: string | null
+          application_stage: string | null
+          application_status: string | null
+          ashby_created_at: string | null
+          ashby_id: string
+          ashby_updated_at: string | null
+          cached_at: string
+          company: string | null
+          credited_to_id: string | null
+          credited_to_name: string | null
+          custom_fields: Json | null
+          cv_storage_path: string | null
+          degree: string | null
+          email: string | null
+          emails: Json | null
+          fraud_likelihood: string | null
+          fraud_reason: string | null
+          github_url: string | null
+          has_resume: boolean | null
+          id: string
+          job_id: string | null
+          job_title: string | null
+          last_synced_at: string
+          linkedin_url: string | null
+          location: string | null
+          location_details: Json | null
+          location_summary: string | null
+          name: string
+          phone: string | null
+          phone_number: string | null
+          phone_numbers: Json | null
+          position: string | null
+          profile_url: string | null
+          resume_file_handle: string | null
+          resume_url: string | null
+          school: string | null
+          social_links: Json | null
+          source: string | null
+          source_id: string | null
+          source_info: Json | null
+          tags: Json | null
+          timezone: string | null
+          title: string | null
+          unmask_applicant_id: string | null
+          updated_at: string
+          user_id: string
+          website_url: string | null
+          websites: Json | null
+        }
+        Insert: {
+          all_file_handles?: Json | null
+          analysis_completed_at?: string | null
+          analysis_result?: Json | null
+          analysis_status?: string | null
+          application_archived_at?: string | null
+          application_id?: string | null
+          application_stage?: string | null
+          application_status?: string | null
+          ashby_created_at?: string | null
+          ashby_id: string
+          ashby_updated_at?: string | null
+          cached_at?: string
+          company?: string | null
+          credited_to_id?: string | null
+          credited_to_name?: string | null
+          custom_fields?: Json | null
+          cv_storage_path?: string | null
+          degree?: string | null
+          email?: string | null
+          emails?: Json | null
+          fraud_likelihood?: string | null
+          fraud_reason?: string | null
+          github_url?: string | null
+          has_resume?: boolean | null
+          id?: string
+          job_id?: string | null
+          job_title?: string | null
+          last_synced_at?: string
+          linkedin_url?: string | null
+          location?: string | null
+          location_details?: Json | null
+          location_summary?: string | null
+          name: string
+          phone?: string | null
+          phone_number?: string | null
+          phone_numbers?: Json | null
+          position?: string | null
+          profile_url?: string | null
+          resume_file_handle?: string | null
+          resume_url?: string | null
+          school?: string | null
+          social_links?: Json | null
+          source?: string | null
+          source_id?: string | null
+          source_info?: Json | null
+          tags?: Json | null
+          timezone?: string | null
+          title?: string | null
+          unmask_applicant_id?: string | null
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+          websites?: Json | null
+        }
+        Update: {
+          all_file_handles?: Json | null
+          analysis_completed_at?: string | null
+          analysis_result?: Json | null
+          analysis_status?: string | null
+          application_archived_at?: string | null
+          application_id?: string | null
+          application_stage?: string | null
+          application_status?: string | null
+          ashby_created_at?: string | null
+          ashby_id?: string
+          ashby_updated_at?: string | null
+          cached_at?: string
+          company?: string | null
+          credited_to_id?: string | null
+          credited_to_name?: string | null
+          custom_fields?: Json | null
+          cv_storage_path?: string | null
+          degree?: string | null
+          email?: string | null
+          emails?: Json | null
+          fraud_likelihood?: string | null
+          fraud_reason?: string | null
+          github_url?: string | null
+          has_resume?: boolean | null
+          id?: string
+          job_id?: string | null
+          job_title?: string | null
+          last_synced_at?: string
+          linkedin_url?: string | null
+          location?: string | null
+          location_details?: Json | null
+          location_summary?: string | null
+          name?: string
+          phone?: string | null
+          phone_number?: string | null
+          phone_numbers?: Json | null
+          position?: string | null
+          profile_url?: string | null
+          resume_file_handle?: string | null
+          resume_url?: string | null
+          school?: string | null
+          social_links?: Json | null
+          source?: string | null
+          source_id?: string | null
+          source_info?: Json | null
+          tags?: Json | null
+          timezone?: string | null
+          title?: string | null
+          unmask_applicant_id?: string | null
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+          websites?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ashby_candidates_unmask_applicant_id_fkey"
+            columns: ["unmask_applicant_id"]
+            isOneToOne: false
+            referencedRelation: "applicants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       files: {
         Row: {
           applicant_id: string
-          created_at: string | null
-          file_size: number | null
+          file_name: string
           file_type: string
+          file_url: string
           id: string
-          mime_type: string | null
-          original_filename: string
-          storage_bucket: string
-          storage_path: string
+          uploaded_at: string
         }
         Insert: {
           applicant_id: string
-          created_at?: string | null
-          file_size?: number | null
+          file_name: string
           file_type: string
+          file_url: string
           id?: string
-          mime_type?: string | null
-          original_filename: string
-          storage_bucket: string
-          storage_path: string
+          uploaded_at?: string
         }
         Update: {
           applicant_id?: string
-          created_at?: string | null
-          file_size?: number | null
+          file_name?: string
           file_type?: string
+          file_url?: string
           id?: string
-          mime_type?: string | null
-          original_filename?: string
-          storage_bucket?: string
-          storage_path?: string
+          uploaded_at?: string
         }
         Relationships: [
           {
@@ -163,25 +306,25 @@ export type Database = {
       }
       users: {
         Row: {
-          created_at: string | null
+          created_at: string
           email: string
           full_name: string | null
           id: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           email: string
           full_name?: string | null
           id: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           email?: string
           full_name?: string | null
           id?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -191,18 +334,37 @@ export type Database = {
     }
     Functions: {
       get_user_applicants: {
-        Args: Record<PropertyKey, never>
+        Args: { user_uuid: string }
         Returns: {
-          applicant_id: string
-          applicant_name: string
-          applicant_email: string
-          status: string
-          score: number
-          role: string
-          updated_at: string
+          analysis: Json | null
+          ashby_candidate_id: string | null
+          ashby_last_synced_at: string | null
+          ashby_sync_status: string | null
           created_at: string
-          file_count: number
+          email: string
+          github_url: string | null
+          id: string
+          linkedin_url: string | null
+          name: string
+          phone: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
         }[]
+      }
+      get_user_ashby_candidates: {
+        Args: { p_user_id: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          candidate: Json
+        }[]
+      }
+      link_applicant_to_ashby_candidate: {
+        Args: {
+          p_applicant_id: string
+          p_ashby_candidate_id: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

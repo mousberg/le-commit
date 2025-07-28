@@ -22,8 +22,8 @@ interface ATSCandidate {
   name: string;
   email: string;
   phone_number?: string;
-  all_emails?: Array<{value: string; type: string; isPrimary: boolean}>;
-  all_phone_numbers?: Array<{value: string; type: string; isPrimary: boolean}>;
+  emails?: Array<{value: string; type: string; isPrimary: boolean}>;
+  phone_numbers?: Array<{value: string; type: string; isPrimary: boolean}>;
   social_links?: Array<{type: string; url: string}>;
   linkedin_url?: string;
   github_url?: string;
