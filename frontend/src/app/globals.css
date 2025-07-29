@@ -79,6 +79,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  
+  /* Cluely-specific colors */
+  --bg-sidebar: #f8f8f6;
+  --bg-sidebar-active: #f0f0ed;
+  --radius-brand: 0rem;
 }
 
 .dark {
@@ -257,6 +262,5 @@
 
   .mobile-menu-animated {
     animation: mobile-menu-fade-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    background-color: #ffffff !important;
   }
 }

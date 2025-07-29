@@ -27,7 +27,7 @@ function SuccessParticles({
             {[...Array(6)].map((_, i) => (
                 <motion.div
                     key={i}
-                    className="fixed w-1 h-1 bg-black dark:bg-white rounded-full"
+                    className="fixed w-1 h-1 bg-black dark:bg-white "
                     style={{ left: centerX, top: centerY }}
                     initial={{
                         scale: 0,
@@ -85,7 +85,7 @@ function ParticleButton({
                 ref={buttonRef}
                 onClick={handleClick}
                 className={cn(
-                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 h-10 px-6",
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap  text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 h-10 px-6",
                     "relative",
                     showParticles && "scale-95",
                     "transition-transform duration-100",

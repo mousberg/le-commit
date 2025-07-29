@@ -1,5 +1,6 @@
 import React from "react";
-import BoardClientLayout from "../../components/BoardClientLayout";
+import { ApplicantProvider } from "../../lib/contexts/ApplicantContext";
+import DashboardLayout from "../../components/dashboard/DashboardLayout";
 
 export default function BoardLayout({
   children,
@@ -7,10 +8,10 @@ export default function BoardLayout({
   readonly children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <BoardClientLayout>
+    <ApplicantProvider>
+      <DashboardLayout>
         {children}
-      </BoardClientLayout>
-    </div>
+      </DashboardLayout>
+    </ApplicantProvider>
   );
 }

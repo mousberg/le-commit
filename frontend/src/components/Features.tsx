@@ -15,11 +15,11 @@ export default function Features() {
 
       {/* First Two Feature Cards (Side by Side) */}
       <div className="grid lg:grid-cols-2 mt-20 mb-16 lg:mb-0 pointer-events-none lg:border-y border-zinc-200 lg:divide-x divide-zinc-200">
-
+        
         {/* Feature Card 1: "User Info Check" */}
         <div className="relative">
-          <Image
-            src="/cred.png"
+          <img 
+            src="/cred.png" 
             alt="Screen monitoring feature"
             width={600}
             height={400}
@@ -36,8 +36,8 @@ export default function Features() {
 
         {/* Feature Card 2: "Reference Call Automation" */}
         <div className="relative">
-          <Image
-            src="/ref.png"
+          <Image 
+            src="/ref.png" 
             alt="Reference Call Automation"
             width={600}
             height={400}
@@ -65,21 +65,21 @@ export default function Features() {
               </p>
             </div>
             <div className="mt-6 mb-4 lg:mb-0">
-              <Image
-                src="/cand.png"
+              <Image 
+                src="/cand.png" 
                 alt="Additional feedback component"
                 width={400}
                 height={300}
-                className="w-full max-w-md h-auto rounded-lg"
+                className="w-full max-w-md h-auto "
               />
             </div>
             <div className="hidden lg:block absolute bg-[#0055FE] w-1 h-[2.125rem] top-[4rem] -left-[1px]"></div>
           </div>
-
+          
           {/* Right side - Image */}
           <div className="relative overflow-hidden">
-            <Image
-              src="/gmeet.png"
+            <Image 
+              src="/gmeet.png" 
               alt="Live Interview Feedback"
               width={600}
               height={400}

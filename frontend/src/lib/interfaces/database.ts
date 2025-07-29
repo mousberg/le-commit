@@ -8,12 +8,10 @@ export type { Applicant } from './applicant';
 // User interface
 export interface User {
   id: string;
-  authUserId: string;
   email: string;
-  fullName?: string;
-  avatarUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+  full_name?: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 // File interface

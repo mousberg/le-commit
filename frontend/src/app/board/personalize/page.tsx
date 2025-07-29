@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Upload, FileJson, Github, Linkedin, FileText, AlertCircle, X, Check, Search } from 'lucide-react'
+import { ChevronDown, Upload, FileJson, Github, Linkedin, FileText, AlertCircle, X, Check, Search, Plus } from 'lucide-react'
 import { useApplicants } from '../../../lib/contexts/ApplicantContext'
 
 // Interview-specific preset templates
@@ -43,6 +43,9 @@ export default function PersonalizePage() {
   const [candidateProfile, setCandidateProfile] = useState<Record<string, unknown> | null>(null);
   const [showCandidateOverlay, setShowCandidateOverlay] = useState(false);
   const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
+  const [showAddPreset, setShowAddPreset] = useState(false);
+  const [newPresetTitle, setNewPresetTitle] = useState('');
+  const [newPresetPrompt, setNewPresetPrompt] = useState('');
   
   const { applicants, fetchApplicants } = useApplicants();
 
@@ -141,18 +144,24 @@ export default function PersonalizePage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-gray-100">
-        <div className="px-8 pt-8 pb-6">
+    <div className="select-none flex flex-col min-h-screen">
+      {/* Header */}
+      <nav className="relative">
+        <div className="mx-[3.5rem] mt-[4rem] mb-[2rem]">
+          <h1 className="mb-4 text-base text-stone-500 font-normal">Personalize</h1>
           <div className="flex justify-between items-start">
-            <div>
-              <p className="text-sm text-gray-500 mb-2">Interview Analysis</p>
-              <h1 className="text-3xl font-bold text-gray-900">Unmask Configuration</h1>
-            </div>
-            <div className="flex gap-2">
+            <h1 className="text-stone-800 font-medium text-[2.5rem] leading-tight">Unmask Configuration</h1>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAddPreset(true)}
+                className="px-4 py-2 text-sm font-medium transition-all duration-200 border border-stone-300 text-stone-700 hover:bg-stone-50 cursor-pointer flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Preset
+              </button>
               <button
                 onClick={handleLoadFromDatabase}
-                className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 bg-purple-600 text-white hover:bg-purple-700 cursor-pointer flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium transition-all duration-200 bg-stone-800 text-white hover:bg-stone-700 cursor-pointer flex items-center gap-2"
               >
                 <Upload className="h-4 w-4" />
                 Load Candidate Profile
@@ -160,12 +169,12 @@ export default function PersonalizePage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !isDirty}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 text-sm font-medium transition-all duration-200 ${
                   !isDirty && !saving
-                    ? 'bg-gray-500 text-white cursor-default'
+                    ? 'bg-stone-300 text-stone-500 cursor-default'
                     : saving 
-                      ? 'bg-gray-400 text-white cursor-not-allowed' 
-                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                      ? 'bg-stone-400 text-white cursor-not-allowed' 
+                      : 'bg-stone-800 text-white hover:bg-stone-700'
                 }`}
               >
                 {!isDirty && !saving ? 'Saved' : saving ? 'Saving...' : 'Save'}
@@ -173,113 +182,207 @@ export default function PersonalizePage() {
             </div>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {candidateProfile && (
-        <div className="bg-blue-50 border-b border-blue-200 px-8 py-4">
-          <div className="flex items-center gap-4">
-            <AlertCircle className="h-5 w-5 text-blue-600" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">
-                Candidate Profile Loaded: {String(candidateProfile.firstName || candidateProfile.name || 'Unknown')} {String(candidateProfile.lastName || '')}
-              </p>
-              <p className="text-xs text-blue-700">
-                {Array.isArray(candidateProfile.professionalExperiences) ? candidateProfile.professionalExperiences.length : 0} experiences, 
-                {' '}{Array.isArray(candidateProfile.skills) ? candidateProfile.skills.length : 0} skills, 
-                {' '}{Array.isArray(candidateProfile.educations) ? candidateProfile.educations.length : 0} education entries
+      <div className="flex-grow bg-wallpaper py-[3rem] px-[3rem]">
+        {/* Candidate Profile Status */}
+        {candidateProfile && (
+          <div className="bg-white border border-stone-300 mb-6 px-6 py-4">
+            <div className="flex items-center gap-4">
+              <AlertCircle className="h-5 w-5 text-stone-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-stone-900">
+                  Candidate Profile Loaded: {String(candidateProfile.firstName || candidateProfile.name || 'Unknown')} {String(candidateProfile.lastName || '')}
+                </p>
+                <p className="text-xs text-stone-600">
+                  {Array.isArray(candidateProfile.professionalExperiences) ? candidateProfile.professionalExperiences.length : 0} experiences, 
+                  {' '}{Array.isArray(candidateProfile.skills) ? candidateProfile.skills.length : 0} skills, 
+                  {' '}{Array.isArray(candidateProfile.educations) ? candidateProfile.educations.length : 0} education entries
+                </p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                {Boolean(candidateProfile.github) && <Github className="h-4 w-4 text-stone-600" />}
+                {Boolean(candidateProfile.linkedin) && <Linkedin className="h-4 w-4 text-stone-600" />}
+                <FileText className="h-4 w-4 text-stone-600" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white border border-stone-300 divide-y divide-stone-300">
+          {/* Interview Presets Section */}
+          <section className="py-[3rem] px-[3rem]">
+            <div className="mb-[2rem]">
+              <button
+                onClick={() => setShowPresets(!showPresets)}
+                className="flex items-center gap-2 text-stone-600 hover:text-stone-800 text-sm font-medium transition-colors mb-4"
+              >
+                <ChevronDown 
+                  className={`h-4 w-4 transition-transform duration-200 ${showPresets ? 'rotate-180' : ''}`}
+                />
+                {showPresets ? 'Hide Interview Presets' : 'Show Interview Presets'}
+              </button>
+              
+              {showPresets && (
+                <>
+                  <h2 className="text-stone-800 font-medium text-lg mb-2">Interview Presets</h2>
+                  <p className="text-stone-500 text-sm leading-relaxed">
+                    Choose from predefined templates or customize your own detection rules for different interview types.
+                  </p>
+                </>
+              )}
+            </div>
+            
+            {showPresets && (
+              <div className="grid grid-cols-3 gap-6">
+                {allPresets.map((preset) => (
+                  <div
+                    key={preset.title}
+                    onClick={() => handlePresetClick(preset)}
+                    className={`
+                      p-6 cursor-pointer transition-all duration-200 bg-white
+                      h-48 flex flex-col border
+                      ${selectedPreset?.title === preset.title
+                        ? 'border-stone-900 bg-stone-50'
+                        : 'border-stone-200 hover:border-stone-300'
+                      }
+                    `}
+                  >
+                    <h3 className="font-medium text-stone-900 mb-3 text-center text-sm">
+                      {preset.title}
+                    </h3>
+                    <p className="text-xs text-stone-600 leading-relaxed flex-1 overflow-hidden">
+                      {preset.prompt.substring(0, 150) + (preset.prompt.length > 150 ? '...' : '')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Detection Rules Editor Section */}
+          <section className="py-[3rem] px-[3rem]">
+            <div className="mb-[2rem]">
+              <h2 className="text-stone-800 font-medium text-lg mb-2">Detection Rules</h2>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                Define how Unmask should analyze candidate responses and flag inconsistencies with their profile data.
               </p>
             </div>
-            <div className="flex gap-2 text-xs">
-              {Boolean(candidateProfile.github) && <Github className="h-4 w-4 text-gray-600" />}
-              {Boolean(candidateProfile.linkedin) && <Linkedin className="h-4 w-4 text-gray-600" />}
-              <FileText className="h-4 w-4 text-gray-600" />
+            
+            <textarea
+              value={editorContent}
+              onChange={handleEditorChange}
+              className="w-full h-64 text-sm text-stone-900 border border-stone-200 p-4 resize-none focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-transparent bg-white font-mono leading-relaxed"
+              placeholder="Configure detection rules..."
+            />
+          </section>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 px-6 py-4 bg-stone-50 border border-stone-300">
+          <div className="flex items-center justify-between text-xs text-stone-600">
+            <div className="flex items-center gap-6">
+              <a href="#" className="hover:text-stone-800 flex items-center gap-1">
+                <FileJson className="h-3 w-3" />
+                Sample Profile Format
+              </a>
+              <a href="#" className="hover:text-stone-800 flex items-center gap-1">
+                <Github className="h-3 w-3" />
+                Integration Guide
+              </a>
+            </div>
+            <div>
+              <a href="#" className="hover:text-stone-800">Download Unmask</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Preset Dialog */}
+      {showAddPreset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white border border-stone-300 w-full max-w-lg">
+            <div className="px-6 py-4 border-b border-stone-300 flex items-center justify-between">
+              <h2 className="text-lg font-medium text-stone-900">Add New Preset</h2>
+              <button
+                onClick={() => {
+                  setShowAddPreset(false);
+                  setNewPresetTitle('');
+                  setNewPresetPrompt('');
+                }}
+                className="p-2 hover:bg-stone-100 transition-colors"
+              >
+                <X className="h-4 w-4 text-stone-600" />
+              </button>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Preset Name</label>
+                <input
+                  type="text"
+                  value={newPresetTitle}
+                  onChange={(e) => setNewPresetTitle(e.target.value)}
+                  placeholder="e.g., Sales Interview"
+                  className="w-full px-3 py-2 border border-stone-300 focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">Detection Rules</label>
+                <textarea
+                  value={newPresetPrompt}
+                  onChange={(e) => setNewPresetPrompt(e.target.value)}
+                  placeholder="Enter the detection rules for this preset..."
+                  className="w-full h-32 px-3 py-2 border border-stone-300 focus:outline-none focus:ring-1 focus:ring-stone-900 focus:border-transparent resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-stone-300 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAddPreset(false);
+                  setNewPresetTitle('');
+                  setNewPresetPrompt('');
+                }}
+                className="px-4 py-2 text-sm border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (newPresetTitle.trim() && newPresetPrompt.trim()) {
+                    const newPreset = {
+                      title: newPresetTitle.trim(),
+                      prompt: newPresetPrompt.trim()
+                    };
+                    setAllPresets(prev => [...prev, newPreset]);
+                    setSelectedPreset(newPreset);
+                    setEditorContent(newPreset.prompt);
+                    setShowAddPreset(false);
+                    setNewPresetTitle('');
+                    setNewPresetPrompt('');
+                    setIsDirty(false);
+                  }
+                }}
+                disabled={!newPresetTitle.trim() || !newPresetPrompt.trim()}
+                className={`px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                  newPresetTitle.trim() && newPresetPrompt.trim()
+                    ? 'bg-stone-800 text-white hover:bg-stone-700'
+                    : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                }`}
+              >
+                Create Preset
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className={`transition-colors duration-300 ${showPresets ? 'bg-gray-50' : 'bg-white'}`}>
-        <div className="px-8 py-6">
-          <div className="mb-6">
-            <button
-              onClick={() => setShowPresets(!showPresets)}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors"
-            >
-              <ChevronDown 
-                className={`h-4 w-4 transition-transform duration-200 ${showPresets ? 'rotate-180' : ''}`}
-              />
-              {showPresets ? 'Hide Interview Presets' : 'Show Interview Presets'}
-            </button>
-          </div>
-          
-          {showPresets && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {allPresets.map((preset) => (
-                <div
-                  key={preset.title}
-                  onClick={() => handlePresetClick(preset)}
-                  className={`
-                    p-4 rounded-lg cursor-pointer transition-all duration-200 bg-white
-                    h-48 flex flex-col shadow-sm hover:shadow-md relative
-                    ${selectedPreset?.title === preset.title
-                      ? 'border-2 border-purple-500 shadow-md'
-                      : 'border border-gray-200 hover:border-gray-300'
-                    }
-                  `}
-                >
-                  <h3 className="font-semibold text-gray-900 mb-3 text-center text-sm">
-                    {preset.title}
-                  </h3>
-                  <p className="text-xs text-gray-600 leading-relaxed flex-1 overflow-hidden">
-                    {preset.prompt.substring(0, 150) + (preset.prompt.length > 150 ? '...' : '')}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 bg-white">
-        <div className="h-full px-8 py-6 flex flex-col">
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Detection Rules</h3>
-            <p className="text-xs text-gray-500">
-              Define how Unmask should analyze candidate responses and flag inconsistencies with their profile data.
-            </p>
-          </div>
-          <textarea
-            value={editorContent}
-            onChange={handleEditorChange}
-            className="w-full flex-1 text-sm text-gray-900 border border-gray-200 rounded-md p-4 resize-none focus:outline-none focus:border-purple-500 bg-white font-mono leading-relaxed"
-            placeholder="Configure detection rules..."
-          />
-        </div>
-      </div>
-
-      <div className="bg-gray-50 px-8 py-4 border-t border-gray-200">
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-purple-600 flex items-center gap-1">
-              <FileJson className="h-3 w-3" />
-              Sample Profile Format
-            </a>
-            <a href="#" className="hover:text-purple-600 flex items-center gap-1">
-              <Github className="h-3 w-3" />
-              Integration Guide
-            </a>
-          </div>
-          <div>
-            <a href="#" className="hover:text-purple-600">Download Unmask</a>
-          </div>
-        </div>
-      </div>
-
       {/* Glassmorphic Overlay for Candidate Selection */}
       {showCandidateOverlay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div 
-            className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl"
+            className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden"
             style={{
               background: 'rgba(255, 255, 255, 0.85)',
               backdropFilter: 'blur(20px)',
@@ -289,35 +392,35 @@ export default function PersonalizePage() {
             }}
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-200 border-opacity-30 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Select Candidate Profile</h2>
+            <div className="px-6 py-4 border-b border-stone-200 border-opacity-30 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-stone-900">Select Candidate Profile</h2>
               <button
                 onClick={() => {
                   setShowCandidateOverlay(false);
                   setCandidateSearchQuery('');
                 }}
-                className="p-2 hover:bg-gray-100 hover:bg-opacity-30 rounded-lg transition-all duration-200"
+                className="p-2 hover:bg-stone-100 hover:bg-opacity-30 transition-all duration-200"
               >
-                <X className="h-5 w-5 text-gray-600" />
+                <X className="h-5 w-5 text-stone-600" />
               </button>
             </div>
 
             {/* Search Bar */}
-            <div className="px-6 py-4 border-b border-gray-200 border-opacity-30">
+            <div className="px-6 py-4 border-b border-stone-200 border-opacity-30">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-stone-400" />
                 <input
                   type="text"
                   placeholder="Search candidates by name, role, or email..."
                   value={candidateSearchQuery}
                   onChange={(e) => setCandidateSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-50 border border-gray-200 border-opacity-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 focus:border-transparent placeholder-gray-400 text-gray-900"
+                  className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-50 border border-stone-200 border-opacity-50 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-opacity-50 focus:border-transparent placeholder-stone-400 text-stone-900"
                   autoFocus
                 />
                 {candidateSearchQuery && (
                   <button
                     onClick={() => setCandidateSearchQuery('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-stone-400 hover:text-stone-600"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -329,52 +432,52 @@ export default function PersonalizePage() {
             <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 200px)' }}>
               {applicants.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">No candidates found in the database.</p>
-                  <p className="text-sm text-gray-400 mt-2">Add candidates from the Applicants page first.</p>
+                  <p className="text-stone-500">No candidates found in the database.</p>
+                  <p className="text-sm text-stone-400 mt-2">Add candidates from the Applicants page first.</p>
                 </div>
               ) : filteredCandidates.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">No candidates match your search.</p>
-                  <p className="text-sm text-gray-400 mt-2">Try a different search term.</p>
+                  <p className="text-stone-500">No candidates match your search.</p>
+                  <p className="text-sm text-stone-400 mt-2">Try a different search term.</p>
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  <p className="text-sm text-gray-500 mb-2">
+                  <p className="text-sm text-stone-500 mb-2">
                     {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''} found
                   </p>
                   {filteredCandidates.map((applicant) => (
                     <button
                       key={applicant.id}
                       onClick={() => handleSelectCandidate(applicant)}
-                      className="w-full bg-white bg-opacity-40 hover:bg-opacity-60 backdrop-blur-sm border border-gray-200 border-opacity-50 hover:border-purple-400 rounded-lg p-4 transition-all duration-200 text-left group shadow-sm hover:shadow-md"
+                      className="w-full bg-white bg-opacity-40 hover:bg-opacity-60 backdrop-blur-sm border border-stone-200 border-opacity-50 hover:border-stone-400 p-4 transition-all duration-200 text-left group shadow-sm hover:shadow-md"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center">
-                            <span className="text-lg font-medium text-purple-700">
+                          <div className="w-12 h-12 bg-stone-100 flex items-center justify-center">
+                            <span className="text-lg font-medium text-stone-700">
                               {applicant.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <h3 className="font-medium text-gray-900">{applicant.name}</h3>
-                            <p className="text-sm text-gray-500">{applicant.role || 'No role specified'}</p>
+                            <h3 className="font-medium text-stone-900">{applicant.name}</h3>
+                            <p className="text-sm text-stone-500">{applicant.role || 'No role specified'}</p>
                             {applicant.email && (
-                              <p className="text-xs text-gray-400 mt-1">{applicant.email}</p>
+                              <p className="text-xs text-stone-400 mt-1">{applicant.email}</p>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {applicant.cv_data && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">CV</span>
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1">CV</span>
                           )}
                           {applicant.linkedin_data && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">LinkedIn</span>
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1">LinkedIn</span>
                           )}
                           {applicant.github_data && (
-                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">GitHub</span>
+                            <span className="text-xs bg-stone-100 text-stone-700 px-2 py-1">GitHub</span>
                           )}
-                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                            <Check className="h-4 w-4 text-purple-600" />
+                          <div className="w-8 h-8 bg-stone-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                            <Check className="h-4 w-4 text-stone-600" />
                           </div>
                         </div>
                       </div>
@@ -385,10 +488,10 @@ export default function PersonalizePage() {
             </div>
 
             {/* Alternative file upload */}
-            <div className="px-6 py-4 border-t border-gray-200 border-opacity-30 bg-gray-50 bg-opacity-20">
+            <div className="px-6 py-4 border-t border-stone-200 border-opacity-30 bg-stone-50 bg-opacity-20">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">Or upload from file:</p>
-                <label className="px-3 py-1.5 rounded-md text-xs font-medium bg-gray-600 bg-opacity-80 text-white hover:bg-opacity-100 cursor-pointer flex items-center gap-2 transition-all duration-200">
+                <p className="text-sm text-stone-600">Or upload from file:</p>
+                <label className="px-3 py-1.5 text-xs font-medium bg-stone-600 bg-opacity-80 text-white hover:bg-opacity-100 cursor-pointer flex items-center gap-2 transition-all duration-200">
                   <FileJson className="h-3 w-3" />
                   Upload JSON
                   <input

@@ -4,9 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useCallback, memo, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, LogOut, User, Shield, Database, CreditCard } from 'lucide-react';
 import { useApplicants } from '../lib/contexts/ApplicantContext';
 import { useAuth } from '../lib/contexts/AuthContext';
+import { useSharedUserProfile } from '../lib/contexts/UserProfileContext';
 import { Button } from './ui/button';
 
 const ANIMATION_DURATION = {
@@ -67,7 +68,8 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
   const router = useRouter();
   const searchParams = useSearchParams();
   const { applicants } = useApplicants();
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
+  const { displayName, displayInitial } = useSharedUserProfile();
   const [applicantsDropdownOpen, setApplicantsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -93,6 +95,32 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
         href: '/board/personalize',
         icon: Settings,
         ariaLabel: 'Configure analysis settings',
+      },
+    ],
+    []
+  );
+
+  const settingsNavigation = useMemo<NavigationItem[]>(
+    () => [
+      {
+        name: 'Personal Profile',
+        href: '/board/settings',
+        icon: User,
+      },
+      {
+        name: 'Security & access',
+        href: '/board/settings?tab=security',
+        icon: Shield,
+      },
+      {
+        name: 'Data & privacy',
+        href: '/board/settings?tab=privacy',
+        icon: Database,
+      },
+      {
+        name: 'Billing',
+        href: '/board/settings?tab=billing',
+        icon: CreditCard,
       },
     ],
     []
@@ -194,7 +222,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
             <button
               onClick={toggleSidebar}
               onKeyDown={e => handleKeyDown(e, toggleSidebar)}
-              className="absolute inset-0 flex items-center justify-center text-gray-500 hover:text-gray-800 rounded-md opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ease-out focus:outline-none"
+              className="absolute inset-0 flex items-center justify-center text-gray-500 hover:text-gray-800  opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ease-out focus:outline-none"
               aria-label="Open sidebar"
             >
               <ChevronDown className="h-4 w-4 transform rotate-90" />
@@ -237,8 +265,8 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
             <li className="mt-6">
               <div className={`relative transition-all duration-200 ${
                 searchFocused
-                  ? 'bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-1'
-                  : 'bg-gray-50 border border-gray-200 rounded-lg'
+                  ? 'bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200  p-1'
+                  : 'bg-gray-50 border border-gray-200 '
               }`}>
                 <div className="relative">
                   <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
@@ -251,7 +279,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setSearchFocused(true)}
                     onBlur={() => setSearchFocused(false)}
-                    className={`w-full pl-10 pr-8 py-2.5 text-sm rounded-lg border-0 focus:ring-0 focus:outline-none transition-all duration-200 ${
+                    className={`w-full pl-10 pr-8 py-2.5 text-sm  border-0 focus:ring-0 focus:outline-none transition-all duration-200 ${
                       searchFocused
                         ? 'bg-white shadow-sm text-gray-900 placeholder-gray-500'
                         : 'bg-transparent text-gray-700 placeholder-gray-400'
@@ -327,7 +355,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                         ${selectedApplicantId === applicant.id ? 'bg-[#f2f2f2]' : ''}
                       `}
                     >
-                      <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center mr-2">
+                      <div className="w-6 h-6 bg-zinc-100  flex items-center justify-center mr-2">
                         <span className="text-xs font-medium text-zinc-600">
                           {applicant.name.charAt(0).toUpperCase()}
                         </span>
@@ -335,15 +363,15 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                       <span className="flex-1 text-left truncate">{applicant.name}</span>
                       <div className="ml-2">
                         {applicant.status === 'completed' && (
-                          <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center">
+                          <div className="w-4 h-4 bg-green-100  flex items-center justify-center">
                             <Check className="w-2.5 h-2.5 text-green-600" />
                           </div>
                         )}
                         {(applicant.status === 'processing' || applicant.status === 'analyzing' || applicant.status === 'uploading') && (
-                          <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                          <div className="w-2 h-2 bg-yellow-400  animate-pulse"></div>
                         )}
                         {applicant.status === 'failed' && (
-                          <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                          <div className="w-2 h-2 bg-red-400 "></div>
                         )}
                       </div>
                     </button>
@@ -364,6 +392,49 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
               )}
             </div>
           </li>
+
+          {/* Settings Section */}
+          <li className="mt-6">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
+              Settings
+            </div>
+            <ul role="list" className="space-y-1">
+              {settingsNavigation.map((item) => {
+                // Check if this settings item is active
+                const isItemActive = (() => {
+                  if (item.href === '/board/settings') {
+                    return pathname === '/board/settings' && !searchParams.get('tab');
+                  }
+                  const tabName = item.href.split('tab=')[1];
+                  return pathname === '/board/settings' && searchParams.get('tab') === tabName;
+                })();
+                return (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      className={`
+                        group flex items-center rounded-[8px] text-[14px] px-[12px] py-[10px]
+                        ${isItemActive
+                          ? 'bg-[#f2f2f2] text-[#282828]'
+                          : 'text-[#282828] hover:text-[#282828] hover:bg-[#f7f7f7]'
+                        }
+                        focus:outline-none transition-colors duration-200 ease-out
+                      `}
+                    >
+                      <div className="shrink-0 flex items-center justify-center w-5 h-5">
+                        <item.icon className="h-[18px] w-[18px]" />
+                      </div>
+                      <div className="ml-[12px] overflow-hidden flex-1" style={getTextContainerStyle()}>
+                        <span className="block text-left" style={getUniformTextStyle()}>
+                          {item.name}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
         </ul>
 
         <div className="mt-auto space-y-4">
@@ -371,14 +442,14 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
 
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="w-8 h-8 bg-[#f2f2f2] border border-[#8d8d8d] rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#f2f2f2] border border-[#8d8d8d]  flex items-center justify-center">
                 <span className="text-[#282828] text-sm font-medium">
-                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  {displayInitial}
                 </span>
               </div>
               <div className="ml-3 overflow-hidden" style={getTextContainerStyle()}>
                 <span className="block text-sm text-[#282828] truncate" style={getUniformTextStyle()}>
-                  {user?.email || 'User'}
+                  {displayName}
                 </span>
               </div>
             </div>
