@@ -2,6 +2,7 @@
 // Ashby Candidates API - Cached candidate management with auto-sync
 import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
+import { AshbyCandidateListResponse } from '@/lib/ashby/types';
 import { createClient } from '@/lib/supabase/server';
 import { withATSAuth } from '@/lib/auth/api-middleware';
 
@@ -40,11 +41,9 @@ export async function GET() {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         return lastSync < oneHourAgo;
       });
-
     let syncResults = null;
     
     if (shouldAutoSync && process.env.ASHBY_API_KEY) {
-      console.log('🔄 Auto-syncing new Ashby candidates');
       syncResults = await syncNewCandidates(userId, supabase);
       
       // Refetch cached candidates after sync
@@ -176,7 +175,9 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
     throw new Error(`Failed to fetch candidates: ${candidatesResponse.error?.message}`);
   }
 
-  const allCandidates = candidatesResponse.results?.results || [];
+  const candidateListResponse = candidatesResponse.results as AshbyCandidateListResponse;
+  const allCandidates = candidateListResponse?.results || [];
+  
   const newCandidates = allCandidates.filter(c => !existingIds.has(c.id));
 
   if (newCandidates.length === 0) {
@@ -186,14 +187,6 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
   // Process and cache new candidates
   const insertData = [];
   for (const candidate of newCandidates) {
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('🆕 New Ashby candidate:', {
-        id: candidate.id,
-        name: candidate.name,
-        socialLinks: candidate.socialLinks,
-        resumeFileHandle: candidate.resumeFileHandle
-      });
-    }
 
     // Extract file handle properly
     let fileHandle = null;
@@ -223,14 +216,6 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
     const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
     const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
 
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('📄 Processing candidate resume:', {
-        name: candidate.name,
-        hasResumeFileHandle: !!candidate.resumeFileHandle,
-        resumeFileHandleType: typeof candidate.resumeFileHandle,
-        extractedHandle: fileHandle?.substring(0, 50) + '...' || 'none'
-      });
-    }
 
     insertData.push({
       user_id: userId,
@@ -299,11 +284,12 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
       throw new Error(`Failed to fetch candidates: ${response.error?.message}`);
     }
 
-    const candidates = response.results?.results || [];
+    const candidateListResponse = response.results as AshbyCandidateListResponse;
+    const candidates = candidateListResponse?.results || [];
     allCandidates.push(...candidates);
 
-    cursor = response.results?.nextCursor;
-    hasMore = response.results?.moreDataAvailable || false;
+    cursor = candidateListResponse?.nextCursor;
+    hasMore = candidateListResponse?.moreDataAvailable || false;
   }
 
   // Clear existing cache for this user
@@ -315,14 +301,6 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
   // Process and insert all candidates
   const insertData = [];
   for (const candidate of allCandidates) {
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('🔄 Refreshing candidate:', {
-        id: candidate.id,
-        name: candidate.name,
-        socialLinks: candidate.socialLinks,
-        resumeFileHandle: candidate.resumeFileHandle
-      });
-    }
 
     // Extract file handle properly
     let fileHandle = null;
@@ -352,14 +330,6 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
     const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
     const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
 
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('📄 Processing candidate resume:', {
-        name: candidate.name,
-        hasResumeFileHandle: !!candidate.resumeFileHandle,
-        resumeFileHandleType: typeof candidate.resumeFileHandle,
-        extractedHandle: fileHandle?.substring(0, 50) + '...' || 'none'
-      });
-    }
 
     insertData.push({
       user_id: userId,

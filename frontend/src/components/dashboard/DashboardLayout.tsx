@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { 
   LayoutDashboard, 
@@ -16,15 +16,18 @@ import {
   ChevronDown,
   Shield,
   Database,
-  CreditCard
+  CreditCard,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useSharedUserProfile } from '@/lib/contexts/UserProfileContext';
 import { usePathname } from 'next/navigation';
+import { isAuthorizedForATS } from '@/lib/auth/ats-access';
 import SearchOverlay from './SearchOverlay';
 
-const navigation = [
+// Base navigation items
+const baseNavigation = [
   { name: 'Dashboard', href: '/board/dashboard', icon: LayoutDashboard },
   { name: 'Personalize', href: '/board/personalize', icon: Sliders },
   { name: 'Applicants', href: '/board/applicants', icon: Users },
@@ -54,7 +57,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { displayName, displayInitial } = useSharedUserProfile();
+  const { displayName, displayInitial, authUser } = useSharedUserProfile();
+  
+  // Create navigation with conditional ATS item
+  const navigation = useMemo(() => {
+    const nav = [...baseNavigation];
+    
+    // Add ATS item if user is authorized
+    if (authUser && isAuthorizedForATS(authUser.email)) {
+      nav.splice(2, 0, { name: 'ATS', href: '/board/ats', icon: Building2 });
+    }
+    
+    return nav;
+  }, [authUser]);
 
   const handleSearchClick = (e: React.MouseEvent) => {
     e.preventDefault();
