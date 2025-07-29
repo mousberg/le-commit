@@ -1,0 +1,74 @@
+name: Deploy to Vultr
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Vultr Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: lhr.vultrcr.com
+        username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+        password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: true
+        tags: lhr.vultrcr.com/lecommit1/lecommit:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: root
+        key: ${{ secrets.VPS_SSH_KEY }}
+        script: |
+          set -e
+          echo "🔽 Pulling latest image..."
+          docker pull lhr.vultrcr.com/lecommit1/lecommit:latest
+          
+          echo "🛑 Stopping old container..."
+          docker stop lecommit-app || true
+          docker rm lecommit-app || true
+          
+          echo "🚀 Starting new container..."
+          docker run -d \
+            --name lecommit-app \
+            --restart unless-stopped \
+            -p 80:3000 \
+            --env-file /opt/lecommit/.env.local \
+            lhr.vultrcr.com/lecommit1/lecommit:latest
+          
+          echo "🧹 Cleaning up old images..."
+          docker image prune -f
+          
+          echo "✅ Deployment complete! Checking status..."
+          docker ps | grep lecommit-app
+    
+    - name: Check deployment status
+      run: |
+        echo "🔍 Checking app status..."
+        sleep 10  # Give the app time to start
+        if curl -s -o /dev/null -w "%{http_code}" http://199.247.14.12 | grep -q "200"; then
+          echo "✅ App is responding correctly!"
+        else
+          echo "⚠️ Warning: App might not be responding correctly."
+          exit 1
+        fi
