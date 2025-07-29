@@ -46,6 +46,32 @@ class SimpleSupabaseDatabaseService {
     return userRecord as User;
   }
 
+  async updateUserProfile(updates: { full_name?: string }): Promise<User> {
+    try {
+      const authUser = await this.dbClient.getCurrentUser();
+      if (!authUser) {
+        throw new Error('User must be authenticated');
+      }
+
+      const updatedUser = await safeExecute(
+        async () => await this.dbClient.from(TABLES.USERS)
+          .update(updates)
+          .eq('id', authUser.id)
+          .select('*')
+          .single(),
+        'User profile update'
+      );
+
+      if (!updatedUser) {
+        throw new Error('Failed to update user profile');
+      }
+      return updatedUser as User;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
+  }
+
   // ============================================================================
   // APPLICANT OPERATIONS (Users own applicants directly)
   // ============================================================================
@@ -168,10 +194,10 @@ class SimpleSupabaseDatabaseService {
   async deleteApplicant(id: string): Promise<boolean> {
     try {
       await withRetry(async () => {
-        await safeExecute(
-          async () => await this.dbClient.from(TABLES.APPLICANTS).delete().eq('id', id),
-          'Applicant deletion'
-        );
+        const { error } = await this.dbClient.from(TABLES.APPLICANTS).delete().eq('id', id);
+        if (error) {
+          throw error;
+        }
       });
       return true;
     } catch (error) {

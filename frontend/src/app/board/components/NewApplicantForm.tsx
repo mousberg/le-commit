@@ -71,7 +71,7 @@ function DropZone({ onDrop, accept, label, description, file, disabled = false, 
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-lg p-8 transition-all duration-200 cursor-pointer
+          relative border-2 border-dashed  p-8 transition-all duration-200 cursor-pointer
           ${isDragOver && !disabled
             ? 'border-zinc-400 bg-zinc-50'
             : file
@@ -93,7 +93,7 @@ function DropZone({ onDrop, accept, label, description, file, disabled = false, 
         <div className="flex flex-col items-center justify-center text-center">
           {file ? (
             <>
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+              <div className="w-12 h-12 bg-green-100  flex items-center justify-center mb-3">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -103,7 +103,7 @@ function DropZone({ onDrop, accept, label, description, file, disabled = false, 
             </>
           ) : (
             <>
-              <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mb-3">
+              <div className="w-12 h-12 bg-zinc-100  flex items-center justify-center mb-3">
                 <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
@@ -199,7 +199,7 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
             onChange={(e) => setLinkedinUrl(e.target.value)}
             placeholder="https://linkedin.com/in/username"
             disabled={isCreating || isLoading}
-            className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+            className="w-full px-4 py-3 border border-zinc-200  focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
           />
         </div>
 
@@ -212,13 +212,13 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
             onChange={(e) => setGithubUrl(e.target.value)}
             placeholder="https://github.com/username"
             disabled={isCreating || isLoading}
-            className="w-full px-4 py-3 border border-zinc-200 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
+            className="w-full px-4 py-3 border border-zinc-200  focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-900 placeholder-zinc-400"
           />
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 ">
             {error}
           </div>
         )}
@@ -228,7 +228,7 @@ export function NewApplicantForm({ onSuccess }: NewApplicantFormProps) {
           onClick={handleCreateCandidate}
           disabled={!isFormValid}
           size="lg"
-          className={`rounded-lg shadow-sm text-lg font-medium px-8 py-4 mt-4 transition-all duration-200 ${
+          className={` shadow-sm text-lg font-medium px-8 py-4 mt-4 transition-all duration-200 ${
             isFormValid
               ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
               : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'

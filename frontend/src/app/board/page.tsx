@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Trash2, MoreVertical, Trash, Download, Share2 } from 'lucide-react';
+import { Trash2, MoreVertical, Trash, Download, Share2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TranscriptModal from '@/components/TranscriptModal';
 import ProcessingLoader from '@/components/ProcessingLoader';
@@ -285,6 +285,13 @@ function BoardPageContent() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
+                      <button
+                        onClick={() => router.push('/board/applicants')}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors mr-2"
+                        title="Back to Applicants"
+                      >
+                        <ArrowLeft className="h-5 w-5 text-gray-600" />
+                      </button>
                       <h2 className="text-2xl font-semibold text-gray-900">{selectedCandidate.name}</h2>
                       <div className="flex items-center gap-2">
                         {selectedCandidate.cv_data && (
@@ -365,13 +372,13 @@ function BoardPageContent() {
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-xl">💼</span>
                         <h3 className="text-lg font-semibold text-gray-700">LinkedIn</h3>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium animate-pulse">
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1  border border-blue-200 font-medium animate-pulse">
                           Processing...
                         </span>
                       </div>
                       <p className="text-gray-600 text-sm mb-3">LinkedIn data is being processed in the background.</p>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-blue-500  animate-pulse"></div>
                         <span>Job ID: {selectedCandidate.linkedin_job_id.slice(0, 8)}...</span>
                       </div>
                     </div>
@@ -380,7 +387,7 @@ function BoardPageContent() {
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-xl opacity-50">💼</span>
                         <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full border border-red-200 font-medium">
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1  border border-red-200 font-medium">
                           Failed
                         </span>
                       </div>
@@ -391,7 +398,7 @@ function BoardPageContent() {
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-xl opacity-50">💼</span>
                         <h3 className="text-lg font-semibold text-gray-500">LinkedIn</h3>
-                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 ">Not Available</span>
                       </div>
                       <p className="text-gray-500 text-sm">LinkedIn data not provided for this candidate.</p>
                     </div>
@@ -408,7 +415,7 @@ function BoardPageContent() {
                         <div className="flex items-center gap-3 mb-2">
                           <span className="text-xl opacity-50">🐙</span>
                           <h3 className="text-lg font-semibold text-gray-500">GitHub</h3>
-                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">Not Available</span>
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 ">Not Available</span>
                         </div>
                         <p className="text-gray-500 text-sm">GitHub data not provided for this candidate.</p>
                       </div>
@@ -419,7 +426,7 @@ function BoardPageContent() {
 
               {/* Processing status message */}
               {selectedCandidate.status === 'failed' && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="bg-red-50 border border-red-200  p-4">
                   <p className="text-red-700">
                     Processing failed. Please try uploading again.
                   </p>
@@ -439,7 +446,7 @@ function BoardPageContent() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <Button
                   size="lg"
-                  className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-4 text-lg font-medium shadow-sm transition-all duration-200"
+                  className="w-full  bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-4 text-lg font-medium shadow-sm transition-all duration-200"
                 >
                   Start Interview
                 </Button>
@@ -460,9 +467,9 @@ function BoardPageContent() {
       {/* Delete Confirmation Modal */}
       {deleteConfirmModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md p-6">
+          <div className="bg-white  shadow-2xl border border-gray-200 w-full max-w-md p-6">
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <div className="mx-auto flex items-center justify-center h-12 w-12  bg-red-100 mb-4">
                 <Trash2 className="h-6 w-6 text-red-600" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
