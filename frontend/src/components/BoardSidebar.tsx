@@ -4,11 +4,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useCallback, memo, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, LogOut, User, Shield, Database, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, LogOut, User, Shield, Database, CreditCard, Building2 } from 'lucide-react';
 import { useApplicants } from '../lib/contexts/ApplicantContext';
 import { useAuth } from '../lib/contexts/AuthContext';
 import { useSharedUserProfile } from '../lib/contexts/UserProfileContext';
 import { Button } from './ui/button';
+import { isAuthorizedForATS } from '../lib/auth/ats-access';
 
 const ANIMATION_DURATION = {
     SIDEBAR: 500,
@@ -69,12 +70,13 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
   const searchParams = useSearchParams();
   const { applicants } = useApplicants();
   const { signOut } = useAuth();
-  const { displayName, displayInitial } = useSharedUserProfile();
+  const { displayName, displayInitial, authUser } = useSharedUserProfile();
   const [applicantsDropdownOpen, setApplicantsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
 
   const selectedApplicantId = searchParams.get('id');
+  const showATSTab = useMemo(() => isAuthorizedForATS(authUser?.email), [authUser?.email]);
 
   const {
     getTextContainerStyle,
@@ -83,21 +85,35 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
   } = useAnimationStyles(isCollapsed);
 
   const navigation = useMemo<NavigationItem[]>(
-    () => [
-      {
-        name: 'Dashboard',
-        href: '/board/dashboard',
-        icon: LayoutDashboard,
-        ariaLabel: 'Dashboard overview',
-      },
-      {
-        name: 'Personalize',
-        href: '/board/personalize',
-        icon: Settings,
-        ariaLabel: 'Configure analysis settings',
-      },
-    ],
-    []
+    () => {
+      const navItems: NavigationItem[] = [
+        {
+          name: 'Dashboard',
+          href: '/board/dashboard',
+          icon: LayoutDashboard,
+          ariaLabel: 'Dashboard overview',
+        },
+        {
+          name: 'Personalize',
+          href: '/board/personalize',
+          icon: Settings,
+          ariaLabel: 'Configure analysis settings',
+        },
+      ];
+      
+      // Add ATS tab if user is authorized
+      if (showATSTab) {
+        navItems.push({
+          name: 'ATS',
+          href: '/board/ats',
+          icon: Building2,
+          ariaLabel: 'Applicant Tracking System',
+        });
+      }
+      
+      return navItems;
+    },
+    [showATSTab]
   );
 
   const settingsNavigation = useMemo<NavigationItem[]>(
@@ -145,7 +161,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
 
   // Auto-expand applicants dropdown when on board pages with applicants
   useEffect(() => {
-    if (pathname.startsWith('/board') && pathname !== '/board/dashboard' && pathname !== '/board/personalize' && applicants.length > 0) {
+    if (pathname.startsWith('/board') && pathname !== '/board/dashboard' && pathname !== '/board/personalize' && pathname !== '/board/ats' && applicants.length > 0) {
       setApplicantsDropdownOpen(true);
     }
   }, [pathname, applicants.length]);
@@ -163,7 +179,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
 
   const renderNavigationItem = useCallback(
     (item: NavigationItem) => {
-      const isActive = pathname === item.href || (item.href === '/board' && pathname.startsWith('/board') && pathname !== '/board/dashboard');
+      const isActive = pathname === item.href;
 
       const baseClasses = `
         group flex items-center rounded-[8px] text-[14px] px-[12px] py-[10px] relative
@@ -309,7 +325,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
                   group flex items-center rounded-[8px] text-[14px] px-[12px] py-[10px] w-full
                   text-[#282828] hover:text-[#282828] hover:bg-[#f7f7f7]
                   focus:outline-none transition-colors duration-200 ease-out
-                  ${pathname.startsWith('/board') && pathname !== '/board/dashboard' && pathname !== '/board/personalize' ? 'bg-[#f2f2f2]' : ''}
+                  ${pathname.startsWith('/board') && pathname !== '/board/dashboard' && pathname !== '/board/personalize' && pathname !== '/board/ats' ? 'bg-[#f2f2f2]' : ''}
                 `}
               >
                 <div className="shrink-0 flex items-center justify-center w-5 h-5">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { 
   LayoutDashboard, 
   Settings, 
@@ -104,9 +105,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Logo/Brand area */}
             <div className="p-4 border-b border-[#dbdac9]/50 flex items-center">
               <div className="flex items-center">
-                <img 
+                <Image 
                   src="/logo-um.svg" 
                   alt="Unmask Logo" 
+                  width={120}
+                  height={32}
                   className="h-8 w-auto"
                 />
               </div>
@@ -255,9 +258,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="p-4 border-b border-[#dbdac9]/50 flex items-center justify-between relative">
               {!sidebarCollapsed ? (
                 <div className="flex items-center">
-                  <img 
+                  <Image 
                     src="/logo-um.svg" 
                     alt="Unmask Logo" 
+                    width={120}
+                    height={32}
                     className="h-8 w-auto"
                   />
                 </div>
@@ -267,9 +272,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   className="flex items-center justify-center w-full p-1 text-stone-600 hover:text-stone-900 transition-colors"
                   title="Expand sidebar"
                 >
-                  <img 
+                  <Image 
                     src="/logo-um.svg" 
                     alt="Unmask Logo" 
+                    width={120}
+                    height={32}
                     className="h-8 w-auto"
                   />
                 </button>
