@@ -102,7 +102,7 @@ temp/
 .local
 
 .cursor/
-.mcp.json
+.mcp.*json
 .claude
 .kiro/
 
@@ -110,4 +110,3 @@ temp/
 supabase/.temp/
 supabase/.branches/
 
-.mcp.json.local
