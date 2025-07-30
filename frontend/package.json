@@ -57,7 +57,7 @@
     "dotenv-cli": "^9.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
-    "supabase": "^2.31.4",
+    "supabase": "^2.33.5",
     "ts-node": "^10.9.1",
     "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.5",
