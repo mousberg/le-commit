@@ -10,7 +10,17 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:ashby": "dotenv -e .env.local -- tsx src/lib/simple_tests/ashby-test.ts",
-    "test:ashby-api": "curl -X GET 'http://localhost:3000/api/ashby/test?limit=3&test=true' -H 'Authorization: Bearer YOUR_TOKEN'"
+    "test:ashby-api": "curl -X GET 'http://localhost:3000/api/ashby/test?limit=3&test=true' -H 'Authorization: Bearer YOUR_TOKEN'",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset",
+    "supabase:migrate": "supabase db push",
+    "supabase:diff": "supabase db diff --schema public",
+    "supabase:types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "supabase:types:remote": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/lib/database.types.ts",
+    "supabase:sync": "pnpm supabase:reset && pnpm supabase:types",
+    "supabase:fresh": "supabase stop && supabase start && pnpm supabase:types"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.5.0",
