@@ -2,20 +2,21 @@
 // Ashby Candidates API - Cached candidate management with auto-sync
 import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
+import { AshbyCandidateListResponse } from '@/lib/ashby/types';
 import { createClient } from '@/lib/supabase/server';
+import { withATSAuth } from '@/lib/auth/api-middleware';
 
 // GET - Fetch cached candidates with auto-sync of new ones
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
+    const supabase = await createClient();
 
     // Use auth.uid() directly as user ID (after migration fix)
     const userId = user.id;
@@ -40,11 +41,9 @@ export async function GET() {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         return lastSync < oneHourAgo;
       });
-
     let syncResults = null;
     
     if (shouldAutoSync && process.env.ASHBY_API_KEY) {
-      console.log('🔄 Auto-syncing new Ashby candidates');
       syncResults = await syncNewCandidates(userId, supabase);
       
       // Refetch cached candidates after sync
@@ -65,8 +64,8 @@ export async function GET() {
       name: candidate.name,
       email: candidate.email,
       phone_number: candidate.phone_number,
-      all_emails: candidate.all_emails || [],
-      all_phone_numbers: candidate.all_phone_numbers || [],
+      emails: candidate.emails || [],
+      phone_numbers: candidate.phone_numbers || [],
       social_links: candidate.social_links || [],
       linkedin_url: candidate.linkedin_url,
       github_url: candidate.github_url,
@@ -114,15 +113,14 @@ export async function GET() {
 // POST - Force refresh all candidates from Ashby
 export async function POST() {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
+    const supabase = await createClient();
 
     if (!process.env.ASHBY_API_KEY) {
       return NextResponse.json(
@@ -177,7 +175,9 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
     throw new Error(`Failed to fetch candidates: ${candidatesResponse.error?.message}`);
   }
 
-  const allCandidates = candidatesResponse.results?.results || [];
+  const candidateListResponse = candidatesResponse.results as AshbyCandidateListResponse;
+  const allCandidates = candidateListResponse?.results || [];
+  
   const newCandidates = allCandidates.filter(c => !existingIds.has(c.id));
 
   if (newCandidates.length === 0) {
@@ -187,14 +187,6 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
   // Process and cache new candidates
   const insertData = [];
   for (const candidate of newCandidates) {
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('🆕 New Ashby candidate:', {
-        id: candidate.id,
-        name: candidate.name,
-        socialLinks: candidate.socialLinks,
-        resumeFileHandle: candidate.resumeFileHandle
-      });
-    }
 
     // Extract file handle properly
     let fileHandle = null;
@@ -224,14 +216,6 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
     const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
     const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
 
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('📄 Processing candidate resume:', {
-        name: candidate.name,
-        hasResumeFileHandle: !!candidate.resumeFileHandle,
-        resumeFileHandleType: typeof candidate.resumeFileHandle,
-        extractedHandle: fileHandle?.substring(0, 50) + '...' || 'none'
-      });
-    }
 
     insertData.push({
       user_id: userId,
@@ -239,8 +223,8 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
       name: candidate.name || 'Unknown',
       email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
       phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-      all_emails: candidate.emailAddresses || [],
-      all_phone_numbers: candidate.phoneNumbers || [],
+      emails: candidate.emailAddresses || [],
+      phone_numbers: candidate.phoneNumbers || [],
       social_links: candidate.socialLinks || [],
       linkedin_url: linkedinLink?.url,
       github_url: githubLink?.url,
@@ -300,11 +284,12 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
       throw new Error(`Failed to fetch candidates: ${response.error?.message}`);
     }
 
-    const candidates = response.results?.results || [];
+    const candidateListResponse = response.results as AshbyCandidateListResponse;
+    const candidates = candidateListResponse?.results || [];
     allCandidates.push(...candidates);
 
-    cursor = response.results?.nextCursor;
-    hasMore = response.results?.moreDataAvailable || false;
+    cursor = candidateListResponse?.nextCursor;
+    hasMore = candidateListResponse?.moreDataAvailable || false;
   }
 
   // Clear existing cache for this user
@@ -316,14 +301,6 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
   // Process and insert all candidates
   const insertData = [];
   for (const candidate of allCandidates) {
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('🔄 Refreshing candidate:', {
-        id: candidate.id,
-        name: candidate.name,
-        socialLinks: candidate.socialLinks,
-        resumeFileHandle: candidate.resumeFileHandle
-      });
-    }
 
     // Extract file handle properly
     let fileHandle = null;
@@ -353,14 +330,6 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
     const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
     const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
 
-    if (process.env.ASHBY_DEBUG_LOG === 'true') {
-      console.log('📄 Processing candidate resume:', {
-        name: candidate.name,
-        hasResumeFileHandle: !!candidate.resumeFileHandle,
-        resumeFileHandleType: typeof candidate.resumeFileHandle,
-        extractedHandle: fileHandle?.substring(0, 50) + '...' || 'none'
-      });
-    }
 
     insertData.push({
       user_id: userId,
@@ -368,8 +337,8 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
       name: candidate.name || 'Unknown',
       email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
       phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-      all_emails: candidate.emailAddresses || [],
-      all_phone_numbers: candidate.phoneNumbers || [],
+      emails: candidate.emailAddresses || [],
+      phone_numbers: candidate.phoneNumbers || [],
       social_links: candidate.socialLinks || [],
       linkedin_url: linkedinLink?.url,
       github_url: githubLink?.url,

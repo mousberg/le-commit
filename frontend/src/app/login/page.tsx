@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   
   const { signIn, signUp } = useAuth();
   const router = useRouter();
@@ -32,7 +33,14 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push('/board');
+        if (isSignUp) {
+          // Show confirmation message for signup
+          setEmailSent(true);
+          setError(null);
+        } else {
+          // Redirect to dashboard after signin
+          router.push('/board');
+        }
       }
     } catch {
       setError('An unexpected error occurred');
@@ -60,7 +68,29 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleEmailAuth} className="space-y-4">
+        {emailSent ? (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+              <h3 className="font-semibold mb-1">Check your email!</h3>
+              <p className="text-sm">We&apos;ve sent a verification email to <strong>{email}</strong>. Please click the link in the email to verify your account.</p>
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-sm text-gray-600">Didn&apos;t receive the email?</p>
+              <Button
+                onClick={() => {
+                  setEmailSent(false);
+                  setEmail('');
+                  setPassword('');
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Try again
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleEmailAuth} className="space-y-4">
             <div>
               <Input
                 type="email"
@@ -97,6 +127,7 @@ export default function LoginPage() {
               {loading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
           </form>
+        )}
 
         <div className="text-center">
           <p className="text-sm text-gray-600">
