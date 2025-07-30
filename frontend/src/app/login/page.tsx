@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
-import { isAuthorizedForATS } from '@/lib/auth/ats-access';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,9 +38,8 @@ export default function LoginPage() {
           setEmailSent(true);
           setError(null);
         } else {
-          // Redirect based on ATS authorization for signin
-          const redirectPath = isAuthorizedForATS(email) ? '/ats' : '/board';
-          router.push(redirectPath);
+          // Redirect to dashboard after signin
+          router.push('/board');
         }
       }
     } catch {

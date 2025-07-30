@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { createClient } from '@/lib/supabase/client';
-import { isAuthorizedForATS } from '@/lib/auth/ats-access';
 
 export default function VerifyEmailPage() {
   const [verifying, setVerifying] = useState(true);
@@ -28,11 +27,8 @@ export default function VerifyEmailPage() {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         
         if (currentUser?.email_confirmed_at) {
-          // Email is verified, redirect to appropriate page
-          const redirectPath = isAuthorizedForATS(currentUser.email)
-            ? '/ats' 
-            : '/board';
-          router.push(redirectPath);
+          // Email is verified, redirect to dashboard
+          router.push('/board');
         } else {
           setVerifying(false);
         }
