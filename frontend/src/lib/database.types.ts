@@ -360,9 +360,9 @@ export type Database = {
       }
       link_applicant_to_ashby_candidate: {
         Args: {
+          p_user_id: string
           p_applicant_id: string
           p_ashby_candidate_id: string
-          p_user_id: string
         }
         Returns: boolean
       }
