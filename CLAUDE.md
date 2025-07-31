@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Related Files
 @docs/design_priciples.md - UI Design System Prompt
 @docs/supabase_auth.mdc - Supabase Auth Configuration
+@docs/supabase_curl.mdc - Supabase cURL Commands (when MCP is unavailable)
 @.cursor/rules - Cursor Rules
 
 ## Development Commands
