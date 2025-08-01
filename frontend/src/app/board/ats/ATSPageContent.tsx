@@ -63,12 +63,9 @@ export function ATSPageContent({ initialData }: ATSPageContentProps) {
       const result = await autoSyncCandidates();
       if (result.success && result.data) {
         setData(result.data);
-        console.log('🔄 Auto-synced candidates:', result.data.sync_results);
-      } else {
-        console.error('Auto-sync failed:', result.error);
       }
     } catch (err) {
-      console.error('Auto-sync failed:', err);
+      // Handle error silently or show user-friendly message
     }
   };
 
@@ -80,7 +77,6 @@ export function ATSPageContent({ initialData }: ATSPageContentProps) {
       const result = await refreshCandidates();
       if (result.success && result.data) {
         setData(result.data);
-        console.log('🔄 Full refresh completed:', result.data);
       } else {
         setError(result.error || 'An error occurred');
       }

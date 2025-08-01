@@ -23,7 +23,7 @@ create table if not exists public.users (
 
 -- Applicants table (candidates being verified)
 create table if not exists public.applicants (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid primary key default uuid_generate_v4(),
   user_id uuid references public.users(id) on delete cascade not null,
   name text not null,
   email text not null,
@@ -31,7 +31,16 @@ create table if not exists public.applicants (
   github_url text,
   linkedin_url text,
   analysis jsonb,
-  status text default 'pending'::text,
+  status text not null default 'uploading' check (status in ('uploading', 'processing', 'analyzing', 'completed', 'failed')),
+  
+  -- Core data
+  cv_data jsonb,
+  linkedin_data jsonb,
+  github_data jsonb,
+  analysis_result jsonb,
+  individual_analysis jsonb,
+  cross_reference_analysis jsonb,
+  
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

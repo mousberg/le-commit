@@ -22,6 +22,8 @@ interface ATSCandidate {
   ready_for_processing?: boolean;
   fraud_likelihood?: 'low' | 'medium' | 'high';
   fraud_reason?: string;
+  analysis?: any; // GPT analysis data
+  processed?: boolean; // Whether GPT analysis is complete
 }
 
 interface ATSPageData {
@@ -33,6 +35,8 @@ interface ATSPageData {
     message?: string;
   };
   last_sync: number | null;
+  availableForImport?: number;
+  importedCount?: number;
 }
 
 // Server component that handles everything server-side
@@ -73,41 +77,64 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
   try {
     const supabase = await createClient();
     
-    // Get cached candidates
-    const cachedResult = await supabase
-      .from('ashby_candidates')
+    // Get applicants that were imported from Ashby - with their processed analysis data
+    const applicantsResult = await supabase
+      .from('applicants')
       .select('*')
       .eq('user_id', userId)
-      .order('ashby_created_at', { ascending: false, nullsFirst: false });
+      .not('ashby_candidate_id', 'is', null)
+      .order('created_at', { ascending: false });
 
-    if (cachedResult.error) {
-      console.error('Database error:', cachedResult.error);
-      throw new Error('Failed to fetch candidates');
+    if (applicantsResult.error) {
+      console.error('Database error:', applicantsResult.error);
+      throw new Error('Failed to fetch applicants');
     }
 
-    const candidates = cachedResult.data || [];
+    const applicants = applicantsResult.data || [];
     
-    // Transform data for frontend
+    // Transform applicants data for frontend (show processed GPT analysis data)
+    const processedCandidates = applicants.map(applicant => {
+      // Parse analysis data from GPT processing
+      const analysisData = applicant.analysis as any;
+      const hasAnalysis = !!analysisData;
+      
+      return {
+        ashby_id: applicant.ashby_candidate_id || '',
+        name: applicant.name,
+        email: applicant.email,
+        linkedin_url: applicant.linkedin_url,
+        has_resume: applicant.has_resume || (hasAnalysis && analysisData?.cvData),
+        resume_url: applicant.resume_url,
+        cv_storage_path: applicant.cv_storage_path,
+        created_at: applicant.created_at,
+        tags: [
+          'imported',
+          ...(hasAnalysis ? ['analyzed'] : ['pending_analysis']),
+          ...(applicant.has_resume ? ['resume'] : []),
+          ...(applicant.cv_storage_path ? ['cv_stored'] : []),
+          ...(analysisData?.cvData ? ['cv_analyzed'] : []),
+          ...(analysisData?.linkedInData ? ['linkedin'] : []),
+          ...(analysisData?.gitHubData ? ['github'] : [])
+        ],
+        unmask_applicant_id: applicant.id,
+        unmask_status: applicant.status,
+        action: 'created' as const,
+        ready_for_processing: true,
+        fraud_likelihood: analysisData?.riskAssessment?.riskLevel?.toLowerCase() as 'low' | 'medium' | 'high' | undefined,
+        fraud_reason: analysisData?.riskAssessment?.explanation,
+        analysis: analysisData, // Include full analysis data
+        processed: hasAnalysis,
+        phone_number: applicant.phone,
+        ashby_sync_status: applicant.ashby_sync_status,
+        ashby_last_synced_at: applicant.ashby_last_synced_at
+      };
+    });
+
     return {
-      candidates: candidates.map(candidate => ({
-        ashby_id: candidate.ashby_id,
-        name: candidate.name,
-        email: candidate.email,
-        linkedin_url: candidate.linkedin_url,
-        has_resume: candidate.has_resume,
-        resume_url: candidate.resume_url,
-        created_at: candidate.ashby_created_at,
-        tags: candidate.tags || [],
-        unmask_applicant_id: candidate.unmask_applicant_id,
-        unmask_status: candidate.unmask_applicant_id ? 'linked' : 'not_linked',
-        action: candidate.unmask_applicant_id ? 'existing' : 'not_created',
-        ready_for_processing: !!(candidate.linkedin_url || candidate.has_resume),
-        fraud_likelihood: candidate.fraud_likelihood,
-        fraud_reason: candidate.fraud_reason,
-      })),
-      cached_count: candidates.length,
-      auto_synced: false, // Will be handled client-side if needed
-      last_sync: candidates.length > 0 ? Math.max(...candidates.map(c => new Date(c.last_synced_at).getTime())) : null
+      candidates: processedCandidates,
+      cached_count: processedCandidates.length,
+      auto_synced: false,
+      last_sync: applicants.length > 0 ? Math.max(...applicants.map(a => new Date(a.created_at).getTime())) : null
     };
   } catch (error) {
     console.error('Error in fetchCandidatesServer:', error);
