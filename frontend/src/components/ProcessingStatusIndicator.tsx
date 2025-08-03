@@ -11,7 +11,7 @@ interface ProcessingStatusIndicatorProps {
 
 interface StatusItemProps {
   label: string;
-  status: 'pending' | 'processing' | 'ready' | 'error';
+  status: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
   dataPresent?: boolean;
 }
 
@@ -26,6 +26,8 @@ function StatusItem({ label, status, dataPresent }: StatusItemProps) {
         return <AlertCircle className="w-4 h-4 text-red-600" />;
       case 'pending':
         return <Clock className="w-4 h-4 text-gray-400" />;
+      case 'not_provided':
+        return <Clock className="w-4 h-4 text-gray-300" />;
     }
   };
 
@@ -39,6 +41,8 @@ function StatusItem({ label, status, dataPresent }: StatusItemProps) {
         return 'text-red-700 bg-red-50 border-red-200';
       case 'pending':
         return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'not_provided':
+        return 'text-gray-500 bg-gray-100 border-gray-300';
     }
   };
 
@@ -52,6 +56,8 @@ function StatusItem({ label, status, dataPresent }: StatusItemProps) {
         return 'Error';
       case 'pending':
         return 'Pending';
+      case 'not_provided':
+        return 'Not Provided';
     }
   };
 

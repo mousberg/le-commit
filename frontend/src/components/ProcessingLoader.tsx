@@ -162,11 +162,11 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
 interface ProcessingStepProps {
   label: string;
   status: 'pending' | 'active' | 'completed' | 'error' | 'skipped';
-  data?: any;
+  data?: unknown;
   previewContent?: React.ReactNode;
 }
 
-function ProcessingStep({ label, status, data, previewContent }: ProcessingStepProps) {
+function ProcessingStep({ label, status, previewContent }: ProcessingStepProps) {
   const getIcon = () => {
     switch (status) {
       case 'completed':

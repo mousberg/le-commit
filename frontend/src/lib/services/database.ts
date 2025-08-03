@@ -127,8 +127,7 @@ class SimpleSupabaseDatabaseService {
             phone: data.phone,
             linkedin_url: data.linkedin_url,
             github_url: data.github_url,
-            cv_file_id: data.cv_file_id,
-            status: data.status || 'uploading'
+            cv_file_id: data.cv_file_id
           }).select().single(),
           'Applicant creation'
         );
@@ -161,7 +160,7 @@ class SimpleSupabaseDatabaseService {
     try {
       return await withRetry(async () => {
         // Only update fields that are not generated columns
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         if (data.name !== undefined) updateData.name = data.name;
         if (data.email !== undefined) updateData.email = data.email;
         if (data.phone !== undefined) updateData.phone = data.phone;

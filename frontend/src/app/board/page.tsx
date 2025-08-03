@@ -20,7 +20,6 @@ import ReferenceManager, { Reference } from './components/ReferenceManager';
 
 function BoardPageContent() {
   const {
-    applicants,
     selectedApplicant,
     fetchApplicants,
     selectApplicant,
@@ -55,7 +54,7 @@ function BoardPageContent() {
     } else if (!urlId && selectedApplicant) {
       selectApplicant(null);
     }
-  }, [urlId, selectedApplicant?.id, selectApplicant]);
+  }, [urlId, selectedApplicant, selectApplicant]);
 
   // Real-time updates now handled by ApplicantContext - no polling needed!
 
