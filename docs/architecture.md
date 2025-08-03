@@ -15,7 +15,8 @@ graph LR
 
   %% ──────────── Workers ────────────
   subgraph "Backend (/api workers)"
-    ATS[/ats-sync/]
+    ATS_LOAD[/ats-load/]
+    ATS_PUSH[/ats-push/]
     CV[/cv-process/]
     LI[/linkedin-fetch/]
     GH[/github-fetch/]
@@ -34,10 +35,10 @@ graph LR
   UI --> users
 
   %% Heavy jobs via REST (manual trigger)
-  UI -->|REST| ATS
+  UI -->|REST| ATS_LOAD
 
   %% Workers write results
-  ATS --> applicants
+  ATS_LOAD --> applicants
   CV  --> applicants
   CV  --> files
   LI  --> applicants
@@ -49,6 +50,7 @@ graph LR
   applicants -- "AFTER trigger → HTTP" --> LI
   applicants -- "AFTER trigger → HTTP" --> GH
   applicants -- "AFTER trigger → HTTP" --> AN
+  applicants -- "AFTER trigger → HTTP" --> ATS_PUSH
 
   %% Realtime back to UI
   applicants -. "Realtime" .-> UI
