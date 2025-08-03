@@ -1,4 +1,3 @@
-// Ashby Sync API - Push Unmask verification results back to Ashby
 
 import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
@@ -61,15 +60,15 @@ async function syncSingleApplicant(context: ApiHandlerContext) {
       case 'sync_results':
         result = await syncVerificationResults(ashbyClient, applicant);
         break;
-      
+
       case 'sync_status':
         result = await syncVerificationStatus(ashbyClient, applicant);
         break;
-      
+
       case 'sync_flags':
         result = await syncVerificationFlags(ashbyClient, applicant);
         break;
-      
+
       default:
         return NextResponse.json(
           { error: 'Invalid action', success: false },
@@ -120,7 +119,7 @@ interface Applicant {
 
 async function syncVerificationResults(ashbyClient: AshbyClient, applicant: Applicant) {
   const analysisResult = applicant.analysis_result;
-  
+
   if (!analysisResult) {
     return {
       success: false,
@@ -130,7 +129,7 @@ async function syncVerificationResults(ashbyClient: AshbyClient, applicant: Appl
 
   // Determine verification status
   let verificationStatus: 'verified' | 'flagged' | 'pending' = 'pending';
-  
+
   if (applicant.status === 'completed') {
     const redFlags = analysisResult.flags?.filter((f) => f.type === 'red') || [];
     verificationStatus = redFlags.length > 0 ? 'flagged' : 'verified';
@@ -171,7 +170,7 @@ async function syncVerificationStatus(ashbyClient: AshbyClient, applicant: Appli
 
 async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: Applicant) {
   const analysisResult = applicant.analysis_result;
-  
+
   if (!analysisResult?.flags) {
     return {
       success: false,
@@ -262,7 +261,7 @@ async function syncBatchApplicants(context: ApiHandlerContext) {
 
     // Update sync status for successful syncs
     const successfulSyncs = batchResults.filter(r => r.success);
-    
+
     if (successfulSyncs.length > 0) {
       await supabase
         .from('applicants')
@@ -297,6 +296,9 @@ function determineVerificationStatus(applicant: Applicant): 'verified' | 'flagge
   const redFlags = applicant.analysis_result?.flags?.filter((f) => f.type === 'red') || [];
   return redFlags.length > 0 ? 'flagged' : 'verified';
 }
+
+
+
 
 // Export handlers with middleware
 export const POST = withApiMiddleware(syncSingleApplicant, {

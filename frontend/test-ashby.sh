@@ -34,7 +34,7 @@ test_api() {
     
     echo "🔍 Testing API endpoint with limit=$limit, include_resume=$include_resume, create_applicants=$create_applicants"
     
-    curl -s -X GET "http://localhost:3000/api/ashby/test?limit=$limit&include_resume=$include_resume&create_applicants=$create_applicants&test=true" \
+    curl -s -X GET "http://localhost:3000/api/ashby/sync?limit=$limit&force=true" \
         -H "Content-Type: application/json" | jq '.'
 }
 
@@ -48,9 +48,8 @@ test_script() {
 test_connection() {
     echo "🔍 Testing basic connection"
     
-    curl -s -X POST "http://localhost:3000/api/ashby/test" \
-        -H "Content-Type: application/json" \
-        -d '{"action": "test_connection"}' | jq '.'
+    curl -s -X GET "http://localhost:3000/api/ashby/sync?limit=1" \
+        -H "Content-Type: application/json" | jq '.'
 }
 
 # Main menu
@@ -119,4 +118,4 @@ echo "Next steps:"
 echo "1. Review the output above"
 echo "2. Check your Ashby dashboard for any test tags/updates"
 echo "3. If testing candidate creation, check the Unmask dashboard"
-echo "4. Configure webhook URL in Ashby: http://your-domain.com/api/ashby/webhook"
+echo "4. Ashby integration configured for polling-based sync"

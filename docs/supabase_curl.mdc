@@ -1,0 +1,172 @@
+# Supabase cURL Access Guide
+
+When MCP Supabase tools are unavailable, use these cURL commands to interact with the Supabase database.
+
+## Environment Variables
+
+First, ensure these are set in your environment:
+```bash
+SUPABASE_URL="http://127.0.0.1:54321"  # Local Supabase
+SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+```
+
+## Basic cURL Commands
+
+### 1. List All Tables
+```bash
+curl -X POST "${SUPABASE_URL}/rest/v1/rpc/get_tables" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Alternative using direct SQL:
+```bash
+curl -X POST "${SUPABASE_URL}/rest/v1/rpc/sql" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT tablename FROM pg_tables WHERE schemaname = '\''public'\''"}'
+```
+
+### 2. Get Table Schema
+```bash
+# Get column information for a specific table
+curl -X POST "${SUPABASE_URL}/rest/v1/rpc/sql" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = '\''public'\'' AND table_name = '\''your_table_name'\''"}'
+```
+
+### 3. Query Data from Tables
+
+#### GET all records from a table
+```bash
+curl -X GET "${SUPABASE_URL}/rest/v1/table_name?select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+```
+
+#### GET with filters
+```bash
+# Equal filter
+curl -X GET "${SUPABASE_URL}/rest/v1/table_name?column=eq.value&select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+
+# Greater than filter
+curl -X GET "${SUPABASE_URL}/rest/v1/table_name?column=gt.value&select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+```
+
+### 4. Insert Data
+```bash
+curl -X POST "${SUPABASE_URL}/rest/v1/table_name" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=representation" \
+  -d '{"column1": "value1", "column2": "value2"}'
+```
+
+### 5. Update Data
+```bash
+curl -X PATCH "${SUPABASE_URL}/rest/v1/table_name?id=eq.1" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"column1": "new_value"}'
+```
+
+### 6. Delete Data
+```bash
+curl -X DELETE "${SUPABASE_URL}/rest/v1/table_name?id=eq.1" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+```
+
+### 7. Execute Raw SQL (Service Role Only)
+```bash
+curl -X POST "${SUPABASE_URL}/rest/v1/rpc/sql" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM your_table LIMIT 10"}'
+```
+
+## Common Unmask/Le-Commit Specific Queries
+
+### Check Applicants Table
+```bash
+# List all applicants
+curl -X GET "${SUPABASE_URL}/rest/v1/applicants?select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+
+# Get applicant by ID
+curl -X GET "${SUPABASE_URL}/rest/v1/applicants?id=eq.UUID_HERE&select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+
+# Get applicants with analysis complete
+curl -X GET "${SUPABASE_URL}/rest/v1/applicants?analysis_complete=eq.true&select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+```
+
+### Check Analysis Results
+```bash
+# Get analysis for specific applicant
+curl -X GET "${SUPABASE_URL}/rest/v1/analysis_results?applicant_id=eq.UUID_HERE&select=*" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+```
+
+### Storage Operations
+
+#### List files in a bucket
+```bash
+curl -X GET "${SUPABASE_URL}/storage/v1/object/list/bucket_name" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+```
+
+#### Upload a file
+```bash
+curl -X POST "${SUPABASE_URL}/storage/v1/object/bucket_name/file_path" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+  -H "Content-Type: application/pdf" \
+  --data-binary @local_file.pdf
+```
+
+## Error Handling
+
+Common error responses:
+- `401`: Invalid API key or unauthorized
+- `403`: Insufficient permissions (try service role key)
+- `404`: Table or resource not found
+- `500`: Server error (check SQL syntax)
+
+## Tips for Claude
+
+1. Always check if tables exist before querying them
+2. Use the service role key for schema inspection and raw SQL
+3. Use the anon key for regular CRUD operations
+4. Add `?select=*` to GET requests to retrieve all columns
+5. Use `Prefer: return=representation` header on POST/PATCH to get the modified record back
+6. For complex queries, use the raw SQL endpoint with proper escaping
+
+## Testing Connection
+```bash
+# Quick test to verify Supabase is accessible
+curl -X GET "${SUPABASE_URL}/rest/v1/" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -I
+```
+
+This should return a 200 OK status if Supabase is running and accessible.

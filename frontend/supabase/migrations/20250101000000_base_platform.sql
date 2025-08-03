@@ -23,7 +23,7 @@ create table if not exists public.users (
 
 -- Applicants table (candidates being verified)
 create table if not exists public.applicants (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid primary key default uuid_generate_v4(),
   user_id uuid references public.users(id) on delete cascade not null,
   name text not null,
   email text not null,
@@ -31,7 +31,17 @@ create table if not exists public.applicants (
   github_url text,
   linkedin_url text,
   analysis jsonb,
-  status text default 'pending'::text,
+  status text not null default 'uploading' check (status in ('uploading', 'processing', 'analyzing', 'completed', 'failed')),
+  
+  -- Core data
+  cv_data jsonb,
+  linkedin_data jsonb,
+  github_data jsonb,
+  analysis_result jsonb,
+  individual_analysis jsonb,
+  cross_reference_analysis jsonb,
+  
+  
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -41,9 +51,15 @@ create table if not exists public.files (
   id uuid default uuid_generate_v4() primary key,
   applicant_id uuid references public.applicants(id) on delete cascade not null,
   file_name text not null,
-  file_type text not null,
-  file_url text not null,
-  uploaded_at timestamp with time zone default timezone('utc'::text, now()) not null
+  file_type text not null check (file_type in ('cv', 'resume', 'cover_letter', 'transcript', 'other')),
+  storage_path text not null, -- path in Supabase storage
+  storage_bucket text not null default 'candidate-cvs',
+  file_size bigint,
+  mime_type text,
+  source text check (source in ('upload', 'ashby', 'linkedin', 'other')),
+  source_metadata jsonb, -- e.g., ashby file handle info
+  uploaded_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- =============================================================================
@@ -54,6 +70,8 @@ create index if not exists idx_users_email on public.users(email);
 create index if not exists idx_applicants_user_id on public.applicants(user_id);
 create index if not exists idx_applicants_status on public.applicants(status);
 create index if not exists idx_files_applicant_id on public.files(applicant_id);
+create index if not exists idx_files_file_type on public.files(file_type);
+create index if not exists idx_files_source on public.files(source);
 
 -- =============================================================================
 -- TRIGGERS
@@ -75,6 +93,10 @@ create trigger handle_users_updated_at before update on public.users
 
 drop trigger if exists handle_applicants_updated_at on public.applicants;
 create trigger handle_applicants_updated_at before update on public.applicants
+  for each row execute procedure public.handle_updated_at();
+
+drop trigger if exists handle_files_updated_at on public.files;
+create trigger handle_files_updated_at before update on public.files
   for each row execute procedure public.handle_updated_at();
 
 -- =============================================================================

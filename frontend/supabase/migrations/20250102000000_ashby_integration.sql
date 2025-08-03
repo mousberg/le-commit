@@ -22,60 +22,61 @@ create table if not exists public.ashby_candidates (
   user_id uuid references auth.users(id) on delete cascade not null,
   ashby_id text not null unique,
   name text not null,
-  email text,
-  phone text,
-  location text,
-  linkedin_url text,
-  github_url text,
-  website_url text,
-  source text,
-  credited_to_id text,
-  credited_to_name text,
-  job_id text,
-  job_title text,
-  application_id text,
-  application_status text,
-  application_stage text,
-  application_archived_at timestamp with time zone,
+  email text, -- primaryEmailAddress.value
+  phone text, -- primaryPhoneNumber.value
+  position text,
+  company text,
+  school text,
+  location_summary text, -- locationSummary if present
+  linkedin_url text, -- extracted from socialLinks
+  github_url text, -- extracted from socialLinks
+  website_url text, -- extracted from socialLinks
+  
+  -- Resume handling
+  resume_file_handle jsonb, -- full resumeFileHandle object from API
+  cv_storage_path text, -- path in our Supabase storage
+  has_resume boolean default false,
+  resume_url text, -- generated URL for resume access
+  
+  -- Timestamps from Ashby
   ashby_created_at timestamp with time zone,
   ashby_updated_at timestamp with time zone,
-  resume_file_handle text,
-  -- Storage path for CV stored in Supabase
-  cv_storage_path text,
-  -- Additional contact and professional information
-  emails jsonb default '[]'::jsonb,
-  phone_numbers jsonb default '[]'::jsonb,
-  social_links jsonb default '[]'::jsonb,
-  websites jsonb default '[]'::jsonb,
-  company text,
-  title text,
-  school text,
-  degree text,
-  tags jsonb default '[]'::jsonb,
-  source_id text,
+  
+  -- JSONB arrays (structured data from API)
+  emails jsonb default '[]'::jsonb, -- emailAddresses array
+  phone_numbers jsonb default '[]'::jsonb, -- phoneNumbers array
+  social_links jsonb default '[]'::jsonb, -- socialLinks array
+  tags jsonb default '[]'::jsonb, -- tags array
+  application_ids jsonb default '[]'::jsonb, -- applicationIds array
+  all_file_handles jsonb default '[]'::jsonb, -- fileHandles array
+  
   -- Analysis results
   analysis_result jsonb,
   analysis_status text default 'pending'::text,
   analysis_completed_at timestamp with time zone,
-  -- Additional Ashby-specific fields
-  resume_url text,
-  all_file_handles jsonb default '[]'::jsonb,
+  
+  -- Source information
+  source jsonb, -- full source object including sourceType
+  source_title text, -- source.title for easy querying
+  credited_to_user jsonb, -- creditedToUser object
+  credited_to_name text, -- creditedToUser.firstName + lastName for easy access
+  
+  -- Additional fields
   custom_fields jsonb default '{}'::jsonb,
-  has_resume boolean default false,
-  profile_url text,
-  phone_number text,
-  position text,
-  location_summary text,
-  location_details jsonb,
+  location_details jsonb, -- full location object if needed
   timezone text,
-  source_info jsonb,
-  last_synced_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  profile_url text, -- Ashby profile URL
+  
+  -- Links to our system
   unmask_applicant_id uuid references public.applicants(id) on delete set null,
   fraud_likelihood text,
   fraud_reason text,
+  
   -- Cache metadata
+  last_synced_at timestamp with time zone default timezone('utc'::text, now()) not null,
   cached_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  
   constraint unique_user_ashby_candidate unique(user_id, ashby_id)
 );
 
@@ -87,13 +88,15 @@ create index idx_applicants_ashby_candidate_id on public.applicants(ashby_candid
 create index idx_ashby_candidates_user_id on public.ashby_candidates(user_id);
 create index idx_ashby_candidates_ashby_id on public.ashby_candidates(ashby_id);
 create index idx_ashby_candidates_email on public.ashby_candidates(email);
-create index idx_ashby_candidates_application_id on public.ashby_candidates(application_id);
+create index idx_ashby_candidates_application_ids on public.ashby_candidates using gin (application_ids);
 create index idx_ashby_candidates_cv_storage_path on public.ashby_candidates(cv_storage_path) where cv_storage_path is not null;
 create index idx_ashby_candidates_emails on public.ashby_candidates using gin (emails);
 create index idx_ashby_candidates_phone_numbers on public.ashby_candidates using gin (phone_numbers);
 create index idx_ashby_candidates_unmask_applicant_id on public.ashby_candidates(unmask_applicant_id);
 create index idx_ashby_candidates_analysis_status on public.ashby_candidates(analysis_status);
 create index idx_ashby_candidates_fraud_likelihood on public.ashby_candidates(fraud_likelihood);
+create index idx_ashby_candidates_source_title on public.ashby_candidates(source_title);
+create index idx_ashby_candidates_credited_to_name on public.ashby_candidates(credited_to_name);
 
 -- =============================================================================
 -- ASHBY TRIGGERS
@@ -119,60 +122,72 @@ create policy "Users can manage own Ashby candidates" on public.ashby_candidates
 -- ASHBY INTEGRATION FUNCTIONS
 -- =============================================================================
 
--- Function to sync candidate data between Ashby cache and applicants
+-- Function to sync ashby_candidates to applicants table
 create or replace function public.sync_ashby_candidate_to_applicant()
 returns trigger as $$
-declare
-  existing_applicant_id uuid;
 begin
-  -- Only sync if analysis is completed
-  if new.analysis_status = 'completed' and new.analysis_result is not null then
-    -- Check if applicant already exists
-    select id into existing_applicant_id
-    from public.applicants
-    where ashby_candidate_id = new.ashby_id
+  -- Check if applicant already exists with this ashby_candidate_id
+  if exists (
+    select 1 from public.applicants 
+    where ashby_candidate_id = new.ashby_id 
+    and user_id = new.user_id
+  ) then
+    -- Update existing applicant
+    update public.applicants
+    set
+      name = new.name,
+      email = new.email,
+      phone = new.phone,
+      linkedin_url = new.linkedin_url,
+      github_url = new.github_url,
+      ashby_sync_status = 'synced',
+      ashby_last_synced_at = now(),
+      updated_at = now()
+    where ashby_candidate_id = new.ashby_id 
     and user_id = new.user_id;
-    
-    if existing_applicant_id is not null then
-      -- Update existing applicant
-      update public.applicants
-      set 
-        analysis = new.analysis_result,
-        status = 'completed',
-        ashby_sync_status = 'synced',
-        ashby_last_synced_at = now(),
-        updated_at = now()
-      where id = existing_applicant_id;
-      
-      -- Update the link in ashby_candidates
-      update public.ashby_candidates
-      set unmask_applicant_id = existing_applicant_id
-      where id = new.id;
-    else
-      -- Create new applicant
-      insert into public.applicants (
-        user_id, name, email, phone, github_url, linkedin_url,
-        analysis, status, ashby_candidate_id, ashby_sync_status, ashby_last_synced_at
-      ) values (
-        new.user_id, new.name, new.email, new.phone, null, new.linkedin_url,
-        new.analysis_result, 'completed', new.ashby_id, 'synced', now()
-      ) returning id into existing_applicant_id;
-      
-      -- Update the link in ashby_candidates
-      update public.ashby_candidates
-      set unmask_applicant_id = existing_applicant_id
-      where id = new.id;
-    end if;
+  else
+    -- Insert new applicant
+    insert into public.applicants (
+      user_id,
+      ashby_candidate_id,
+      name,
+      email,
+      phone,
+      linkedin_url,
+      github_url,
+      ashby_sync_status,
+      ashby_last_synced_at,
+      status,
+      created_at,
+      updated_at
+    ) values (
+      new.user_id,
+      new.ashby_id,
+      new.name,
+      new.email,
+      new.phone,
+      new.linkedin_url,
+      new.github_url,
+      'synced',
+      now(),
+      'uploading',
+      coalesce(new.ashby_created_at, now()),
+      now()
+    );
   end if;
   
   return new;
 end;
 $$ language plpgsql security definer;
 
--- Trigger to sync data when analysis is updated
-create trigger sync_ashby_analysis_to_applicant
-  after update of analysis_result on public.ashby_candidates
-  for each row execute procedure public.sync_ashby_candidate_to_applicant();
+-- Create triggers for insert and update operations
+create trigger sync_ashby_candidates_insert
+  after insert on public.ashby_candidates
+  for each row execute function sync_ashby_candidate_to_applicant();
+
+create trigger sync_ashby_candidates_update
+  after update on public.ashby_candidates
+  for each row execute function sync_ashby_candidate_to_applicant();
 
 -- Get all cached Ashby candidates for a user
 create or replace function public.get_user_ashby_candidates(

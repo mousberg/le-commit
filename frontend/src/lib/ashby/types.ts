@@ -152,33 +152,11 @@ export interface AshbyApplicationUpdateRequest {
   customFields?: Record<string, unknown>;
 }
 
-// Webhook Types
-export interface AshbyWebhookEvent {
-  id: string;
-  type: AshbyWebhookEventType;
-  timestamp: string;
-  data: {
-    candidateId?: string;
-    applicationId?: string;
-    previousStage?: string;
-    currentStage?: string;
-    [key: string]: unknown;
-  };
-}
-
-export type AshbyWebhookEventType = 
-  | 'candidate.created'
-  | 'candidate.updated'
-  | 'application.created'
-  | 'application.stage_changed'
-  | 'offer.accepted'
-  | 'interview.scheduled';
 
 // Integration-specific types for Unmask
 export interface UnmaskAshbyIntegration {
   enabled: boolean;
   apiKey: string;
-  webhookSecret?: string;
   customFieldMappings: {
     unmaskScore: string; // Ashby custom field name for credibility score
     unmaskFlags: string; // Ashby custom field name for verification flags

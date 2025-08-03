@@ -56,11 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     setLoading(true);
+    
+    const isDevelopment = process.env.NEXT_PUBLIC_APP_ENV === 'development';
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/verify-email`,
+        data: isDevelopment ? { email_confirm: true } : undefined,
       }
     });
     setLoading(false);
