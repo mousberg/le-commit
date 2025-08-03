@@ -1,129 +1,14 @@
-// Ashby Sync API - Unified endpoint for Ashby integration
-// GET: Fetch and cache candidates from Ashby
-// POST: Push verification results to Ashby
-// PUT: Batch sync completed verifications
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { AshbyCandidateListResponse, AshbyCandidate } from '@/lib/ashby/types';
 import { createClient } from '@/lib/supabase/server';
-import { withATSAuth } from '@/lib/auth/api-middleware';
+import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
-// GET - Fetch and cache candidates from Ashby (replaces /candidates and /pull)
-export async function GET(request: NextRequest) {
+async function syncSingleApplicant(context: ApiHandlerContext) {
+  const { request } = context;
+  const supabase = await createClient();
+
   try {
-    // Check ATS authorization
-    const authResult = await withATSAuth();
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    
-    const { user } = authResult;
-    const supabase = await createClient();
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
-    // Parse query parameters
-    const url = new URL(request.url);
-    const force = url.searchParams.get('force') === 'true';
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
-    const cursor = url.searchParams.get('cursor') || undefined;
-
-    console.log(`🔄 Syncing candidates from Ashby (force=${force}, limit=${limit})`);
-
-    // Check if we should auto-sync
-    const cachedResult = await supabase
-      .from('ashby_candidates')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('ashby_created_at', { ascending: false, nullsFirst: false });
-
-    if (cachedResult.error) {
-      throw cachedResult.error;
-    }
-
-    const cachedCandidates = cachedResult.data || [];
-    
-    // Auto-sync conditions: force=true, no candidates, or last sync > 1 hour ago
-    const shouldSync = force || cachedCandidates.length === 0 || 
-      cachedCandidates.some(c => {
-        const lastSync = new Date(c.last_synced_at);
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-        return lastSync < oneHourAgo;
-      });
-
-    let syncResults = null;
-    let candidates = cachedCandidates;
-
-    if (shouldSync) {
-      if (force) {
-        syncResults = await refreshAllCandidates(user.id, supabase);
-      } else {
-        syncResults = await syncNewCandidates(user.id, supabase, limit, cursor);
-      }
-      
-      // Refetch after sync
-      const updatedResult = await supabase
-        .from('ashby_candidates')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('ashby_created_at', { ascending: false, nullsFirst: false });
-      
-      if (!updatedResult.error) {
-        candidates = updatedResult.data || [];
-      }
-    }
-
-    // Transform for frontend
-    const transformedCandidates = candidates.map(candidate => ({
-      ashby_id: candidate.ashby_id,
-      name: candidate.name,
-      email: candidate.email,
-      linkedin_url: candidate.linkedin_url,
-      has_resume: candidate.has_resume,
-      resume_url: candidate.resume_url,
-      created_at: candidate.ashby_created_at,
-      tags: candidate.tags || [],
-      last_synced_at: candidate.last_synced_at
-    }));
-
-    return NextResponse.json({
-      success: true,
-      candidates: transformedCandidates,
-      cached_count: candidates.length,
-      auto_synced: !!syncResults,
-      sync_results: syncResults,
-      last_sync: candidates.length > 0 ? Math.max(...candidates.map(c => new Date(c.last_synced_at).getTime())) : null
-    });
-
-  } catch (error) {
-    console.error('Error syncing Ashby candidates:', error);
-    return NextResponse.json(
-      { error: 'Failed to sync candidates', success: false },
-      { status: 500 }
-    );
-  }
-}
-
-// POST - Push verification results to Ashby (existing functionality)
-export async function POST(request: NextRequest) {
-  try {
-    // Get authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const { applicantId, action } = body;
 
@@ -175,15 +60,15 @@ export async function POST(request: NextRequest) {
       case 'sync_results':
         result = await syncVerificationResults(ashbyClient, applicant);
         break;
-      
+
       case 'sync_status':
         result = await syncVerificationStatus(ashbyClient, applicant);
         break;
-      
+
       case 'sync_flags':
         result = await syncVerificationFlags(ashbyClient, applicant);
         break;
-      
+
       default:
         return NextResponse.json(
           { error: 'Invalid action', success: false },
@@ -234,7 +119,7 @@ interface Applicant {
 
 async function syncVerificationResults(ashbyClient: AshbyClient, applicant: Applicant) {
   const analysisResult = applicant.analysis_result;
-  
+
   if (!analysisResult) {
     return {
       success: false,
@@ -244,7 +129,7 @@ async function syncVerificationResults(ashbyClient: AshbyClient, applicant: Appl
 
   // Determine verification status
   let verificationStatus: 'verified' | 'flagged' | 'pending' = 'pending';
-  
+
   if (applicant.status === 'completed') {
     const redFlags = analysisResult.flags?.filter((f) => f.type === 'red') || [];
     verificationStatus = redFlags.length > 0 ? 'flagged' : 'verified';
@@ -285,7 +170,7 @@ async function syncVerificationStatus(ashbyClient: AshbyClient, applicant: Appli
 
 async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: Applicant) {
   const analysisResult = applicant.analysis_result;
-  
+
   if (!analysisResult?.flags) {
     return {
       success: false,
@@ -332,19 +217,12 @@ async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: Applic
   });
 }
 
-// Batch sync endpoint
-export async function PUT() {
+// Batch sync endpoint - separate function
+async function syncBatchApplicants(context: ApiHandlerContext) {
+  const { } = context;
+  const supabase = await createClient();
+
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
     // Get all completed applicants that need syncing to Ashby
     const applicantsResult = await supabase
       .from('applicants')
@@ -383,7 +261,7 @@ export async function PUT() {
 
     // Update sync status for successful syncs
     const successfulSyncs = batchResults.filter(r => r.success);
-    
+
     if (successfulSyncs.length > 0) {
       await supabase
         .from('applicants')
@@ -419,152 +297,18 @@ function determineVerificationStatus(applicant: Applicant): 'verified' | 'flagge
   return redFlags.length > 0 ? 'flagged' : 'verified';
 }
 
-// Helper functions for candidate syncing
-async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<typeof createClient>>, limit: number, cursor?: string) {
-  const ashbyClient = new AshbyClient({
-    apiKey: process.env.ASHBY_API_KEY!
-  });
 
-  // Get existing candidate IDs to avoid duplicates
-  const existingResult = await supabase
-    .from('ashby_candidates')
-    .select('ashby_id')
-    .eq('user_id', userId);
 
-  const existingIds = new Set(existingResult.data?.map((c: { ashby_id: string }) => c.ashby_id) || []);
 
-  // Fetch recent candidates from Ashby
-  const candidatesResponse = await ashbyClient.listCandidates({
-    limit,
-    cursor,
-    includeArchived: false
-  });
+// Export handlers with middleware
+export const POST = withApiMiddleware(syncSingleApplicant, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 5, windowMs: 60000 } // 5 requests per minute (sync is intensive)
+});
 
-  if (!candidatesResponse.success) {
-    throw new Error(`Failed to fetch candidates: ${candidatesResponse.error?.message}`);
-  }
-
-  const candidateListResponse = candidatesResponse.results as AshbyCandidateListResponse;
-  const allCandidates = candidateListResponse?.results || [];
-  
-  const newCandidates = allCandidates.filter(c => !existingIds.has(c.id));
-
-  if (newCandidates.length === 0) {
-    return { new_candidates: 0, message: 'No new candidates found' };
-  }
-
-  // Process and cache new candidates
-  const insertData = newCandidates.map(candidate => processCandidateForDB(candidate, userId));
-
-  // Bulk insert new candidates
-  const insertResult = await supabase
-    .from('ashby_candidates')
-    .insert(insertData);
-
-  if (insertResult.error) {
-    throw insertResult.error;
-  }
-
-  return {
-    new_candidates: newCandidates.length,
-    message: `Synced ${newCandidates.length} new candidates`
-  };
-}
-
-async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
-  const ashbyClient = new AshbyClient({
-    apiKey: process.env.ASHBY_API_KEY!
-  });
-
-  const allCandidates: AshbyCandidate[] = [];
-  let cursor: string | undefined;
-  let hasMore = true;
-
-  // Fetch all candidates with pagination
-  while (hasMore) {
-    const response = await ashbyClient.listCandidates({
-      limit: 100,
-      cursor,
-      includeArchived: false
-    });
-
-    if (!response.success) {
-      throw new Error(`Failed to fetch candidates: ${response.error?.message}`);
-    }
-
-    const candidateListResponse = response.results as AshbyCandidateListResponse;
-    const candidates = candidateListResponse?.results || [];
-    allCandidates.push(...candidates);
-
-    cursor = candidateListResponse?.nextCursor;
-    hasMore = candidateListResponse?.moreDataAvailable || false;
-  }
-
-  // Clear existing cache for this user
-  await supabase
-    .from('ashby_candidates')
-    .delete()
-    .eq('user_id', userId);
-
-  // Process and insert all candidates
-  const insertData = allCandidates.map(candidate => processCandidateForDB(candidate, userId));
-
-  // Bulk insert all candidates
-  const insertResult = await supabase
-    .from('ashby_candidates')
-    .insert(insertData);
-
-  if (insertResult.error) {
-    throw insertResult.error;
-  }
-
-  return {
-    total_candidates: allCandidates.length,
-    refreshed_at: new Date().toISOString(),
-    message: `Refreshed ${allCandidates.length} candidates`
-  };
-}
-
-function processCandidateForDB(candidate: AshbyCandidate, userId: string) {
-  const resumeFileHandle = candidate.resumeFileHandle || null;
-  const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
-  const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
-  const sourceTitle = candidate.source?.title || null;
-  const creditedToName = candidate.creditedToUser 
-    ? `${candidate.creditedToUser.firstName || ''} ${candidate.creditedToUser.lastName || ''}`.trim()
-    : null;
-
-  return {
-    user_id: userId,
-    ashby_id: candidate.id,
-    name: candidate.name || 'Unknown',
-    email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
-    phone: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-    position: candidate.position,
-    company: candidate.company,
-    school: candidate.school,
-    location_summary: candidate.location?.locationSummary,
-    linkedin_url: linkedinLink?.url,
-    github_url: githubLink?.url,
-    website_url: candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'Website')?.url,
-    resume_file_handle: resumeFileHandle,
-    has_resume: !!resumeFileHandle,
-    source: candidate.source,
-    source_title: sourceTitle,
-    credited_to_user: candidate.creditedToUser,
-    credited_to_name: creditedToName,
-    ashby_created_at: candidate.createdAt,
-    ashby_updated_at: candidate.updatedAt,
-    emails: candidate.emailAddresses || [],
-    phone_numbers: candidate.phoneNumbers || [],
-    social_links: candidate.socialLinks || [],
-    tags: candidate.tags || [],
-    application_ids: candidate.applicationIds || [],
-    all_file_handles: candidate.fileHandles || [],
-    custom_fields: candidate.customFields || {},
-    location_details: candidate.location,
-    timezone: candidate.timezone,
-    profile_url: candidate.profileUrl,
-    last_synced_at: new Date().toISOString()
-  };
-}
+export const PUT = withApiMiddleware(syncBatchApplicants, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 2, windowMs: 60000 } // 2 requests per minute (batch sync is very intensive)
+});
