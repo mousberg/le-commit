@@ -23,8 +23,8 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
   const getCompletedSteps = () => {
     let completed = 0;
     if (applicant?.cv_data) completed++;
-    if (applicant?.linkedin_data) completed++;
-    if (applicant?.github_data) completed++;
+    if (applicant?.li_data) completed++;
+    if (applicant?.gh_data) completed++;
     return completed;
   };
 
@@ -86,24 +86,24 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
               </div>
 
               {/* LinkedIn Analysis */}
-              {(applicant.linkedin_data || status === 'processing') && (
+              {(applicant.li_data || status === 'processing') && (
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-3 mb-2">
-                    <div className={`w-3 h-3  flex-shrink-0 ${applicant.linkedin_data ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-                    <span className={`text-sm ${applicant.linkedin_data ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
-                    {applicant.linkedin_data && (
+                    <div className={`w-3 h-3  flex-shrink-0 ${applicant.li_data ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                    <span className={`text-sm ${applicant.li_data ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
+                    {applicant.li_data && (
                       <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </div>
-                  {applicant.linkedin_data && (
+                  {applicant.li_data && (
                     <div className="text-xs text-gray-600 space-y-1">
-                      {applicant.linkedin_data.headline && (
-                        <p>{applicant.linkedin_data.headline}</p>
+                      {applicant.li_data.headline && (
+                        <p>{applicant.li_data.headline}</p>
                       )}
-                      {applicant.linkedin_data.skills && applicant.linkedin_data.skills.length > 0 && (
-                        <p className="text-blue-600">{applicant.linkedin_data.skills.slice(0, 3).join(' • ')}</p>
+                      {applicant.li_data.skills && applicant.li_data.skills.length > 0 && (
+                        <p className="text-blue-600">{applicant.li_data.skills.slice(0, 3).join(' • ')}</p>
                       )}
                     </div>
                   )}
@@ -111,23 +111,23 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
               )}
 
               {/* GitHub Analysis */}
-              {(applicant.github_data || applicant.original_github_url) && (
+              {(applicant.gh_data || applicant.github_url) && (
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-3 mb-2">
-                    <div className={`w-3 h-3  flex-shrink-0 ${applicant.github_data ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
-                    <span className={`text-sm ${applicant.github_data ? 'text-gray-700' : 'text-gray-400'}`}>GitHub Analysis</span>
-                    {applicant.github_data && (
+                    <div className={`w-3 h-3  flex-shrink-0 ${applicant.gh_data ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
+                    <span className={`text-sm ${applicant.gh_data ? 'text-gray-700' : 'text-gray-400'}`}>GitHub Analysis</span>
+                    {applicant.gh_data && (
                       <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </div>
-                  {applicant.github_data && (
+                  {applicant.gh_data && (
                     <div className="text-xs text-gray-600 space-y-1">
-                      <p>@{applicant.github_data.username}</p>
-                      <p>{applicant.github_data.publicRepos} repositories</p>
-                      {applicant.github_data.languages && applicant.github_data.languages.length > 0 && (
-                        <p className="text-purple-600">{applicant.github_data.languages.slice(0, 3).map(l => l.language).join(' • ')}</p>
+                      <p>@{applicant.gh_data.username}</p>
+                      <p>{applicant.gh_data.publicRepos} repositories</p>
+                      {applicant.gh_data.languages && applicant.gh_data.languages.length > 0 && (
+                        <p className="text-purple-600">{applicant.gh_data.languages.slice(0, 3).map(l => l.language).join(' • ')}</p>
                       )}
                     </div>
                   )}

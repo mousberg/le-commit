@@ -1,10 +1,5 @@
 // Database-related interfaces for Supabase integration
 
-import { Applicant } from './applicant';
-
-// Re-export Applicant interface for database service
-export type { Applicant } from './applicant';
-
 // User interface
 export interface User {
   id: string;
@@ -27,28 +22,34 @@ export interface FileRecord {
   uploadedAt: string;
 }
 
-// Database operation interfaces
+// Database operation interfaces (updated for new data model)
 export interface CreateApplicantData {
   name: string;
   email?: string;
+  phone?: string;
+  linkedin_url?: string;
+  github_url?: string;
+  cv_file_id?: string;
   status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
-  originalFileName?: string;
-  originalGithubUrl?: string;
-  role?: string;
 }
 
 export interface UpdateApplicantData {
   name?: string;
   email?: string;
+  phone?: string;
+  linkedin_url?: string;
+  github_url?: string;
+  cv_file_id?: string;
+  cv_status?: 'pending' | 'processing' | 'ready' | 'error';
+  li_status?: 'pending' | 'processing' | 'ready' | 'error';
+  gh_status?: 'pending' | 'processing' | 'ready' | 'error';
+  ai_status?: 'pending' | 'processing' | 'ready' | 'error';
+  cv_data?: Record<string, unknown>;
+  li_data?: Record<string, unknown>;
+  gh_data?: Record<string, unknown>;
+  ai_data?: Record<string, unknown>;
   status?: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
-  cvData?: Record<string, unknown>;
-  linkedinData?: Record<string, unknown>;
-  githubData?: Record<string, unknown>;
-  analysisResult?: Record<string, unknown>;
-  individualAnalysis?: Record<string, unknown>;
-  crossReferenceAnalysis?: Record<string, unknown>;
   score?: number;
-  role?: string;
 }
 
 export interface CreateFileData {
@@ -69,14 +70,26 @@ export interface ListApplicantsOptions {
   search?: string;
 }
 
+// Generic applicant type for database operations
+export interface DatabaseApplicant {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  [key: string]: unknown; // Allow additional fields
+}
+
 // Database service interface (simplified - no workspace operations)
 export interface DatabaseService {
   // Applicant operations (simplified - user owns applicants directly)
-  createApplicant(data: CreateApplicantData): Promise<Applicant>;
-  getApplicant(id: string): Promise<Applicant | null>;
-  updateApplicant(id: string, data: UpdateApplicantData): Promise<Applicant>;
+  createApplicant(data: CreateApplicantData): Promise<DatabaseApplicant>;
+  getApplicant(id: string): Promise<DatabaseApplicant | null>;
+  updateApplicant(id: string, data: UpdateApplicantData): Promise<DatabaseApplicant>;
   deleteApplicant(id: string): Promise<boolean>;
-  listApplicants(options: ListApplicantsOptions): Promise<Applicant[]>;
+  listApplicants(options: ListApplicantsOptions): Promise<DatabaseApplicant[]>;
 
   // User operations
   createUser(authUserId: string, email: string, fullName?: string): Promise<User>;

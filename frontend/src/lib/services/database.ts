@@ -124,10 +124,11 @@ class SimpleSupabaseDatabaseService {
             user_id: currentUser.id,
             name: data.name,
             email: data.email,
-            status: data.status || 'uploading',
-            original_filename: data.originalFileName,
-            original_github_url: data.originalGithubUrl,
-            role: data.role
+            phone: data.phone,
+            linkedin_url: data.linkedin_url,
+            github_url: data.github_url,
+            cv_file_id: data.cv_file_id,
+            status: data.status || 'uploading'
           }).select().single(),
           'Applicant creation'
         );
@@ -164,15 +165,20 @@ class SimpleSupabaseDatabaseService {
             .update({
               name: data.name,
               email: data.email,
+              phone: data.phone,
+              linkedin_url: data.linkedin_url,
+              github_url: data.github_url,
+              cv_file_id: data.cv_file_id,
+              cv_status: data.cv_status,
+              li_status: data.li_status,
+              gh_status: data.gh_status,
+              ai_status: data.ai_status,
+              cv_data: data.cv_data,
+              li_data: data.li_data,
+              gh_data: data.gh_data,
+              ai_data: data.ai_data,
               status: data.status,
-              cv_data: data.cvData,
-              linkedin_data: data.linkedinData,
-              github_data: data.githubData,
-              analysis_result: data.analysisResult,
-              individual_analysis: data.individualAnalysis,
-              cross_reference_analysis: data.crossReferenceAnalysis,
-              score: data.score,
-              role: data.role
+              score: data.score
             })
             .eq('id', id)
             .select()

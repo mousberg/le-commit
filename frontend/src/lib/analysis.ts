@@ -19,8 +19,8 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     // Count available data sources
     const availableDataSources = [
       applicant.cv_data,
-      applicant.linkedin_data,
-      applicant.github_data
+      applicant.li_data,
+      applicant.gh_data
     ].filter(Boolean).length;
 
     // Check if we have at least 2 data sources for credibility analysis
@@ -30,7 +30,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
       // Return applicant with pending analysis
       return {
         ...applicant,
-        analysis_result: {
+        ai_data: {
           credibilityScore: 50,
           summary: 'Waiting for additional data sources to perform credibility analysis.',
           flags: [{
@@ -49,17 +49,17 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
 
     const analysisResult = await performComprehensiveAnalysis(
       applicant.cv_data || undefined,
-      applicant.linkedin_data || undefined,
-      applicant.github_data || undefined,
+      applicant.li_data || undefined,
+      applicant.gh_data || undefined,
       applicant.name,
       applicant.email || undefined,
-      applicant.role || undefined
+      undefined // role field doesn't exist in new model
     );
 
     // Update applicant with analysis results
     return {
       ...applicant,
-      analysis_result: analysisResult,
+      ai_data: analysisResult,
       score: analysisResult.credibilityScore
     };
   } catch (error) {
@@ -68,7 +68,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     // Return applicant with basic analysis indicating error
     return {
       ...applicant,
-      analysis_result: {
+      ai_data: {
         credibilityScore: 50,
         summary: 'Analysis failed due to technical error.',
         flags: [{
