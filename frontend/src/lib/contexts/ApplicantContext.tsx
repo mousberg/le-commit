@@ -34,7 +34,6 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return;
 
     const supabase = createClient();
-    console.log('🔄 Setting up real-time subscription for user:', user.id);
 
     // Subscribe to applicants table changes for current user
     const channel = supabase
@@ -45,7 +44,6 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
         table: 'applicants',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        console.log('🔄 Real-time update:', payload);
 
         if (payload.eventType === 'INSERT') {
           const newApplicant = payload.new as Applicant;
@@ -74,7 +72,6 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       .subscribe();
 
     return () => {
-      console.log('🔄 Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [user?.id, selectedApplicant?.id]);

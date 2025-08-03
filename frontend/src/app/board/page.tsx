@@ -21,7 +21,9 @@ import ReferenceManager, { Reference } from './components/ReferenceManager';
 function BoardPageContent() {
   const {
     applicants,
+    selectedApplicant,
     fetchApplicants,
+    selectApplicant,
     deleteApplicant
   } = useApplicants();
 
@@ -31,7 +33,6 @@ function BoardPageContent() {
   // NEW URL LOGIC: /board = new form, /board?id=<id> = view applicant
   const urlId = searchParams.get('id');
   const isNewForm = !urlId; // If no id parameter, show new form
-  const selectedId = urlId; // The actual applicant ID (or null for new form)
 
   // Navigation helpers - use replace for cleaner history
   const navigateToApplicant = useCallback((id: string) => {
@@ -46,6 +47,15 @@ function BoardPageContent() {
   useEffect(() => {
     fetchApplicants();
   }, [fetchApplicants]);
+
+  // Sync URL parameter with ApplicantContext selection
+  useEffect(() => {
+    if (urlId && urlId !== selectedApplicant?.id) {
+      selectApplicant(urlId);
+    } else if (!urlId && selectedApplicant) {
+      selectApplicant(null);
+    }
+  }, [urlId, selectedApplicant?.id, selectApplicant]);
 
   // Real-time updates now handled by ApplicantContext - no polling needed!
 
@@ -79,7 +89,7 @@ function BoardPageContent() {
     setDeleteConfirmModal({ isOpen: false, applicantId: '', applicantName: '' });
   };
 
-  const selectedCandidate = isNewForm ? null : applicants.find(a => a.id === selectedId);
+  const selectedCandidate = isNewForm ? null : selectedApplicant;
 
   const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: string]: Reference[] }>({});
   const [callInProgress, setCallInProgress] = useState(false);
@@ -250,8 +260,8 @@ function BoardPageContent() {
             <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
             // Show processing loader for uploading/processing/analyzing states OR if any individual processing is still running
-            (selectedCandidate.status === 'uploading' || 
-             selectedCandidate.status === 'processing' || 
+            (selectedCandidate.status === 'uploading' ||
+             selectedCandidate.status === 'processing' ||
              selectedCandidate.status === 'analyzing' ||
              selectedCandidate.cv_status === 'processing' ||
              selectedCandidate.li_status === 'processing' ||
@@ -300,15 +310,15 @@ function BoardPageContent() {
                       </div>
                     </div>
                     <p className="text-gray-600">
-                      {selectedCandidate.cv_data?.jobTitle || 
-                       selectedCandidate.li_data?.headline || 
+                      {selectedCandidate.cv_data?.jobTitle ||
+                       selectedCandidate.li_data?.headline ||
                        'Position not specified'}
                     </p>
                     {selectedCandidate.email && (
                       <p className="text-sm text-gray-500">{selectedCandidate.email}</p>
                     )}
                   </div>
-                  
+
                   {/* Actions Menu */}
                   <div className="relative group">
                     <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -324,7 +334,7 @@ function BoardPageContent() {
                         Share
                       </button>
                       <div className="border-t border-gray-100"></div>
-                      <button 
+                      <button
                         onClick={() => handleDeleteApplicant(selectedCandidate.id, selectedCandidate.name)}
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                       >
