@@ -102,7 +102,7 @@ create policy tenant_isolation on applicants
 ```
 
 * Browser uses `supabase-js` with the user’s JWT ➜ direct CRUD, no backend hop.
-* Service-role keys in workers bypass RLS only when privileged writes are required (e.g. ATS bulk import).
+* Service-role keys in workers bypass RLS only when privileged writes are required (e.g. ATS bulk load).
 
 ---
 
@@ -143,14 +143,14 @@ Copy this function for LinkedIn (`li_status`), GitHub (`gh_status`) and AI (`ai_
 ```mermaid
 sequenceDiagram
   participant UI   as "Browser"
-  participant ATS  as "ATS Sync (/api)"
+  participant ATS  as "ATS Load (/api)"
   participant DB   as "Postgres"
   participant TRG  as "Trigger"
   participant CV   as "cv-process"
   participant RT   as "Realtime"
 
   UI->>DB: Insert applicant (manual)
-  ATS->>DB: Bulk insert (Ashby)
+  ATS->>DB: Bulk load (Ashby)
   DB-->>TRG: AFTER trigger detects cv_file_id
   TRG->>CV: HTTP POST /cv-process { applicant_id }
   CV->>DB: update applicants (cv_status=ready, cv_data=jsonb)
@@ -164,7 +164,7 @@ sequenceDiagram
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/api/ats-sync` | Import applicants from Ashby |
+| `POST` | `/api/ats-load` | Import applicants from Ashby |
 | `POST` | `/api/cv-process` | Parse résumé & update applicant row |
 | `POST` | `/api/linkedin-fetch` | Scrape LinkedIn & update applicant row |
 | `POST` | `/api/github-fetch` | Fetch GitHub stats & update applicant row |
