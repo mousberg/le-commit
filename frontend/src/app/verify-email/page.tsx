@@ -22,6 +22,12 @@ export default function VerifyEmailPage() {
         return;
       }
 
+      // In development mode, skip email verification
+      if (process.env.NEXT_PUBLIC_APP_ENV === 'development') {
+        router.push('/board');
+        return;
+      }
+
       try {
         // Check if user's email is already verified
         const { data: { user: currentUser } } = await supabase.auth.getUser();
