@@ -55,9 +55,9 @@ export async function refreshCandidates(): Promise<{ success: boolean; data?: AT
     const { data: { session } } = await supabase.auth.getSession();
     const authToken = session?.access_token;
 
-    // Call the existing API endpoint for now (can be refactored later)
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/candidates`, {
-      method: 'POST',
+    // Call the consolidated sync endpoint
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/sync?force=true`, {
+      method: 'GET',
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`,
@@ -100,8 +100,8 @@ export async function autoSyncCandidates(): Promise<{ success: boolean; data?: A
     const { data: { session } } = await supabase.auth.getSession();
     const authToken = session?.access_token;
 
-    // Call the existing API endpoint
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/candidates`, {
+    // Call the consolidated sync endpoint
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/sync`, {
       method: 'GET',
       headers: { 
         'Content-Type': 'application/json',

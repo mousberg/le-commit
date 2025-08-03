@@ -64,8 +64,9 @@ export function ATSPageContent({ initialData }: ATSPageContentProps) {
       if (result.success && result.data) {
         setData(result.data);
       }
-    } catch (err) {
-      // Handle error silently or show user-friendly message
+    } catch (error) {
+      console.warn('Auto-sync failed:', error);
+      // Handle error silently in auto-sync to avoid disrupting UX
     }
   };
 

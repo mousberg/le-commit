@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isAuthorizedForATS } from '@/lib/auth/ats-access';
 import { ATSPageContent } from './ATSPageContent';
 import { redirect } from 'next/navigation';
+import { AnalysisResult } from '@/lib/interfaces/analysis';
 
 // Mark as dynamic since we use authentication
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ interface ATSCandidate {
   ready_for_processing?: boolean;
   fraud_likelihood?: 'low' | 'medium' | 'high';
   fraud_reason?: string;
-  analysis?: any; // GPT analysis data
+  analysis?: AnalysisResult; // GPT analysis data
   processed?: boolean; // Whether GPT analysis is complete
 }
 
@@ -95,7 +96,7 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
     // Transform applicants data for frontend (show processed GPT analysis data)
     const processedCandidates = applicants.map(applicant => {
       // Parse analysis data from GPT processing
-      const analysisData = applicant.analysis as any;
+      const analysisData = applicant.analysis as AnalysisResult | null;
       const hasAnalysis = !!analysisData;
       
       return {
@@ -104,23 +105,22 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
         email: applicant.email,
         linkedin_url: applicant.linkedin_url,
         has_resume: false, // Will be determined by files table query
-        resume_url: null,
-        cv_storage_path: null,
+        resume_url: undefined,
         created_at: applicant.created_at,
         tags: [
           'imported',
           ...(hasAnalysis ? ['analyzed'] : ['pending_analysis']),
-          ...(analysisData?.cvData ? ['cv_analyzed'] : []),
-          ...(analysisData?.linkedInData ? ['linkedin'] : []),
-          ...(analysisData?.gitHubData ? ['github'] : [])
+          ...(analysisData?.sources?.some(s => s.type === 'cv' && s.available) ? ['cv_analyzed'] : []),
+          ...(analysisData?.sources?.some(s => s.type === 'linkedin' && s.available) ? ['linkedin'] : []),
+          ...(analysisData?.sources?.some(s => s.type === 'github' && s.available) ? ['github'] : [])
         ],
         unmask_applicant_id: applicant.id,
         unmask_status: applicant.status,
         action: 'created' as const,
         ready_for_processing: true,
-        fraud_likelihood: analysisData?.riskAssessment?.riskLevel?.toLowerCase() as 'low' | 'medium' | 'high' | undefined,
-        fraud_reason: analysisData?.riskAssessment?.explanation,
-        analysis: analysisData, // Include full analysis data
+        fraud_likelihood: analysisData ? determineFraudLikelihood(analysisData) : undefined,
+        fraud_reason: analysisData ? getFraudReason(analysisData) : undefined,
+        analysis: analysisData || undefined, // Include full analysis data
         processed: hasAnalysis,
         phone_number: applicant.phone,
         ashby_sync_status: applicant.ashby_sync_status || 'pending',
@@ -144,4 +144,43 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
       last_sync: null
     };
   }
+}
+
+// Helper functions to determine fraud likelihood based on AnalysisResult
+function determineFraudLikelihood(analysis: AnalysisResult): 'low' | 'medium' | 'high' {
+  const redFlags = analysis.flags.filter(f => f.type === 'red');
+  const yellowFlags = analysis.flags.filter(f => f.type === 'yellow');
+  const score = analysis.credibilityScore;
+
+  // High risk: Multiple red flags or very low score
+  if (redFlags.length >= 2 || score < 30) {
+    return 'high';
+  }
+  
+  // Medium risk: Any red flags or many yellow flags or low score
+  if (redFlags.length >= 1 || yellowFlags.length >= 3 || score < 60) {
+    return 'medium';
+  }
+  
+  // Low risk: Everything else
+  return 'low';
+}
+
+function getFraudReason(analysis: AnalysisResult): string {
+  const redFlags = analysis.flags.filter(f => f.type === 'red');
+  const yellowFlags = analysis.flags.filter(f => f.type === 'yellow');
+  
+  if (redFlags.length > 0) {
+    return redFlags.map(f => f.message).join('; ');
+  }
+  
+  if (yellowFlags.length > 0) {
+    return yellowFlags.slice(0, 2).map(f => f.message).join('; ');
+  }
+  
+  if (analysis.credibilityScore < 60) {
+    return 'Low credibility score';
+  }
+  
+  return '';
 }

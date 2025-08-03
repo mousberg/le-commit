@@ -238,6 +238,7 @@ export async function bulkImportAshbyCandidates(
     };
 
   } catch (error) {
+    console.error('Bulk import failed:', error);
     return {
       success: false,
       results: [],
