@@ -88,13 +88,13 @@ export async function POST(request: Request) {
       const analyzedApplicant = await analyzeApplicant(applicant as Applicant);
 
       // Update applicant with analysis results
+      // Note: status and score are now generated columns - only update ai_data and ai_status
       const { error: updateError } = await supabase
         .from('applicants')
         .update({
           ai_data: analyzedApplicant.ai_data,
-          ai_status: 'ready',
-          score: analyzedApplicant.ai_data?.credibilityScore || 50,
-          status: 'completed' // Mark overall status as completed
+          ai_status: 'ready'
+          // status and score are automatically generated from ai_status and ai_data
         })
         .eq('id', applicant_id);
 

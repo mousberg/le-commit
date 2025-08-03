@@ -149,7 +149,7 @@ class SimpleSupabaseDatabaseService {
       const dbApplicant = await safeExecuteOptional(
         async () => await this.dbClient.from(TABLES.APPLICANTS).select('*').eq('id', id).single()
       );
-      
+
       return dbApplicant as Applicant | null;
     } catch (error) {
       console.error('Error getting applicant:', error);
@@ -160,26 +160,27 @@ class SimpleSupabaseDatabaseService {
   async updateApplicant(id: string, data: UpdateApplicantData): Promise<Applicant> {
     try {
       return await withRetry(async () => {
+        // Only update fields that are not generated columns
+        const updateData: any = {};
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.email !== undefined) updateData.email = data.email;
+        if (data.phone !== undefined) updateData.phone = data.phone;
+        if (data.linkedin_url !== undefined) updateData.linkedin_url = data.linkedin_url;
+        if (data.github_url !== undefined) updateData.github_url = data.github_url;
+        if (data.cv_file_id !== undefined) updateData.cv_file_id = data.cv_file_id;
+        if (data.cv_status !== undefined) updateData.cv_status = data.cv_status;
+        if (data.li_status !== undefined) updateData.li_status = data.li_status;
+        if (data.gh_status !== undefined) updateData.gh_status = data.gh_status;
+        if (data.ai_status !== undefined) updateData.ai_status = data.ai_status;
+        if (data.cv_data !== undefined) updateData.cv_data = data.cv_data;
+        if (data.li_data !== undefined) updateData.li_data = data.li_data;
+        if (data.gh_data !== undefined) updateData.gh_data = data.gh_data;
+        if (data.ai_data !== undefined) updateData.ai_data = data.ai_data;
+        // Note: status and score are generated columns - they update automatically
+
         const applicant = await safeExecute(
           async () => await this.dbClient.from(TABLES.APPLICANTS)
-            .update({
-              name: data.name,
-              email: data.email,
-              phone: data.phone,
-              linkedin_url: data.linkedin_url,
-              github_url: data.github_url,
-              cv_file_id: data.cv_file_id,
-              cv_status: data.cv_status,
-              li_status: data.li_status,
-              gh_status: data.gh_status,
-              ai_status: data.ai_status,
-              cv_data: data.cv_data,
-              li_data: data.li_data,
-              gh_data: data.gh_data,
-              ai_data: data.ai_data,
-              status: data.status,
-              score: data.score
-            })
+            .update(updateData)
             .eq('id', id)
             .select()
             .single(),

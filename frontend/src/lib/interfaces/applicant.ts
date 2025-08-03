@@ -70,30 +70,30 @@ export interface Applicant {
   name: string;
   email: string | null;
   phone: string | null;
-  
+
   // Original URLs/sources
   linkedin_url: string | null;
   github_url: string | null;
-  
+
   // File handling
   cv_file_id: string | null;
-  
+
   // Processing status columns
   cv_status: 'pending' | 'processing' | 'ready' | 'error';
-  li_status: 'pending' | 'processing' | 'ready' | 'error';
-  gh_status: 'pending' | 'processing' | 'ready' | 'error';
+  li_status: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
+  gh_status: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
   ai_status: 'pending' | 'processing' | 'ready' | 'error';
-  
+
   // JSONB data columns
   cv_data: CvData | null;
   li_data: LinkedInData | null;
   gh_data: GitHubData | null;
   ai_data: AnalysisResult | null;
-  
-  // Overall status and score
-  status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
-  score: number | null;
-  
+
+  // Generated columns (automatically computed from sub-statuses and data)
+  status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed'; // Generated from cv/li/gh/ai statuses
+  score: number | null; // Generated from ai_data.score
+
   // Timestamps
   created_at: string;
   updated_at: string;

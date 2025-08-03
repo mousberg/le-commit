@@ -104,8 +104,8 @@ export async function POST(request: Request) {
           cv_data: cvData,
           cv_status: 'ready',
           name,
-          email,
-          status: 'processing' // Keep overall status as processing until all done
+          email
+          // Note: status is now a generated column - automatically derived from sub-statuses
         })
         .eq('id', applicant_id);
 

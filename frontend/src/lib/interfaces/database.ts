@@ -22,7 +22,7 @@ export interface FileRecord {
   uploadedAt: string;
 }
 
-// Database operation interfaces (updated for new data model)
+// Database operation interfaces (updated for robust schema with generated columns)
 export interface CreateApplicantData {
   name: string;
   email?: string;
@@ -30,7 +30,7 @@ export interface CreateApplicantData {
   linkedin_url?: string;
   github_url?: string;
   cv_file_id?: string;
-  status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
+  // Note: status and score are generated columns - do not include in create operations
 }
 
 export interface UpdateApplicantData {
@@ -41,15 +41,14 @@ export interface UpdateApplicantData {
   github_url?: string;
   cv_file_id?: string;
   cv_status?: 'pending' | 'processing' | 'ready' | 'error';
-  li_status?: 'pending' | 'processing' | 'ready' | 'error';
-  gh_status?: 'pending' | 'processing' | 'ready' | 'error';
+  li_status?: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
+  gh_status?: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
   ai_status?: 'pending' | 'processing' | 'ready' | 'error';
   cv_data?: Record<string, unknown>;
   li_data?: Record<string, unknown>;
   gh_data?: Record<string, unknown>;
   ai_data?: Record<string, unknown>;
-  status?: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed';
-  score?: number;
+  // Note: status and score are generated columns - automatically derived from sub-statuses and ai_data
 }
 
 export interface CreateFileData {

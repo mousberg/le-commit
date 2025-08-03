@@ -94,8 +94,8 @@ export async function POST(request: Request) {
         .update({
           li_data: linkedinData,
           li_status: 'ready',
-          name,
-          status: 'processing' // Keep overall status as processing until all done
+          name
+          // Note: status is now a generated column - automatically derived from sub-statuses
         })
         .eq('id', applicant_id);
 

@@ -46,7 +46,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         console.log('🔄 Real-time update:', payload);
-        
+
         if (payload.eventType === 'INSERT') {
           const newApplicant = payload.new as Applicant;
           setApplicants(prev => {
@@ -56,7 +56,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
           });
         } else if (payload.eventType === 'UPDATE') {
           const updatedApplicant = payload.new as Applicant;
-          setApplicants(prev => prev.map(app => 
+          setApplicants(prev => prev.map(app =>
             app.id === updatedApplicant.id ? updatedApplicant : app
           ));
           // Update selected applicant if it's the one being updated
@@ -83,7 +83,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const applicants = await simpleDatabaseService.listUserApplicants();
       setApplicants(applicants || []);
     } catch (err) {
@@ -128,7 +128,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       // Handle CV file upload if provided
       if (request.cvFile) {
         console.log(`📁 Uploading CV file for user ${user.id}`);
-        
+
         // Upload file to Supabase Storage
         const storagePath = `${user.id}/${Date.now()}_${request.cvFile.name}`;
         const { error: uploadError } = await supabase.storage
@@ -180,10 +180,10 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
           cv_file_id,
           // Status columns will be set based on what data we have
           cv_status: cv_file_id ? 'pending' : 'ready',
-          li_status: request.linkedinUrl ? 'pending' : 'ready',
-          gh_status: request.githubUrl ? 'pending' : 'ready',
-          ai_status: 'pending',
-          status: 'processing'
+          li_status: request.linkedinUrl ? 'pending' : 'not_provided',
+          gh_status: request.githubUrl ? 'pending' : 'not_provided',
+          ai_status: 'pending'
+          // Note: status is now a generated column - automatically derived from sub-statuses
         })
         .select()
         .single();
@@ -201,7 +201,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       }
 
       console.log(`✅ Created applicant ${applicant.id} - real-time will handle UI updates`);
-      
+
       // Don't manually update state - real-time subscription will handle it
       return applicant.id;
     } catch (err) {
@@ -220,14 +220,14 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       const updatedApplicant = await simpleDatabaseService.getApplicant(id);
-      
+
       if (updatedApplicant) {
-        setApplicants(prev => 
-          prev.map(applicant => 
+        setApplicants(prev =>
+          prev.map(applicant =>
             applicant.id === id ? updatedApplicant : applicant
           )
         );
-        
+
         if (selectedApplicant?.id === id) {
           setSelectedApplicant(updatedApplicant);
         }
@@ -248,14 +248,14 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       const supabase = createClient();
-      
+
       // Delete from database - real-time subscription will handle UI updates
       const { error } = await supabase
         .from('applicants')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id); // Ensure user can only delete their own applicants
-      
+
       if (error) {
         throw new Error(`Failed to delete applicant: ${error.message}`);
       }

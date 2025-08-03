@@ -59,8 +59,8 @@ export async function POST(request: Request) {
         .from('applicants')
         .update({
           gh_data: githubData,
-          gh_status: 'ready',
-          status: 'processing' // Keep overall status as processing until all done
+          gh_status: 'ready'
+          // Note: status is now a generated column - automatically derived from sub-statuses
         })
         .eq('id', applicant_id);
 
