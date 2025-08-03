@@ -1,9 +1,24 @@
 -- =============================================================================
--- Clean Database Webhooks Architecture
+-- Consolidated Database Schema Migration
 -- =============================================================================
--- Single migration implementing Supabase Database Webhooks for automatic
--- processing of CV, LinkedIn, GitHub data, and AI analysis.
+-- This migration consolidates all previous migrations into a single, clean
+-- schema that matches the current Next.js application interfaces.
+--
+-- Features:
+-- - Users table with profile and preferences
+-- - Files table for Supabase Storage metadata
+-- - Applicants table with event-driven processing
+-- - Generated columns for status and score consistency
+-- - Database webhooks using pg_net for async processing
+-- - Row Level Security policies
 -- =============================================================================
+
+-- =============================================================================
+-- CREATE ENUM TYPES FOR TYPE SAFETY
+-- =============================================================================
+
+CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'ready', 'error', 'not_provided');
+CREATE TYPE overall_status AS ENUM ('uploading', 'processing', 'analyzing', 'completed', 'failed');
 
 -- =============================================================================
 -- CREATE USERS TABLE
@@ -103,30 +118,30 @@ CREATE POLICY "Users can delete own CVs" ON storage.objects
   );
 
 -- =============================================================================
--- CREATE APPLICANTS TABLE
+-- CREATE APPLICANTS TABLE WITH GENERATED COLUMNS
 -- =============================================================================
 
 CREATE TABLE public.applicants (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
 
-  -- Basic info
+  -- Basic info (synced from JSON data via trigger)
   name text NOT NULL DEFAULT 'Processing...',
   email text,
   phone text,
 
-  -- Source URLs
+  -- Source URLs (user input)
   linkedin_url text,
   github_url text,
 
   -- File reference
   cv_file_id uuid REFERENCES public.files(id) ON DELETE SET NULL,
 
-  -- Processing status columns
-  cv_status text DEFAULT 'pending' CHECK (cv_status IN ('pending', 'processing', 'ready', 'error')),
-  li_status text DEFAULT 'pending' CHECK (li_status IN ('pending', 'processing', 'ready', 'error')),
-  gh_status text DEFAULT 'pending' CHECK (gh_status IN ('pending', 'processing', 'ready', 'error')),
-  ai_status text DEFAULT 'pending' CHECK (ai_status IN ('pending', 'processing', 'ready', 'error')),
+  -- Processing status columns (using enum types)
+  cv_status processing_status DEFAULT 'pending'::processing_status,
+  li_status processing_status DEFAULT 'pending'::processing_status,
+  gh_status processing_status DEFAULT 'pending'::processing_status,
+  ai_status processing_status DEFAULT 'pending'::processing_status,
 
   -- JSONB data columns (schema-less for flexibility)
   cv_data jsonb,
@@ -134,23 +149,61 @@ CREATE TABLE public.applicants (
   gh_data jsonb,
   ai_data jsonb,
 
-  -- Overall status and score
-  status text NOT NULL DEFAULT 'uploading' CHECK (status IN ('uploading', 'processing', 'analyzing', 'completed', 'failed')),
-  score integer,
+  -- Generated columns (always in sync, never drift)
+  status overall_status GENERATED ALWAYS AS (
+    CASE
+      -- Failures take priority
+      WHEN cv_status = 'error' OR li_status = 'error'
+           OR gh_status = 'error' OR ai_status = 'error' THEN 'failed'::overall_status
+
+      -- AI analysis phase
+      WHEN ai_status = 'processing' THEN 'analyzing'::overall_status
+      WHEN ai_status = 'ready' THEN 'completed'::overall_status
+
+      -- Data collection phase
+      WHEN cv_status = 'processing' OR
+           (li_status = 'processing' AND li_status != 'not_provided') OR
+           (gh_status = 'processing' AND gh_status != 'not_provided') THEN 'processing'::overall_status
+
+      -- Initial state
+      ELSE 'uploading'::overall_status
+    END
+  ) STORED,
+
+  score integer GENERATED ALWAYS AS (
+    (ai_data->>'score')::integer
+  ) STORED,
 
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+
+  -- Constraints
+  CONSTRAINT score_range_check CHECK (score IS NULL OR (score >= 0 AND score <= 100))
 );
 
--- Indexes
+-- =============================================================================
+-- CREATE INDEXES
+-- =============================================================================
+
+-- Basic indexes
 CREATE INDEX idx_applicants_user_id ON public.applicants(user_id);
-CREATE INDEX idx_applicants_status ON public.applicants(status);
+CREATE INDEX idx_applicants_status_generated ON public.applicants(status);
+CREATE INDEX idx_applicants_score_generated ON public.applicants(score) WHERE score IS NOT NULL;
+
+-- Individual status indexes
 CREATE INDEX idx_applicants_cv_status ON public.applicants(cv_status);
 CREATE INDEX idx_applicants_li_status ON public.applicants(li_status);
 CREATE INDEX idx_applicants_gh_status ON public.applicants(gh_status);
 CREATE INDEX idx_applicants_ai_status ON public.applicants(ai_status);
 
--- Row Level Security
+-- Expression indexes for JSON field queries
+CREATE INDEX idx_applicants_cv_email ON public.applicants((cv_data->>'email')) WHERE cv_data->>'email' IS NOT NULL;
+CREATE INDEX idx_applicants_cv_name ON public.applicants((cv_data->>'name')) WHERE cv_data->>'name' IS NOT NULL;
+
+-- =============================================================================
+-- ROW LEVEL SECURITY
+-- =============================================================================
+
 ALTER TABLE public.applicants ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own applicants" ON public.applicants
@@ -163,11 +216,12 @@ CREATE POLICY "Users can delete own applicants" ON public.applicants
   FOR DELETE USING (auth.uid() = user_id);
 
 -- =============================================================================
--- UPDATED_AT TRIGGER FUNCTION
+-- TRIGGER FUNCTIONS
 -- =============================================================================
 
+-- Updated at trigger function
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   NEW.updated_at = timezone('utc'::text, now());
   RETURN NEW;
@@ -177,28 +231,96 @@ $$;
 -- Apply updated_at triggers
 CREATE TRIGGER handle_users_updated_at BEFORE UPDATE ON public.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
 CREATE TRIGGER handle_files_updated_at BEFORE UPDATE ON public.files
   FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
 CREATE TRIGGER handle_applicants_updated_at BEFORE UPDATE ON public.applicants
   FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
 -- =============================================================================
--- DATABASE WEBHOOKS (TRIGGER FUNCTIONS)
+-- SYNC TRIGGER FOR SCALAR FIELDS
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.sync_applicant_scalars()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  -- Sync from CV data (primary source for personal info)
+  IF NEW.cv_data IS DISTINCT FROM COALESCE(OLD.cv_data, '{}'::jsonb) THEN
+    -- Only update if current value is NULL/empty or if we have better data
+    IF NEW.name IS NULL OR NEW.name = 'Processing...' OR NEW.name = '' THEN
+      NEW.name := COALESCE(NEW.cv_data->>'name', NEW.cv_data->>'full_name', NEW.name);
+    END IF;
+
+    IF NEW.email IS NULL OR NEW.email = '' THEN
+      NEW.email := COALESCE(NEW.cv_data->>'email', NEW.email);
+    END IF;
+
+    IF NEW.phone IS NULL OR NEW.phone = '' THEN
+      NEW.phone := COALESCE(NEW.cv_data->>'phone', NEW.cv_data->>'telephone', NEW.phone);
+    END IF;
+  END IF;
+
+  -- Fallback to LinkedIn data if CV data is not available
+  IF NEW.li_data IS DISTINCT FROM COALESCE(OLD.li_data, '{}'::jsonb) THEN
+    IF NEW.name IS NULL OR NEW.name = 'Processing...' OR NEW.name = '' THEN
+      NEW.name := COALESCE(NEW.li_data->>'name', NEW.li_data->>'full_name', NEW.name);
+    END IF;
+
+    IF NEW.email IS NULL OR NEW.email = '' THEN
+      NEW.email := COALESCE(NEW.li_data->>'email', NEW.email);
+    END IF;
+  END IF;
+
+  -- Ensure name is never completely empty
+  IF NEW.name IS NULL OR NEW.name = '' THEN
+    NEW.name := 'Processing...';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Create trigger for scalar field synchronization
+CREATE TRIGGER trg_sync_applicant_scalars
+  BEFORE INSERT OR UPDATE OF cv_data, li_data ON public.applicants
+  FOR EACH ROW EXECUTE FUNCTION public.sync_applicant_scalars();
+
+-- =============================================================================
+-- ENABLE HTTP EXTENSION (SAFE FALLBACK)
+-- =============================================================================
+
+DO $$
+BEGIN
+  -- Keep extensions in their own schema to avoid clutter.
+  CREATE SCHEMA IF NOT EXISTS extensions;
+
+  -- Attempt to create the http extension. If the extension isn't available in
+  -- this database (e.g. hosted Supabase before you flip the dashboard switch)
+  -- the inner block fails and we silently continue – migrations stay green.
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'http extension not available in this database yet – skipping';
+  END;
+END;
+$$;
+
+-- =============================================================================
+-- WEBHOOK FUNCTIONS
 -- =============================================================================
 
 -- CV Processing Webhook
 CREATE OR REPLACE FUNCTION public.webhook_cv_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Check if CV should be processed
+  -- Only trigger if cv_file_id was just set and CV processing should start
   IF NEW.cv_file_id IS NOT NULL AND
-     (OLD IS NULL OR OLD.cv_file_id IS NULL OR OLD.cv_status = 'pending') AND
+     (OLD.cv_file_id IS NULL OR OLD.cv_status = 'pending') AND
      NEW.cv_status = 'pending' THEN
 
     -- Update status to processing
-    UPDATE public.applicants
-    SET cv_status = 'processing'
-    WHERE id = NEW.id;
+    NEW.cv_status := 'processing';
 
     -- Fire webhook asynchronously using pg_net
     PERFORM net.http_post(
@@ -206,10 +328,11 @@ BEGIN
       body => jsonb_build_object(
         'type', 'CV_PROCESSING',
         'applicant_id', NEW.id,
-        'file_id', NEW.cv_file_id
+        'file_id', NEW.cv_file_id,
+        'record', to_jsonb(NEW)
       ),
       headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 3000
+      timeout_milliseconds => 2000
     );
   END IF;
 
@@ -221,15 +344,13 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.webhook_linkedin_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Check if LinkedIn should be processed
+  -- Only trigger if linkedin_url was just set and LinkedIn processing should start
   IF NEW.linkedin_url IS NOT NULL AND
-     (OLD IS NULL OR OLD.linkedin_url IS NULL OR OLD.li_status = 'pending') AND
+     (OLD.linkedin_url IS NULL OR OLD.li_status = 'pending') AND
      NEW.li_status = 'pending' THEN
 
     -- Update status to processing
-    UPDATE public.applicants
-    SET li_status = 'processing'
-    WHERE id = NEW.id;
+    NEW.li_status := 'processing';
 
     -- Fire webhook asynchronously using pg_net
     PERFORM net.http_post(
@@ -237,10 +358,11 @@ BEGIN
       body => jsonb_build_object(
         'type', 'LINKEDIN_PROCESSING',
         'applicant_id', NEW.id,
-        'linkedin_url', NEW.linkedin_url
+        'linkedin_url', NEW.linkedin_url,
+        'record', to_jsonb(NEW)
       ),
       headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 3000
+      timeout_milliseconds => 2000
     );
   END IF;
 
@@ -252,15 +374,13 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.webhook_github_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Check if GitHub should be processed
+  -- Only trigger if github_url was just set and GitHub processing should start
   IF NEW.github_url IS NOT NULL AND
-     (OLD IS NULL OR OLD.github_url IS NULL OR OLD.gh_status = 'pending') AND
+     (OLD.github_url IS NULL OR OLD.gh_status = 'pending') AND
      NEW.gh_status = 'pending' THEN
 
     -- Update status to processing
-    UPDATE public.applicants
-    SET gh_status = 'processing'
-    WHERE id = NEW.id;
+    NEW.gh_status := 'processing';
 
     -- Fire webhook asynchronously using pg_net
     PERFORM net.http_post(
@@ -268,10 +388,11 @@ BEGIN
       body => jsonb_build_object(
         'type', 'GITHUB_PROCESSING',
         'applicant_id', NEW.id,
-        'github_url', NEW.github_url
+        'github_url', NEW.github_url,
+        'record', to_jsonb(NEW)
       ),
       headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 3000
+      timeout_milliseconds => 2000
     );
   END IF;
 
@@ -284,15 +405,17 @@ CREATE OR REPLACE FUNCTION public.webhook_ai_analysis()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Check if AI analysis should start
-  IF NEW.ai_status = 'pending' AND (
-    (NEW.cv_status = 'ready' AND NEW.li_status = 'ready') OR
-    (NEW.cv_status = 'ready' AND NEW.gh_status = 'ready') OR
-    (NEW.li_status = 'ready' AND NEW.gh_status = 'ready')
+  -- Now triggers when CV is ready and either other sources are ready OR not provided
+  IF NEW.ai_status = 'pending' AND NEW.cv_status = 'ready' AND (
+    -- If LinkedIn is provided, it must be ready; if not provided, that's fine
+    (NEW.linkedin_url IS NULL OR NEW.li_status IN ('ready', 'not_provided')) AND
+    -- If GitHub is provided, it must be ready; if not provided, that's fine
+    (NEW.github_url IS NULL OR NEW.gh_status IN ('ready', 'not_provided'))
   ) THEN
 
     -- Update status to processing
     UPDATE public.applicants
-    SET ai_status = 'processing'
+    SET ai_status = 'processing'::processing_status
     WHERE id = NEW.id;
 
     -- Fire webhook asynchronously using pg_net
@@ -315,22 +438,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- CREATE WEBHOOK TRIGGERS
 -- =============================================================================
 
--- CV processing webhook (AFTER to ensure record is committed)
+-- CV processing webhook trigger
 CREATE TRIGGER webhook_cv_trigger
-  AFTER INSERT OR UPDATE ON public.applicants
+  BEFORE UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_cv_processing();
 
--- LinkedIn processing webhook
+-- LinkedIn processing webhook trigger
 CREATE TRIGGER webhook_linkedin_trigger
-  AFTER INSERT OR UPDATE ON public.applicants
+  BEFORE UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_linkedin_processing();
 
--- GitHub processing webhook
+-- GitHub processing webhook trigger
 CREATE TRIGGER webhook_github_trigger
-  AFTER INSERT OR UPDATE ON public.applicants
+  BEFORE UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_github_processing();
 
--- AI analysis webhook
+-- AI analysis webhook trigger (AFTER to see final state)
 CREATE TRIGGER webhook_ai_trigger
   AFTER UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_ai_analysis();
@@ -339,7 +462,7 @@ CREATE TRIGGER webhook_ai_trigger
 -- UTILITY FUNCTIONS
 -- =============================================================================
 
--- Function to create applicant with automatic processing
+-- Function to create a new applicant with automatic processing
 CREATE OR REPLACE FUNCTION public.create_applicant_with_processing(
   p_user_id uuid,
   p_cv_file_id uuid DEFAULT NULL,
@@ -357,62 +480,62 @@ BEGIN
     cv_status,
     li_status,
     gh_status,
-    ai_status,
-    status
+    ai_status
+    -- Note: status is now generated automatically
+    -- Note: score is now generated from ai_data automatically
   ) VALUES (
     p_user_id,
     p_cv_file_id,
     p_linkedin_url,
     p_github_url,
-    CASE WHEN p_cv_file_id IS NOT NULL THEN 'pending' ELSE 'ready' END,
-    CASE WHEN p_linkedin_url IS NOT NULL THEN 'pending' ELSE 'ready' END,
-    CASE WHEN p_github_url IS NOT NULL THEN 'pending' ELSE 'ready' END,
-    'pending',
-    'processing'
+    CASE WHEN p_cv_file_id IS NOT NULL THEN 'pending'::processing_status ELSE 'ready'::processing_status END,
+    CASE WHEN p_linkedin_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
+    CASE WHEN p_github_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
+    'pending'::processing_status
   ) RETURNING id INTO applicant_id;
 
   RETURN applicant_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to monitor webhook calls
+-- Function to check recent webhook calls (simplified for monitoring)
 CREATE OR REPLACE FUNCTION public.get_recent_webhook_calls(
-  limit_count INTEGER DEFAULT 10
-) RETURNS TABLE (
+  limit_count INTEGER DEFAULT 20
+)
+RETURNS TABLE (
   id BIGINT,
-  method TEXT,
+  created_at TIMESTAMPTZ,
   url TEXT,
+  method TEXT,
   headers JSONB,
-  body BYTEA,
+  body JSONB,
   timeout_milliseconds INTEGER
 ) AS $$
 BEGIN
   RETURN QUERY
   SELECT
     q.id,
-    q.method::text,
+    q.created_at,
     q.url,
+    q.method,
     q.headers,
     q.body,
     q.timeout_milliseconds
   FROM net.http_request_queue q
-  ORDER BY q.id DESC
+  ORDER BY q.created_at DESC
   LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- =============================================================================
--- AUTO-CREATE USER ON SIGNUP
--- =============================================================================
-
+-- Function to auto-create user record when someone signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   INSERT INTO public.users (id, email, full_name)
   VALUES (
     NEW.id,
     NEW.email,
-    coalesce(
+    COALESCE(
       NEW.raw_user_meta_data->>'full_name',
       NEW.raw_user_meta_data->>'name',
       NEW.raw_user_meta_data->>'display_name'
@@ -422,6 +545,7 @@ BEGIN
 END;
 $$;
 
+-- Trigger to create user record when someone signs up
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -430,8 +554,13 @@ CREATE TRIGGER on_auth_user_created
 -- COMMENTS
 -- =============================================================================
 
-COMMENT ON TABLE public.applicants IS 'Clean Database Webhooks architecture for automatic processing';
-COMMENT ON FUNCTION public.webhook_cv_processing() IS 'Database Webhook: Process CV when file attached';
-COMMENT ON FUNCTION public.webhook_linkedin_processing() IS 'Database Webhook: Process LinkedIn when URL provided';
-COMMENT ON FUNCTION public.webhook_github_processing() IS 'Database Webhook: Process GitHub when URL provided';
-COMMENT ON FUNCTION public.webhook_ai_analysis() IS 'Database Webhook: Run AI analysis when enough data ready';
+COMMENT ON TYPE processing_status IS 'Enum for individual processing step status';
+COMMENT ON TYPE overall_status IS 'Enum for overall applicant pipeline status';
+COMMENT ON COLUMN public.applicants.status IS 'Generated column: overall status derived from sub-statuses';
+COMMENT ON COLUMN public.applicants.score IS 'Generated column: AI analysis score from ai_data JSON';
+COMMENT ON FUNCTION public.sync_applicant_scalars() IS 'Sync scalar fields (name, email, phone) from JSON data while preserving manual edits';
+COMMENT ON TABLE public.applicants IS 'Consolidated schema with event-driven processing via database webhooks';
+COMMENT ON FUNCTION public.webhook_cv_processing() IS 'Asynchronous webhook for CV processing using pg_net';
+COMMENT ON FUNCTION public.webhook_linkedin_processing() IS 'Asynchronous webhook for LinkedIn processing using pg_net';
+COMMENT ON FUNCTION public.webhook_github_processing() IS 'Asynchronous webhook for GitHub processing using pg_net';
+COMMENT ON FUNCTION public.webhook_ai_analysis() IS 'Asynchronous webhook for AI analysis using pg_net';
