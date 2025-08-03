@@ -15,7 +15,8 @@ async function storeCV(context: ApiHandlerContext) {
     );
   }
 
-  const body = await request.json();
+  try {
+    const body = await request.json();
     const { candidateId } = body;
 
     if (!candidateId) {

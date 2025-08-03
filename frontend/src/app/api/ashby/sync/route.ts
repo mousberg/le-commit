@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
 async function syncSingleApplicant(context: ApiHandlerContext) {
-  const { user, request } = context;
+  const { request } = context;
   const supabase = await createClient();
 
+  try {
     const body = await request.json();
     const { applicantId, action } = body;
 
@@ -219,9 +220,10 @@ async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: Applic
 
 // Batch sync endpoint - separate function
 async function syncBatchApplicants(context: ApiHandlerContext) {
-  const { user } = context;
+  const { } = context;
   const supabase = await createClient();
 
+  try {
     // Get all completed applicants that need syncing to Ashby
     const applicantsResult = await supabase
       .from('applicants')

@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
         if (createApplicants) {
           try {
             // Check if applicant already exists
+            const supabase = await createClient();
             const existingApplicant = await supabase
               .from('applicants')
               .select('id')
