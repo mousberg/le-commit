@@ -107,7 +107,7 @@ export default function AshbyIntegrationPanel({ applicant }: AshbyIntegrationPan
         </CardHeader>
         <CardContent>
           <div className="text-sm text-gray-600">
-            To enable Ashby integration, this applicant must be created through an Ashby webhook
+            To enable Ashby integration, this applicant must be imported from Ashby
             or manually linked to an existing Ashby candidate.
           </div>
         </CardContent>

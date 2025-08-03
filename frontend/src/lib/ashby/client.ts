@@ -134,13 +134,6 @@ export class AshbyClient {
     return this.request('/application.change_source', 'POST', params);
   }
 
-  // Webhook Verification
-  static verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-    // Implement HMAC verification based on Ashby's webhook security model
-    // This is a placeholder - actual implementation depends on Ashby's specific signing method
-    // For now, we'll just return true since this is a placeholder
-    return payload.length > 0 && signature.length > 0 && secret.length > 0;
-  }
 
   // Helper Methods for Unmask Integration
   async syncUnmaskResults(
