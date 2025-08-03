@@ -27,7 +27,6 @@ graph LR
     users[(users)]
     applicants[(applicants)]
     files[(files)]
-    integrations[(user_integrations)]
   end
 
   %% Direct CRUD (lightweight)
@@ -66,8 +65,7 @@ graph LR
 
 | Table | Notes |
 |-------|-------|
-| `users` | Auth accounts (`id = auth.uid()`) |
-| `user_integrations` | Ashby API key, sync cursor, feature flags (`user_id FK`) |
+| `users` | Auth accounts (`id = auth.uid()`) + Ashby integration columns (`ashby_api_key`, `ashby_sync_cursor`, `ashby_features jsonb`) |
 | `files` | Metadata for objects stored in Supabase Storage (`user_id FK`) |
 | `applicants` | Single-row truth containing enrichment JSON + status columns (`user_id FK`) |
 
