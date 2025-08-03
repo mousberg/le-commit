@@ -4,19 +4,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
+import { withATSAuth } from '@/lib/auth/api-middleware';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
+    const supabase = await createClient();
 
     // Validate API key is configured
     if (!process.env.ASHBY_API_KEY) {
@@ -254,15 +253,14 @@ export async function GET(request: NextRequest) {
 // POST endpoint for triggering verification of pulled candidates
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
+    const supabase = await createClient();
 
     const body = await request.json();
     const { applicant_ids, priority = 'normal' } = body;

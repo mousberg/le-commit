@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
+import { withATSAuth } from '@/lib/auth/api-middleware';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,16 +26,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+    // Check ATS authorization
+    const authResult = await withATSAuth();
+    if (authResult instanceof NextResponse) {
+      return authResult; // Return error response
     }
+    
+    const { user } = authResult;
 
     // Parse query parameters
     const url = new URL(request.url);
@@ -117,6 +115,7 @@ export async function GET(request: NextRequest) {
         if (createApplicants) {
           try {
             // Check if applicant already exists
+            const supabase = await createClient();
             const existingApplicant = await supabase
               .from('applicants')
               .select('id')

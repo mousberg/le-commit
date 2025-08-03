@@ -1,30 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Ashby Resume Download API
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { createClient } from '@/lib/supabase/server';
+import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
-// GET - Download resume by file handle
-export async function POST(request: NextRequest) {
+// Download resume by file handle
+async function downloadResume(context: ApiHandlerContext) {
+  const { request } = context;
+
+  if (!process.env.ASHBY_API_KEY) {
+    return NextResponse.json(
+      { error: 'Ashby integration not configured', success: false },
+      { status: 500 }
+    );
+  }
+
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { fileHandle } = body;
 
@@ -78,3 +69,9 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withApiMiddleware(downloadResume, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 20, windowMs: 60000 } // 20 requests per minute
+});
