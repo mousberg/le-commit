@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { analyzeApplicant } from '@/lib/analysis';
 import { Applicant } from '@/lib/interfaces/applicant';
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     console.log(`🧠 Starting AI analysis for applicant ${applicant_id}`);
 
     // Get server-side Supabase client with service role
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
 
     // Get the applicant record with all data
     const { data: applicant, error: applicantError } = await supabase
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
       if (availableDataSources < 2) {
         console.log(`Insufficient data sources (${availableDataSources}/3) for AI analysis of applicant ${applicant_id}`);
-        
+
         // Update with pending analysis
         await supabase
           .from('applicants')
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       }
 
       console.log(`🔍 Running comprehensive analysis for applicant ${applicant_id}`);
-      
+
       // Run the analysis using existing logic
       const analyzedApplicant = await analyzeApplicant(applicant as Applicant);
 
@@ -147,9 +147,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('AI analysis endpoint error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
       },
       { status: 500 }
     );

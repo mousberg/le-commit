@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { processGitHubAccount } from '@/lib/github';
 import { GitHubData } from '@/lib/interfaces/github';
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     console.log(`🐙 Starting GitHub processing for applicant ${applicant_id}`);
 
     // Get server-side Supabase client with service role
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
 
     // Get the applicant record
     const { data: applicant, error: applicantError } = await supabase
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     try {
       console.log(`⚡ Processing GitHub account for ${applicant_id}`);
-      
+
       githubData = await processGitHubAccount(github_url, {
         maxRepos: 50,
         includeOrganizations: true,
@@ -104,9 +104,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('GitHub processing endpoint error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
       },
       { status: 500 }
     );

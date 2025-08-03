@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { startLinkedInJob, checkLinkedInJob, processLinkedInData } from '@/lib/linkedin-api';
 import { LinkedInData } from '@/lib/interfaces/applicant';
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     console.log(`🔗 Starting LinkedIn processing for applicant ${applicant_id}`);
 
     // Get server-side Supabase client with service role
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
 
     // Get the applicant record
     const { data: applicant, error: applicantError } = await supabase
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
         console.log(`⏳ Waiting for LinkedIn job ${jobId} to complete...`);
         let attempts = 0;
         const maxAttempts = 60; // 5 minutes max
-        
+
         while (attempts < maxAttempts) {
           const result = await checkLinkedInJob(jobId);
           if (result.status === 'completed' && result.data) {
@@ -70,11 +70,11 @@ export async function POST(request: Request) {
           } else if (result.status === 'failed') {
             throw new Error('LinkedIn job failed');
           }
-          
+
           attempts++;
           await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
         }
-        
+
         if (!linkedinData) {
           throw new Error('LinkedIn job timed out');
         }
@@ -136,9 +136,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('LinkedIn processing endpoint error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
       },
       { status: 500 }
     );

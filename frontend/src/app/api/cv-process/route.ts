@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { processCvPdf, validateAndCleanCvData } from '@/lib/profile-pdf';
 import { CvData } from '@/lib/interfaces/cv';
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     console.log(`🔄 Starting CV processing for applicant ${applicant_id}`);
 
     // Get server-side Supabase client with service role
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
 
     // Get the applicant record
     const { data: applicant, error: applicantError } = await supabase
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         // Convert blob to buffer and save as temporary file
         const buffer = Buffer.from(await fileData.arrayBuffer());
         const tempFilePath = `/tmp/cv_${applicant_id}_${Date.now()}.pdf`;
-        
+
         // Write to temp file (processCvPdf expects file path)
         const fs = await import('fs');
         fs.writeFileSync(tempFilePath, buffer);
@@ -146,9 +146,9 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('CV processing endpoint error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
       },
       { status: 500 }
     );
