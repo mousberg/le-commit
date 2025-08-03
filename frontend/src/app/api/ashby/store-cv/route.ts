@@ -49,12 +49,20 @@ export async function POST(request: NextRequest) {
 
     const candidate = candidateResult.data;
 
-    // Check if CV is already stored
-    if (candidate.cv_storage_path) {
+    // Check if CV is already stored in files table
+    const existingFileResult = await supabase
+      .from('files')
+      .select('*')
+      .eq('applicant_id', candidate.unmask_applicant_id)
+      .eq('file_type', 'cv')
+      .eq('source', 'ashby')
+      .single();
+
+    if (existingFileResult.data) {
       // Generate signed URL for existing stored CV
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('candidate-cvs')
-        .createSignedUrl(candidate.cv_storage_path, 3600); // 1 hour expiry
+        .createSignedUrl(existingFileResult.data.storage_path, 3600); // 1 hour expiry
 
       if (signedUrlError) {
         console.error('Error creating signed URL:', signedUrlError);
@@ -68,7 +76,8 @@ export async function POST(request: NextRequest) {
         success: true,
         url: signedUrlData.signedUrl,
         cached: true,
-        storage_path: candidate.cv_storage_path
+        storage_path: existingFileResult.data.storage_path,
+        file_id: existingFileResult.data.id
       });
     }
 
@@ -84,8 +93,12 @@ export async function POST(request: NextRequest) {
       apiKey: process.env.ASHBY_API_KEY
     });
 
-    // Get download URL from Ashby
-    const fileResponse = await ashbyClient.getResumeUrl(candidate.resume_file_handle);
+    // Get download URL from Ashby (handle both string and object formats)
+    const fileHandle = typeof candidate.resume_file_handle === 'string' 
+      ? candidate.resume_file_handle 
+      : candidate.resume_file_handle?.handle;
+      
+    const fileResponse = await ashbyClient.getResumeUrl(fileHandle);
 
     if (!fileResponse.success) {
       console.error('Failed to get resume URL from Ashby:', fileResponse.error);
@@ -134,16 +147,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update candidate record with storage path
-    const updateResult = await supabase
-      .from('ashby_candidates')
-      .update({ cv_storage_path: uploadData.path })
-      .eq('ashby_id', candidateId)
-      .eq('user_id', user.id);
+    // Create file record
+    const fileRecord = {
+      applicant_id: candidate.unmask_applicant_id,
+      file_name: fileName.split('/').pop() || 'resume.pdf',
+      file_type: 'cv' as const,
+      storage_path: uploadData.path,
+      storage_bucket: 'candidate-cvs',
+      file_size: fileBuffer.byteLength,
+      mime_type: 'application/pdf',
+      source: 'ashby' as const,
+      source_metadata: {
+        ashby_candidate_id: candidateId,
+        resume_file_handle: candidate.resume_file_handle
+      }
+    };
 
-    if (updateResult.error) {
-      console.error('Error updating candidate with storage path:', updateResult.error);
-      // File is uploaded but database not updated - log for manual cleanup if needed
+    const { data: fileData, error: fileError } = await supabase
+      .from('files')
+      .insert(fileRecord)
+      .select()
+      .single();
+
+    if (fileError) {
+      console.error('Error creating file record:', fileError);
+      // File is uploaded but database record not created - log for manual cleanup
     }
 
     // Generate signed URL for the stored file
@@ -163,7 +191,8 @@ export async function POST(request: NextRequest) {
       success: true,
       url: signedUrlData.signedUrl,
       cached: false,
-      storage_path: uploadData.path
+      storage_path: uploadData.path,
+      file_id: fileData?.id
     });
 
   } catch (error) {

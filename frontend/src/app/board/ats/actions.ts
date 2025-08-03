@@ -51,10 +51,17 @@ export async function refreshCandidates(): Promise<{ success: boolean; data?: AT
       return { success: false, error: 'Access denied' };
     }
 
+    // Get auth token for API call
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token;
+
     // Call the existing API endpoint for now (can be refactored later)
     const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/candidates`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
     });
 
     const result = await response.json();
@@ -89,10 +96,17 @@ export async function autoSyncCandidates(): Promise<{ success: boolean; data?: A
       return { success: false, error: 'Access denied' };
     }
 
+    // Get auth token for API call
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token;
+
     // Call the existing API endpoint
     const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/candidates`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
     });
 
     const result = await response.json();

@@ -63,7 +63,7 @@ export async function GET() {
       ashby_id: candidate.ashby_id,
       name: candidate.name,
       email: candidate.email,
-      phone_number: candidate.phone_number,
+      phone_number: candidate.phone,
       emails: candidate.emails || [],
       phone_numbers: candidate.phone_numbers || [],
       social_links: candidate.social_links || [],
@@ -151,6 +151,86 @@ export async function POST() {
   }
 }
 
+// Helper function to process resume URL (can be called separately for batch processing)
+async function processResumeUrl(resumeFileHandle: any, ashbyClient: any, candidateName: string) {
+  if (!resumeFileHandle?.handle) return null;
+  
+  try {
+    const resumeResponse = await ashbyClient.getResumeUrl(resumeFileHandle.handle);
+    if (resumeResponse.success) {
+      return resumeResponse.results?.url;
+    } else {
+      console.warn(`Failed to get resume URL for ${candidateName}:`, resumeResponse.error?.message);
+      return null;
+    }
+  } catch (error) {
+    console.warn(`Exception getting resume URL for ${candidateName}:`, error);
+    return null;
+  }
+}
+
+// Helper function to process candidate data for database insertion
+function processCandidateForDB(candidate: any, userId: string) {
+  // Handle resume file (store full object as JSONB)
+  const resumeFileHandle = candidate.resumeFileHandle || null;
+  
+  // Extract social links
+  const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
+  const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
+  
+  // Extract source information
+  const sourceTitle = candidate.source?.title || null;
+  const creditedToName = candidate.creditedToUser 
+    ? `${candidate.creditedToUser.firstName || ''} ${candidate.creditedToUser.lastName || ''}`.trim()
+    : null;
+
+  return {
+    user_id: userId,
+    ashby_id: candidate.id,
+    name: candidate.name || 'Unknown',
+    email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
+    phone: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
+    position: candidate.position,
+    company: candidate.company,
+    school: candidate.school,
+    location_summary: candidate.location?.locationSummary,
+    linkedin_url: linkedinLink?.url,
+    github_url: githubLink?.url,
+    website_url: candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'Website')?.url,
+    
+    // Resume handling (JSONB)
+    resume_file_handle: resumeFileHandle,
+    has_resume: !!resumeFileHandle,
+    
+    // Source information
+    source: candidate.source,
+    source_title: sourceTitle,
+    credited_to_user: candidate.creditedToUser,
+    credited_to_name: creditedToName,
+    
+    // Timestamps from Ashby
+    ashby_created_at: candidate.createdAt,
+    ashby_updated_at: candidate.updatedAt,
+    
+    // JSONB arrays (structured data from API)
+    emails: candidate.emailAddresses || [],
+    phone_numbers: candidate.phoneNumbers || [],
+    social_links: candidate.socialLinks || [],
+    tags: candidate.tags || [],
+    application_ids: candidate.applicationIds || [],
+    all_file_handles: candidate.fileHandles || [],
+    
+    // Additional fields
+    custom_fields: candidate.customFields || {},
+    location_details: candidate.location,
+    timezone: candidate.timezone,
+    profile_url: candidate.profileUrl,
+    
+    // Cache metadata
+    last_synced_at: new Date().toISOString()
+  };
+}
+
 // Helper function to sync only new candidates
 async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   const ashbyClient = new AshbyClient({
@@ -185,67 +265,7 @@ async function syncNewCandidates(userId: string, supabase: Awaited<ReturnType<ty
   }
 
   // Process and cache new candidates
-  const insertData = [];
-  for (const candidate of newCandidates) {
-
-    // Extract file handle properly
-    let fileHandle = null;
-    if (candidate.resumeFileHandle) {
-      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
-        fileHandle = candidate.resumeFileHandle.handle;
-      } else if (typeof candidate.resumeFileHandle === 'string') {
-        fileHandle = candidate.resumeFileHandle;
-      }
-    }
-
-    let resumeUrl = null;
-    if (fileHandle) {
-      try {
-        const resumeResponse = await ashbyClient.getResumeUrl(fileHandle);
-        if (resumeResponse.success) {
-          resumeUrl = resumeResponse.results?.url;
-        } else {
-          console.warn(`Failed to get resume URL for ${candidate.name}:`, resumeResponse.error?.message);
-        }
-      } catch (error) {
-        console.warn(`Exception getting resume URL for ${candidate.name}:`, error);
-      }
-    }
-
-    // Extract LinkedIn URL from social links
-    const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
-    const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
-
-
-    insertData.push({
-      user_id: userId,
-      ashby_id: candidate.id,
-      name: candidate.name || 'Unknown',
-      email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
-      phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-      emails: candidate.emailAddresses || [],
-      phone_numbers: candidate.phoneNumbers || [],
-      social_links: candidate.socialLinks || [],
-      linkedin_url: linkedinLink?.url,
-      github_url: githubLink?.url,
-      position: candidate.position,
-      company: candidate.company,
-      school: candidate.school,
-      location_summary: candidate.location?.locationSummary,
-      location_details: candidate.location,
-      timezone: candidate.timezone,
-      source_info: candidate.source,
-      profile_url: candidate.profileUrl,
-      has_resume: !!fileHandle,
-      resume_file_handle: fileHandle,
-      resume_url: resumeUrl,
-      all_file_handles: candidate.fileHandles || [],
-      tags: candidate.tags || [],
-      custom_fields: candidate.customFields || {},
-      ashby_created_at: candidate.createdAt,
-      last_synced_at: new Date().toISOString()
-    });
-  }
+  const insertData = newCandidates.map(candidate => processCandidateForDB(candidate, userId));
 
   // Bulk insert new candidates
   const insertResult = await supabase
@@ -299,67 +319,7 @@ async function refreshAllCandidates(userId: string, supabase: Awaited<ReturnType
     .eq('user_id', userId);
 
   // Process and insert all candidates
-  const insertData = [];
-  for (const candidate of allCandidates) {
-
-    // Extract file handle properly
-    let fileHandle = null;
-    if (candidate.resumeFileHandle) {
-      if (typeof candidate.resumeFileHandle === 'object' && candidate.resumeFileHandle.handle) {
-        fileHandle = candidate.resumeFileHandle.handle;
-      } else if (typeof candidate.resumeFileHandle === 'string') {
-        fileHandle = candidate.resumeFileHandle;
-      }
-    }
-
-    let resumeUrl = null;
-    if (fileHandle) {
-      try {
-        const resumeResponse = await ashbyClient.getResumeUrl(fileHandle);
-        if (resumeResponse.success) {
-          resumeUrl = resumeResponse.results?.url;
-        } else {
-          console.warn(`Failed to get resume URL for ${candidate.name}:`, resumeResponse.error?.message);
-        }
-      } catch (error) {
-        console.warn(`Exception getting resume URL for ${candidate.name}:`, error);
-      }
-    }
-
-    // Extract LinkedIn URL from social links
-    const linkedinLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'LinkedIn');
-    const githubLink = candidate.socialLinks?.find((link: { type: string; url?: string }) => link.type === 'GitHub');
-
-
-    insertData.push({
-      user_id: userId,
-      ashby_id: candidate.id,
-      name: candidate.name || 'Unknown',
-      email: candidate.primaryEmailAddress?.value || candidate.emailAddresses?.[0]?.value,
-      phone_number: candidate.primaryPhoneNumber?.value || candidate.phoneNumbers?.[0]?.value,
-      emails: candidate.emailAddresses || [],
-      phone_numbers: candidate.phoneNumbers || [],
-      social_links: candidate.socialLinks || [],
-      linkedin_url: linkedinLink?.url,
-      github_url: githubLink?.url,
-      position: candidate.position,
-      company: candidate.company,
-      school: candidate.school,
-      location_summary: candidate.location?.locationSummary,
-      location_details: candidate.location,
-      timezone: candidate.timezone,
-      source_info: candidate.source,
-      profile_url: candidate.profileUrl,
-      has_resume: !!fileHandle,
-      resume_file_handle: fileHandle,
-      resume_url: resumeUrl,
-      all_file_handles: candidate.fileHandles || [],
-      tags: candidate.tags || [],
-      custom_fields: candidate.customFields || {},
-      ashby_created_at: candidate.createdAt,
-      last_synced_at: new Date().toISOString()
-    });
-  }
+  const insertData = allCandidates.map(candidate => processCandidateForDB(candidate, userId));
 
   // Bulk insert all candidates
   const insertResult = await supabase

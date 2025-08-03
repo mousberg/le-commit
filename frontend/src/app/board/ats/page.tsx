@@ -103,15 +103,13 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
         name: applicant.name,
         email: applicant.email,
         linkedin_url: applicant.linkedin_url,
-        has_resume: applicant.has_resume || (hasAnalysis && analysisData?.cvData),
-        resume_url: applicant.resume_url,
-        cv_storage_path: applicant.cv_storage_path,
+        has_resume: false, // Will be determined by files table query
+        resume_url: null,
+        cv_storage_path: null,
         created_at: applicant.created_at,
         tags: [
           'imported',
           ...(hasAnalysis ? ['analyzed'] : ['pending_analysis']),
-          ...(applicant.has_resume ? ['resume'] : []),
-          ...(applicant.cv_storage_path ? ['cv_stored'] : []),
           ...(analysisData?.cvData ? ['cv_analyzed'] : []),
           ...(analysisData?.linkedInData ? ['linkedin'] : []),
           ...(analysisData?.gitHubData ? ['github'] : [])
@@ -125,8 +123,8 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
         analysis: analysisData, // Include full analysis data
         processed: hasAnalysis,
         phone_number: applicant.phone,
-        ashby_sync_status: applicant.ashby_sync_status,
-        ashby_last_synced_at: applicant.ashby_last_synced_at
+        ashby_sync_status: applicant.ashby_sync_status || 'pending',
+        ashby_last_synced_at: applicant.ashby_last_synced_at || null
       };
     });
 
