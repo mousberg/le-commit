@@ -6,7 +6,7 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 
 - This is a Next.js, TypeScript, Tailwind CSS, and shadcn/ui project.
 
-- When working with supabase, use the `supabase CLI` when appropriate.
+- When working with supabase, use the supabase CLI when appropriate, for example for creating migrations.
 
 - Always offer to delete your test files at the end of a session
 
@@ -16,5 +16,3 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 - API routes live in `frontend/src/app/api/`
 - React components live in `frontend/src/components/`
 - Pages live in `frontend/src/app/`
-
-

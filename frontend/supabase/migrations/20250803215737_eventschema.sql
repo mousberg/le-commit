@@ -287,21 +287,18 @@ CREATE TRIGGER trg_sync_applicant_scalars
   FOR EACH ROW EXECUTE FUNCTION public.sync_applicant_scalars();
 
 -- =============================================================================
--- ENABLE HTTP EXTENSION (SAFE FALLBACK)
+-- ENABLE PG_NET EXTENSION (SAFE FALLBACK)
 -- =============================================================================
 
 DO $$
 BEGIN
-  -- Keep extensions in their own schema to avoid clutter.
-  CREATE SCHEMA IF NOT EXISTS extensions;
-
-  -- Attempt to create the http extension. If the extension isn't available in
+  -- Attempt to create the pg_net extension. If the extension isn't available in
   -- this database (e.g. hosted Supabase before you flip the dashboard switch)
   -- the inner block fails and we silently continue – migrations stay green.
   BEGIN
-    CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+    CREATE EXTENSION IF NOT EXISTS pg_net;
   EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'http extension not available in this database yet – skipping';
+    RAISE NOTICE 'pg_net extension not available in this database yet – skipping';
   END;
 END;
 $$;
@@ -314,13 +311,15 @@ $$;
 CREATE OR REPLACE FUNCTION public.webhook_cv_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only trigger if cv_file_id was just set and CV processing should start
-  IF NEW.cv_file_id IS NOT NULL AND
-     (OLD.cv_file_id IS NULL OR OLD.cv_status = 'pending') AND
-     NEW.cv_status = 'pending' THEN
+  -- Trigger if cv_file_id is set and CV processing should start
+  -- Handle both INSERT (OLD is NULL) and UPDATE operations
+  IF NEW.cv_file_id IS NOT NULL AND NEW.cv_status = 'pending' AND
+     (TG_OP = 'INSERT' OR OLD.cv_file_id IS NULL OR OLD.cv_status = 'pending') THEN
 
     -- Update status to processing
-    NEW.cv_status := 'processing';
+    UPDATE public.applicants
+    SET cv_status = 'processing'::processing_status
+    WHERE id = NEW.id;
 
     -- Fire webhook asynchronously using pg_net
     PERFORM net.http_post(
@@ -328,12 +327,13 @@ BEGIN
       body => jsonb_build_object(
         'type', 'CV_PROCESSING',
         'applicant_id', NEW.id,
-        'file_id', NEW.cv_file_id,
-        'record', to_jsonb(NEW)
+        'file_id', NEW.cv_file_id
       ),
       headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 2000
+      timeout_milliseconds => 3000
     );
+
+    RAISE NOTICE 'CV processing webhook triggered for applicant % with file %', NEW.id, NEW.cv_file_id;
   END IF;
 
   RETURN NEW;
@@ -344,13 +344,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.webhook_linkedin_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only trigger if linkedin_url was just set and LinkedIn processing should start
-  IF NEW.linkedin_url IS NOT NULL AND
-     (OLD.linkedin_url IS NULL OR OLD.li_status = 'pending') AND
-     NEW.li_status = 'pending' THEN
+  -- Trigger if linkedin_url is set and LinkedIn processing should start
+  -- Handle both INSERT (OLD is NULL) and UPDATE operations
+  IF NEW.linkedin_url IS NOT NULL AND NEW.li_status = 'pending' AND
+     (TG_OP = 'INSERT' OR OLD.linkedin_url IS NULL OR OLD.li_status = 'pending') THEN
 
     -- Update status to processing
-    NEW.li_status := 'processing';
+    UPDATE public.applicants
+    SET li_status = 'processing'::processing_status
+    WHERE id = NEW.id;
 
     -- Fire webhook asynchronously using pg_net
     PERFORM net.http_post(
@@ -358,12 +360,13 @@ BEGIN
       body => jsonb_build_object(
         'type', 'LINKEDIN_PROCESSING',
         'applicant_id', NEW.id,
-        'linkedin_url', NEW.linkedin_url,
-        'record', to_jsonb(NEW)
+        'linkedin_url', NEW.linkedin_url
       ),
       headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 2000
+      timeout_milliseconds => 3000
     );
+
+    RAISE NOTICE 'LinkedIn processing webhook triggered for applicant % with URL %', NEW.id, NEW.linkedin_url;
   END IF;
 
   RETURN NEW;
@@ -374,13 +377,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.webhook_github_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only trigger if github_url was just set and GitHub processing should start
-  IF NEW.github_url IS NOT NULL AND
-     (OLD.github_url IS NULL OR OLD.gh_status = 'pending') AND
-     NEW.gh_status = 'pending' THEN
+  -- Trigger if github_url is set and GitHub processing should start
+  -- Handle both INSERT (OLD is NULL) and UPDATE operations
+  IF NEW.github_url IS NOT NULL AND NEW.gh_status = 'pending' AND
+     (TG_OP = 'INSERT' OR OLD.github_url IS NULL OR OLD.gh_status = 'pending') THEN
 
     -- Update status to processing
-    NEW.gh_status := 'processing';
+    UPDATE public.applicants
+    SET gh_status = 'processing'::processing_status
+    WHERE id = NEW.id;
 
     -- Fire webhook asynchronously using pg_net
     PERFORM net.http_post(
@@ -388,12 +393,13 @@ BEGIN
       body => jsonb_build_object(
         'type', 'GITHUB_PROCESSING',
         'applicant_id', NEW.id,
-        'github_url', NEW.github_url,
-        'record', to_jsonb(NEW)
+        'github_url', NEW.github_url
       ),
       headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 2000
+      timeout_milliseconds => 3000
     );
+
+    RAISE NOTICE 'GitHub processing webhook triggered for applicant % with URL %', NEW.id, NEW.github_url;
   END IF;
 
   RETURN NEW;
@@ -438,19 +444,19 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- CREATE WEBHOOK TRIGGERS
 -- =============================================================================
 
--- CV processing webhook trigger
+-- CV processing webhook trigger (AFTER to ensure record is committed)
 CREATE TRIGGER webhook_cv_trigger
-  BEFORE UPDATE ON public.applicants
+  AFTER INSERT OR UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_cv_processing();
 
 -- LinkedIn processing webhook trigger
 CREATE TRIGGER webhook_linkedin_trigger
-  BEFORE UPDATE ON public.applicants
+  AFTER INSERT OR UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_linkedin_processing();
 
 -- GitHub processing webhook trigger
 CREATE TRIGGER webhook_github_trigger
-  BEFORE UPDATE ON public.applicants
+  AFTER INSERT OR UPDATE ON public.applicants
   FOR EACH ROW EXECUTE FUNCTION public.webhook_github_processing();
 
 -- AI analysis webhook trigger (AFTER to see final state)
@@ -493,6 +499,9 @@ BEGIN
     CASE WHEN p_github_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
     'pending'::processing_status
   ) RETURNING id INTO applicant_id;
+
+  RAISE NOTICE 'Created applicant % with CV: %, LinkedIn: %, GitHub: %',
+    applicant_id, p_cv_file_id, p_linkedin_url, p_github_url;
 
   RETURN applicant_id;
 END;
