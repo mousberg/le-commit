@@ -15,7 +15,8 @@ async function downloadResume(context: ApiHandlerContext) {
     );
   }
 
-  const body = await request.json();
+  try {
+    const body = await request.json();
     const { fileHandle } = body;
 
     if (!fileHandle) {
