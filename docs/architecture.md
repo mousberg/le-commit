@@ -185,5 +185,4 @@ These endpoints can later be migrated to Edge Functions or a queue worker withou
 ## 8 Reference
 
 * Supabase Triggers – <https://supabase.com/docs/guides/database/postgres/triggers>
-* Database Webhooks – <https://supabase.com/docs/guides/database/webhooks>
 * Realtime (Postgres Changes) – <https://supabase.com/docs/guides/realtime/postgres-changes>
