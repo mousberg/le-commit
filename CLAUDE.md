@@ -1,8 +1,20 @@
 # CLAUDE.md
 
-Always use `pnpm` commands instead of `npm`
-Except for `supabase` commands, currently installed with brew so run withou `pnpm` prefix
+Always use `pnpm` commands instead of `npm`. Everything except documentation lives in the `frontend` folder.
 
-Always offer to delete your test files at the end of a session
+- We use a local supabase instance for development. The migrations are in `frontend/supabase/migrations`. Make sure to follow best practices. Some information on this can be found in `docs/context/supabase_prompts/`.
 
-Add all documentation the /docs folder in repo root
+- This is a Next.js, TypeScript, Tailwind CSS, and shadcn/ui project.
+
+- When working with supabase, use the `supabase CLI` when appropriate.
+
+- Always offer to delete your test files at the end of a session
+
+- If creating documentation, add it to `docs/`.
+
+- General typescript code lives in `frontend/src/lib/`
+- API routes live in `frontend/src/app/api/`
+- React components live in `frontend/src/components/`
+- Pages live in `frontend/src/app/`
+
+
