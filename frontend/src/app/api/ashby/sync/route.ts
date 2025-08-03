@@ -1,21 +1,13 @@
 // Ashby Sync API - Push Unmask verification results back to Ashby
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
+import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
-export async function POST(request: NextRequest) {
-  try {
-    // Get authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
+async function syncSingleApplicant(context: ApiHandlerContext) {
+  const { user, request } = context;
+  const supabase = await createClient();
 
     const body = await request.json();
     const { applicantId, action } = body;
@@ -225,18 +217,10 @@ async function syncVerificationFlags(ashbyClient: AshbyClient, applicant: Applic
   });
 }
 
-// Batch sync endpoint
-export async function PUT() {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
+// Batch sync endpoint - separate function
+async function syncBatchApplicants(context: ApiHandlerContext) {
+  const { user } = context;
+  const supabase = await createClient();
 
     // Get all completed applicants that need syncing to Ashby
     const applicantsResult = await supabase
@@ -311,3 +295,16 @@ function determineVerificationStatus(applicant: Applicant): 'verified' | 'flagge
   const redFlags = applicant.analysis_result?.flags?.filter((f) => f.type === 'red') || [];
   return redFlags.length > 0 ? 'flagged' : 'verified';
 }
+
+// Export handlers with middleware
+export const POST = withApiMiddleware(syncSingleApplicant, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 5, windowMs: 60000 } // 5 requests per minute (sync is intensive)
+});
+
+export const PUT = withApiMiddleware(syncBatchApplicants, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 2, windowMs: 60000 } // 2 requests per minute (batch sync is very intensive)
+});

@@ -1,28 +1,21 @@
 // Store CV from Ashby to Supabase Storage
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
+import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+async function storeCV(context: ApiHandlerContext) {
+  const { user, request } = context;
+  const supabase = await createClient();
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
+  if (!process.env.ASHBY_API_KEY) {
+    return NextResponse.json(
+      { error: 'Ashby integration not configured', success: false },
+      { status: 500 }
+    );
+  }
 
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
-    const body = await request.json();
+  const body = await request.json();
     const { candidateId } = body;
 
     if (!candidateId) {
@@ -174,3 +167,9 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withApiMiddleware(storeCV, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 15, windowMs: 60000 } // 15 requests per minute
+});
