@@ -211,6 +211,17 @@ We provide automated deployment scripts for seamless production deployment:
 
 ---
 
+## 📚 **Documentation**
+
+### **Core Documentation**
+- **[Authentication Approach](docs/authentication-approach.md)** - Comprehensive auth architecture, middleware patterns, and security best practices
+- **[System Architecture](docs/architecture.md)** - Overall system design and data flow
+
+### **Development Guides**
+- **[Setup Guides](docs/archive/)** - Historical setup and integration documentation
+
+---
+
 ## 📖 Usage Guide
 
 ### **Adding a New Candidate**
