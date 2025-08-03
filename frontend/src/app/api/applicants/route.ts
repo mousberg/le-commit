@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import fs from 'fs';
 import { CvData } from '@/lib/interfaces/cv';
 import { GitHubData } from '@/lib/interfaces/github';
@@ -8,73 +8,63 @@ import { processGitHubAccount } from '@/lib/github';
 import { analyzeApplicant } from '@/lib/analysis';
 import { startLinkedInJob, checkLinkedInJob, processLinkedInData } from '@/lib/linkedin-api';
 import { createClient } from '@/lib/supabase/server';
+import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
-export async function POST(request: NextRequest) {
-  try {
-    // Get authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+async function createApplicant(context: ApiHandlerContext) {
+  const { user, request } = context;
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
+  const formData = await request.formData();
+  const cvFile = formData.get('cvFile') as File;
+  const linkedinUrl = formData.get('linkedinUrl') as string;
+  const githubUrl = formData.get('githubUrl') as string;
 
-    const formData = await request.formData();
-    const cvFile = formData.get('cvFile') as File;
-    const linkedinUrl = formData.get('linkedinUrl') as string;
-    const githubUrl = formData.get('githubUrl') as string;
-
-    if (!cvFile && !linkedinUrl) {
-      return NextResponse.json(
-        { error: 'Either CV file or LinkedIn profile URL is required', success: false },
-        { status: 400 }
-      );
-    }
-
-    // Create initial applicant record in database using server-side client
-    const serverSupabase = await createClient();
-    const applicantResult = await serverSupabase
-      .from('applicants')
-      .insert({
-        user_id: user.id,
-        name: 'Processing...',
-        email: '',
-        status: 'uploading',
-        original_filename: cvFile?.name || null,
-        original_github_url: githubUrl || null,
-        original_linkedin_url: linkedinUrl || null
-      })
-      .select()
-      .single();
-
-    if (applicantResult.error) {
-      throw new Error(`Failed to create applicant: ${applicantResult.error.message}`);
-    }
-    
-    const applicant = applicantResult.data;
-
-    // TODO: Implement file storage for simplified architecture
-    // For now, we'll process the files directly without storage
-
-    // Process asynchronously
-    processApplicantAsync(applicant.id, cvFile, linkedinUrl, githubUrl);
-
-    return NextResponse.json({
-      applicant,
-      success: true
-    });
-
-  } catch (error) {
-    console.error('Error creating applicant:', error);
+  if (!cvFile && !linkedinUrl) {
     return NextResponse.json(
-      { error: 'Failed to create applicant', success: false },
-      { status: 500 }
+      { error: 'Either CV file or LinkedIn profile URL is required', success: false },
+      { status: 400 }
     );
   }
+
+  // Create initial applicant record in database using server-side client
+  const serverSupabase = await createClient();
+  const applicantResult = await serverSupabase
+    .from('applicants')
+    .insert({
+      user_id: user.id,
+      name: 'Processing...',
+      email: '',
+      status: 'uploading',
+      original_filename: cvFile?.name || null,
+      original_github_url: githubUrl || null,
+      original_linkedin_url: linkedinUrl || null
+    })
+    .select()
+    .single();
+
+  if (applicantResult.error) {
+    throw new Error(`Failed to create applicant: ${applicantResult.error.message}`);
+  }
+  
+  const applicant = applicantResult.data;
+
+  // TODO: Implement file storage for simplified architecture
+  // For now, we'll process the files directly without storage
+
+  // Process asynchronously
+  processApplicantAsync(applicant.id, cvFile, linkedinUrl, githubUrl);
+
+  return NextResponse.json({
+    applicant,
+    success: true
+  });
 }
+
+export const POST = withApiMiddleware(createApplicant, {
+  requireAuth: true,
+  enableCors: true,
+  enableLogging: true,
+  rateLimit: { maxRequests: 10, windowMs: 60000 } // 10 requests per minute
+});
 
 async function processApplicantAsync(applicantId: string, cvFile?: File, linkedinUrl?: string, githubUrl?: string) {
   try {
