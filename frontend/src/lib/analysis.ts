@@ -10,6 +10,56 @@ const groq = new Groq({
 });
 
 /**
+ * Count available data sources for an applicant
+ */
+function countAvailableDataSources(applicant: Applicant): number {
+  return [
+    applicant.cv_data,
+    applicant.li_data,
+    applicant.gh_data
+  ].filter(Boolean).length;
+}
+
+/**
+ * Create a fallback analysis result when insufficient data is available
+ */
+function createInsufficientDataFallback(applicantId: string, availableDataSources: number): AnalysisResult {
+  return {
+    credibilityScore: 50,
+    summary: 'Waiting for additional data sources to perform credibility analysis.',
+    flags: [{
+      type: 'yellow',
+      category: 'verification',
+      message: `Credibility analysis requires at least 2 data sources (CV, LinkedIn, or GitHub). Currently have ${availableDataSources}/3.`,
+      severity: 3
+    }],
+    suggestedQuestions: ['Could you provide additional information sources (CV, LinkedIn, or GitHub)?'],
+    analysisDate: new Date().toISOString(),
+    sources: []
+  };
+}
+
+/**
+ * Create an error fallback analysis result
+ */
+export function createErrorFallback(error?: string): AnalysisResult {
+  return {
+    credibilityScore: 50,
+    summary: 'Analysis could not be completed due to technical error.',
+    flags: [{
+      type: 'yellow',
+      category: 'verification',
+      message: 'Analysis could not be completed due to technical error',
+      severity: 5
+    }],
+    suggestedQuestions: ['Could you provide additional information about your background?'],
+    analysisDate: new Date().toISOString(),
+    sources: [],
+    ...(error && { error })
+  };
+}
+
+/**
  * Main analysis function that performs comprehensive credibility analysis in a single call
  */
 export async function analyzeApplicant(applicant: Applicant): Promise<Applicant> {
@@ -17,32 +67,16 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
 
   try {
     // Count available data sources
-    const availableDataSources = [
-      applicant.cv_data,
-      applicant.li_data,
-      applicant.gh_data
-    ].filter(Boolean).length;
+    const availableDataSources = countAvailableDataSources(applicant);
 
     // Check if we have at least 2 data sources for credibility analysis
     if (availableDataSources < 2) {
       console.log(`Insufficient data sources (${availableDataSources}/3) for credibility analysis for applicant ${applicant.id}. Waiting for more data.`);
-      
+
       // Return applicant with pending analysis
       return {
         ...applicant,
-        ai_data: {
-          credibilityScore: 50,
-          summary: 'Waiting for additional data sources to perform credibility analysis.',
-          flags: [{
-            type: 'yellow',
-            category: 'verification',
-            message: 'Credibility analysis requires at least 2 data sources (CV, LinkedIn, or GitHub)',
-            severity: 3
-          }],
-          suggestedQuestions: ['Could you provide additional information sources (CV, LinkedIn, or GitHub)?'],
-          analysisDate: new Date().toISOString(),
-          sources: []
-        },
+        ai_data: createInsufficientDataFallback(applicant.id, availableDataSources),
         score: 50
       };
     }
@@ -68,19 +102,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     // Return applicant with basic analysis indicating error
     return {
       ...applicant,
-      ai_data: {
-        credibilityScore: 50,
-        summary: 'Analysis failed due to technical error.',
-        flags: [{
-          type: 'yellow',
-          category: 'verification',
-          message: 'Analysis could not be completed due to technical error',
-          severity: 5
-        }],
-        suggestedQuestions: ['Could you provide additional information about your background?'],
-        analysisDate: new Date().toISOString(),
-        sources: []
-      },
+      ai_data: createErrorFallback(error instanceof Error ? error.message : undefined),
       score: 50
     };
   }
@@ -98,7 +120,7 @@ async function performComprehensiveAnalysis(
   role?: string
 ): Promise<AnalysisResult> {
   const availableSourcesCount = [cvData, linkedinData, githubData].filter(Boolean).length;
-  
+
   const prompt = `
 You are a credibility-checking assistant inside Unmask, a tool used by hiring managers to verify whether candidates are being honest and consistent in their job applications.
 
