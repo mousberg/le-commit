@@ -42,26 +42,6 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
     }
   };
 
-  const getCompletedSteps = () => {
-    if (!applicant) return 0;
-    let completed = 0;
-    if (applicant.cv_status === 'ready') completed++;
-    if (applicant.li_status === 'ready' || applicant.li_status === 'not_provided') completed++;
-    if (applicant.gh_status === 'ready' || applicant.gh_status === 'not_provided') completed++;
-    if (applicant.ai_status === 'ready') completed++;
-    return completed;
-  };
-
-  const getTotalSteps = () => {
-    if (!applicant) return 3;
-    let total = 0;
-    if (applicant.cv_file_id || applicant.cv_status !== 'pending') total++;
-    if (applicant.linkedin_url || applicant.li_status !== 'pending' && applicant.li_status !== 'not_provided') total++;
-    if (applicant.github_url || applicant.gh_status !== 'pending' && applicant.gh_status !== 'not_provided') total++;
-    total++; // AI analysis always runs
-    return total;
-  };
-
   const getStepStatus = (stepStatus: string) => {
     switch (stepStatus) {
       case 'ready': return 'completed';
@@ -76,17 +56,6 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-sm p-12 flex flex-col items-center gap-8">
-        {/* Elegant Loading Animation */}
-        <div className="relative">
-          <div className="w-16 h-16 border-2 border-emerald-100 "></div>
-          <div className="absolute inset-0 w-16 h-16 border-2 border-transparent border-t-emerald-500  animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-        </div>
-
         {/* Clean Status Text */}
         <div className="text-center space-y-3">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -177,24 +146,6 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
             </div>
           </div>
         )}
-
-        {/* Dynamic Progress Bar */}
-        <div className="w-full max-w-xs">
-          <div className="w-full bg-gray-100 rounded-full h-2">
-            <div
-              className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-2 rounded-full transition-all duration-500 ease-out"
-              style={{
-                width: applicant ? `${(getCompletedSteps() / getTotalSteps()) * 100}%` : '20%'
-              }}
-            ></div>
-          </div>
-          {applicant && (
-            <div className="flex justify-between text-xs text-gray-500 mt-2">
-              <span>{getCompletedSteps()} of {getTotalSteps()} completed</span>
-              <span>{Math.round((getCompletedSteps() / getTotalSteps()) * 100)}%</span>
-            </div>
-          )}
-        </div>
 
         {/* Contextual Status Message */}
         <p className="text-center text-sm text-gray-500 max-w-sm">
