@@ -26,14 +26,20 @@ function countAvailableDataSources(applicant: Applicant): number {
 function createInsufficientDataFallback(applicantId: string, availableDataSources: number): AnalysisResult {
   return {
     credibilityScore: 50,
-    summary: 'Waiting for additional data sources to perform credibility analysis.',
+    summary: availableDataSources === 0
+      ? 'No data sources available for credibility analysis.'
+      : 'Analysis completed with limited data sources.',
     flags: [{
       type: 'yellow',
       category: 'verification',
-      message: `Credibility analysis requires at least 2 data sources (CV, LinkedIn, or GitHub). Currently have ${availableDataSources}/3.`,
-      severity: 3
+      message: availableDataSources === 0
+        ? 'No data sources (CV, LinkedIn, or GitHub) available for analysis.'
+        : `Analysis performed with ${availableDataSources}/3 data sources. Additional sources would improve accuracy.`,
+      severity: availableDataSources === 0 ? 5 : 3
     }],
-    suggestedQuestions: ['Could you provide additional information sources (CV, LinkedIn, or GitHub)?'],
+    suggestedQuestions: availableDataSources === 0
+      ? ['Could you provide a CV, LinkedIn profile, or GitHub profile for analysis?']
+      : ['Could you provide additional information sources (CV, LinkedIn, or GitHub) to improve analysis accuracy?'],
     analysisDate: new Date().toISOString(),
     sources: []
   };
@@ -69,11 +75,11 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     // Count available data sources
     const availableDataSources = countAvailableDataSources(applicant);
 
-    // Check if we have at least 2 data sources for credibility analysis
-    if (availableDataSources < 2) {
-      console.log(`Insufficient data sources (${availableDataSources}/3) for credibility analysis for applicant ${applicant.id}. Waiting for more data.`);
+    // Run analysis even with just one data source
+    if (availableDataSources === 0) {
+      console.log(`No data sources available for applicant ${applicant.id}. Cannot perform analysis.`);
 
-      // Return applicant with pending analysis
+      // Return applicant with no data fallback
       return {
         ...applicant,
         ai_data: createInsufficientDataFallback(applicant.id, availableDataSources),
