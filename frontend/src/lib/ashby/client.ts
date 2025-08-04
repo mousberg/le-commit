@@ -9,6 +9,8 @@ import {
   AshbyResumeUploadRequest,
   AshbyResumeUploadResponse,
   AshbyApplicationUpdateRequest,
+  AshbyCustomFieldSetValueRequest,
+  AshbyCustomFieldSetValueResponse,
   AshbyApiResponse
 } from './types';
 
@@ -134,6 +136,10 @@ export class AshbyClient {
     return this.request('/application.change_source', 'POST', params);
   }
 
+  // Custom Field Methods
+  async setCustomFieldValue(params: AshbyCustomFieldSetValueRequest): Promise<AshbyApiResponse<AshbyCustomFieldSetValueResponse>> {
+    return this.request<AshbyCustomFieldSetValueResponse>('/customField.setValue', 'POST', params);
+  }
 
   // Helper Methods for Unmask Integration
   async syncUnmaskResults(

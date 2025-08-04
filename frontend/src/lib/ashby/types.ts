@@ -180,6 +180,18 @@ export interface AshbySyncStatus {
   syncError?: string;
 }
 
+// Custom Field Types
+export interface AshbyCustomFieldSetValueRequest {
+  objectType: 'Application' | 'Candidate';
+  objectId: string;
+  fieldId: string;
+  fieldValue: string | number | boolean | object;
+}
+
+export interface AshbyCustomFieldSetValueResponse {
+  success: boolean;
+}
+
 // API Response Types
 export interface AshbyApiResponse<T> {
   success: boolean;
