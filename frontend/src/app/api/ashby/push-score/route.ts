@@ -7,11 +7,11 @@ import { createClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
 async function pushScoreToAshby(context: ApiHandlerContext) {
-  const { request } = context;
+  const { request, body: requestBody } = context;
   const supabase = await createClient();
 
   try {
-    const body = await request.json();
+    const body = requestBody as Record<string, unknown>;
     const { 
       applicantId, 
       ashbyObjectType = 'Candidate', // Default to Candidate for authenticity analysis
