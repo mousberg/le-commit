@@ -57,6 +57,7 @@ export interface AshbyCandidate {
       name: string;
     }>;
   };
+  locationSummary?: string;
   timezone?: string;
   
   // Files
@@ -105,9 +106,9 @@ export interface AshbyCandidateListRequest {
 }
 
 export interface AshbyCandidateListResponse {
-  results: AshbyCandidate[];
-  nextCursor?: string;
-  moreDataAvailable: boolean;
+  candidates: AshbyCandidate[];
+  cursor?: string;
+  moreDataAvailable?: boolean;
 }
 
 // Application Types
