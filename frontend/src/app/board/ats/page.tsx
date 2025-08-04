@@ -150,7 +150,7 @@ async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
 function determineFraudLikelihood(analysis: AnalysisResult): 'low' | 'medium' | 'high' {
   const redFlags = analysis.flags.filter(f => f.type === 'red');
   const yellowFlags = analysis.flags.filter(f => f.type === 'yellow');
-  const score = analysis.credibilityScore;
+  const score = analysis.score;
 
   // High risk: Multiple red flags or very low score
   if (redFlags.length >= 2 || score < 30) {
@@ -178,7 +178,7 @@ function getFraudReason(analysis: AnalysisResult): string {
     return yellowFlags.slice(0, 2).map(f => f.message).join('; ');
   }
   
-  if (analysis.credibilityScore < 60) {
+  if (analysis.score < 60) {
     return 'Low credibility score';
   }
   

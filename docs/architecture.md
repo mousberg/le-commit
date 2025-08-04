@@ -1,6 +1,6 @@
-# System Architecture – Minimal, Event-Driven (Single-Row Applicant, No `event_log`)
+# System Architecture – Event-Driven with Generated Columns
 
-> Next.js + Supabase where **Postgres is both the data store and the trigger switch**.  Lightweight CRUD travels directly from browser to DB under Row-Level Security (RLS).  Heavier enrichment jobs (CV parsing, LinkedIn scraping, GitHub stats, AI analysis) start automatically via Postgres `AFTER` triggers that call worker endpoints with `supabase_functions.http_request()`.  No intermediate queue table is required.
+> Next.js + Supabase where **Postgres is both the data store and the trigger switch**.  Lightweight CRUD travels directly from browser to DB under Row-Level Security (RLS).  Heavier enrichment jobs (CV parsing, LinkedIn scraping, GitHub stats, AI analysis) start automatically via Postgres `AFTER` triggers that call worker endpoints using `pg_net.http_post()`.  Generated columns ensure data consistency without drift.
 
 ---
 
@@ -76,16 +76,19 @@ graph LR
 | Column | Purpose |
 |--------|---------|
 | `cv_file_id` | FK → `files.id` (original résumé) |
-| `cv_status`  | `pending` | `processing` | `ready` | `error` |
+| `cv_status`  | `processing_status` enum: `pending` \| `processing` \| `ready` \| `error` \| `not_provided` |
 | `cv_data`    | Parsed résumé (`jsonb`) |
-| `li_status`  | LinkedIn scrape status |
+| `li_status`  | LinkedIn scrape status (`processing_status` enum) |
 | `li_data`    | LinkedIn snapshot (`jsonb`) |
-| `gh_status`  | GitHub fetch status |
+| `gh_status`  | GitHub fetch status (`processing_status` enum) |
 | `gh_data`    | GitHub stats (`jsonb`) |
-| `ai_status`  | AI analysis status |
+| `ai_status`  | AI analysis status (`processing_status` enum) |
 | `ai_data`    | AI verdict (`jsonb`) |
+| `status`     | **Generated column**: `overall_status` enum derived from sub-statuses |
+| `score`      | **Generated column**: `integer` extracted from `ai_data->>'score'` |
+| `name`, `email`, `phone` | Scalar fields synced from JSON data via triggers |
 
-> All JSON columns are **schema-less** because we never filter on them – only render or post-process.
+> Generated columns eliminate data drift and ensure consistency. JSON columns remain schema-less for flexibility, but key fields are extracted to typed columns for indexing and queries.
 
 ---
 
@@ -106,35 +109,49 @@ create policy tenant_isolation on applicants
 
 ---
 
-## 4 Trigger-Driven Processing (no queue)
+## 4 Trigger-Driven Processing with pg_net
 
 ```sql
--- CV was just attached → fire HTTP job
-after create or replace function on_cv_uploaded()
-returns trigger language plpgsql as $$
-declare
-  hdr jsonb := jsonb_build_object('Content-Type','application/json');
-begin
-  if new.cv_file_id is not null and old.cv_file_id is null then
-    perform supabase_functions.http_request(
-      'https://YOUR_PROJECT.supabase.co/functions/v1/cv-process',
-      'POST',
-      hdr,
-      jsonb_build_object('applicant_id', new.id)::text,
-      1000  -- timeout ms
-    );
-    update applicants set cv_status = 'processing' where id = new.id;
-  end if;
-  return new;
-end;
-$$;
+-- CV Processing Webhook (actual implementation)
+CREATE OR REPLACE FUNCTION public.webhook_cv_processing()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Trigger if cv_file_id is set and CV processing should start
+  IF NEW.cv_file_id IS NOT NULL AND NEW.cv_status = 'pending' AND
+     (TG_OP = 'INSERT' OR OLD.cv_file_id IS NULL OR OLD.cv_status = 'pending') THEN
 
-create trigger cv_trigger
-  after update on applicants
-  for each row execute function on_cv_uploaded();
+    -- Update status to processing first
+    UPDATE public.applicants
+    SET cv_status = 'processing'::processing_status
+    WHERE id = NEW.id;
+
+    -- Fire webhook asynchronously using pg_net
+    PERFORM net.http_post(
+      url => 'http://host.docker.internal:3000/api/cv-process',
+      body => jsonb_build_object(
+        'type', 'CV_PROCESSING',
+        'applicant_id', NEW.id,
+        'file_id', NEW.cv_file_id
+      ),
+      headers => '{"Content-Type": "application/json"}'::jsonb,
+      timeout_milliseconds => 3000
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER webhook_cv_trigger
+  AFTER INSERT OR UPDATE ON public.applicants
+  FOR EACH ROW EXECUTE FUNCTION public.webhook_cv_processing();
 ```
 
-Copy this function for LinkedIn (`li_status`), GitHub (`gh_status`) and AI (`ai_status`) with different URLs.
+**Key improvements over theoretical approach:**
+- Uses real `pg_net` extension instead of `supabase_functions.http_request()`
+- Updates status before firing webhook to prevent race conditions
+- Handles both INSERT and UPDATE operations
+- Uses proper development URLs (`host.docker.internal`)
+- Includes error handling and timeouts
 
 ---
 
@@ -176,9 +193,37 @@ These endpoints can later be migrated to Edge Functions or a queue worker withou
 
 ## 7 Extending the System
 
-1. **Add new enrichment** → add `<foo>_status` & `<foo>_data` columns, copy trigger, create worker endpoint.
-2. **Need scheduled work** → move handler into Edge Function + `cron`.
-3. **Multi-tenant analytics** → query materialized views without touching JSON blobs.
+### Adding New Processing Steps
+1. **Add status column**: `ALTER TABLE applicants ADD COLUMN foo_status processing_status DEFAULT 'pending';`
+2. **Add data column**: `ALTER TABLE applicants ADD COLUMN foo_data jsonb;`
+3. **Update generated status logic**: Modify the `status` generated column expression
+4. **Create webhook function**: Copy existing webhook pattern
+5. **Create trigger**: `CREATE TRIGGER webhook_foo_trigger AFTER INSERT OR UPDATE...`
+6. **Implement API route**: Create `/api/foo-process/route.ts`
+
+### Generated Column Patterns
+```sql
+-- Status derived from sub-statuses
+status overall_status GENERATED ALWAYS AS (
+  CASE
+    WHEN cv_status = 'error' OR li_status = 'error' THEN 'failed'::overall_status
+    WHEN ai_status = 'ready' THEN 'completed'::overall_status
+    WHEN cv_status = 'processing' THEN 'processing'::overall_status
+    ELSE 'uploading'::overall_status
+  END
+) STORED,
+
+-- Score extracted from JSON
+score integer GENERATED ALWAYS AS (
+  (ai_data->>'score')::integer
+) STORED
+```
+
+### Development & Debugging
+- **Monitor webhooks**: Query `net.http_request_queue` table
+- **Test triggers**: Insert/update records and check webhook queue
+- **Debug generated columns**: Select derived values after updates
+- **Local development**: Use `host.docker.internal:3000` for webhook URLs
 
 ---
 

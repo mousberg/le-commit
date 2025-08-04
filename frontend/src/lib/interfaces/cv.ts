@@ -1,6 +1,10 @@
 export interface CvData {
   lastName: string
   firstName: string
+  // Database sync compatibility fields (used by sync trigger)
+  name?: string // Full name for database sync
+  full_name?: string // Alternative full name field
+  telephone?: string // Alternative phone field for database sync
   address: string
   email: string
   phone: string

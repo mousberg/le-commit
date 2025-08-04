@@ -112,7 +112,7 @@ interface Applicant {
   ashby_candidate_id: string;
   status: string;
   analysis_result?: {
-    credibilityScore?: number;
+    score?: number;
     flags?: Array<{ type: string; message: string }>;
   };
 }
@@ -141,7 +141,7 @@ async function syncVerificationResults(ashbyClient: AshbyClient, applicant: Appl
   return await ashbyClient.syncUnmaskResults(
     applicant.ashby_candidate_id,
     {
-      credibilityScore: analysisResult.credibilityScore || 0,
+      score: analysisResult.score || 0,
       verificationStatus,
       flags: analysisResult.flags || [],
       reportUrl
@@ -254,7 +254,7 @@ async function syncBatchApplicants(context: ApiHandlerContext) {
       applicants.map(app => ({
         ashbyId: app.ashby_candidate_id,
         unmaskId: app.id,
-        credibilityScore: app.analysis_result?.credibilityScore || 0,
+        score: app.analysis_result?.score || 0,
         verificationStatus: determineVerificationStatus(app)
       }))
     );

@@ -14,7 +14,7 @@ interface AshbyIntegrationPanelProps {
     ashby_sync_status?: 'pending' | 'synced' | 'failed';
     ashby_last_synced_at?: string;
     analysis_result?: {
-      credibilityScore: number;
+      score: number;
       flags: Array<{ type: string; message: string }>;
     };
   };
@@ -236,7 +236,7 @@ export default function AshbyIntegrationPanel({ applicant }: AshbyIntegrationPan
                 <div>
                   <span className="font-medium">Credibility Score:</span>
                   <div className="text-lg font-bold">
-                    {applicant.analysis_result?.credibilityScore}%
+                    {applicant.analysis_result?.score}%
                   </div>
                 </div>
                 <div>

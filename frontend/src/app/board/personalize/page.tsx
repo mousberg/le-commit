@@ -114,10 +114,10 @@ export default function PersonalizePage() {
     const profile = {
       name: applicant.name,
       email: applicant.email,
-      role: applicant.role,
+      role: applicant.cv_data?.jobTitle || applicant.li_data?.headline,
       ...applicant.cv_data,
-      github: applicant.github_data,
-      linkedin: applicant.linkedin_data
+      github: applicant.gh_data,
+      linkedin: applicant.li_data
     };
     setCandidateProfile(profile);
     setShowCandidateOverlay(false);
@@ -130,7 +130,8 @@ export default function PersonalizePage() {
     const query = candidateSearchQuery.toLowerCase();
     return (
       applicant.name.toLowerCase().includes(query) ||
-      (applicant.role && applicant.role.toLowerCase().includes(query)) ||
+      ((applicant.cv_data?.jobTitle && applicant.cv_data.jobTitle.toLowerCase().includes(query)) ||
+       (applicant.li_data?.headline && applicant.li_data.headline.toLowerCase().includes(query))) ||
       (applicant.email && applicant.email.toLowerCase().includes(query))
     );
   });
@@ -460,7 +461,9 @@ export default function PersonalizePage() {
                           </div>
                           <div>
                             <h3 className="font-medium text-stone-900">{applicant.name}</h3>
-                            <p className="text-sm text-stone-500">{applicant.role || 'No role specified'}</p>
+                            <p className="text-sm text-stone-500">
+                              {applicant.cv_data?.jobTitle || applicant.li_data?.headline || 'No role specified'}
+                            </p>
                             {applicant.email && (
                               <p className="text-xs text-stone-400 mt-1">{applicant.email}</p>
                             )}
@@ -470,10 +473,10 @@ export default function PersonalizePage() {
                           {applicant.cv_data && (
                             <span className="text-xs bg-green-100 text-green-700 px-2 py-1">CV</span>
                           )}
-                          {applicant.linkedin_data && (
+                          {applicant.li_data && (
                             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1">LinkedIn</span>
                           )}
-                          {applicant.github_data && (
+                          {applicant.gh_data && (
                             <span className="text-xs bg-stone-100 text-stone-700 px-2 py-1">GitHub</span>
                           )}
                           <div className="w-8 h-8 bg-stone-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ml-2">

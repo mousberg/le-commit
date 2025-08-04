@@ -149,8 +149,10 @@ export default function SimpleApplicantsPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{applicant.name}</h3>
                   <p className="text-muted-foreground">{applicant.email}</p>
-                  {applicant.role && (
-                    <p className="text-sm text-muted-foreground mt-1">Role: {applicant.role}</p>
+                  {(applicant.cv_data?.jobTitle || applicant.li_data?.headline) && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Role: {applicant.cv_data?.jobTitle || applicant.li_data?.headline}
+                    </p>
                   )}
                 </div>
                 <div className="text-right">

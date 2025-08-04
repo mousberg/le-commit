@@ -20,9 +20,9 @@ import ReferenceManager, { Reference } from './components/ReferenceManager';
 
 function BoardPageContent() {
   const {
-    applicants,
+    selectedApplicant,
     fetchApplicants,
-    refreshApplicant,
+    selectApplicant,
     deleteApplicant
   } = useApplicants();
 
@@ -32,7 +32,6 @@ function BoardPageContent() {
   // NEW URL LOGIC: /board = new form, /board?id=<id> = view applicant
   const urlId = searchParams.get('id');
   const isNewForm = !urlId; // If no id parameter, show new form
-  const selectedId = urlId; // The actual applicant ID (or null for new form)
 
   // Navigation helpers - use replace for cleaner history
   const navigateToApplicant = useCallback((id: string) => {
@@ -48,23 +47,16 @@ function BoardPageContent() {
     fetchApplicants();
   }, [fetchApplicants]);
 
-  // Auto-refresh processing applicants
+  // Sync URL parameter with ApplicantContext selection
   useEffect(() => {
-    const interval = setInterval(() => {
-      applicants.forEach(applicant => {
-        if (applicant.status === 'processing' || 
-            applicant.status === 'uploading' || 
-            applicant.status === 'analyzing' ||
-            (applicant.linkedin_job_status === 'running' && applicant.original_linkedin_url)) {
-          refreshApplicant(applicant.id);
-        }
-      });
-    }, 3000);
+    if (urlId && urlId !== selectedApplicant?.id) {
+      selectApplicant(urlId);
+    } else if (!urlId && selectedApplicant) {
+      selectApplicant(null);
+    }
+  }, [urlId, selectedApplicant, selectApplicant]);
 
-    return () => clearInterval(interval);
-  }, [applicants, refreshApplicant]);
-
-  // No timeout needed - LinkedIn processing now waits for completion
+  // Real-time updates now handled by ApplicantContext - no polling needed!
 
   // Handle successful applicant creation from NewApplicantForm
   const handleApplicantCreated = useCallback((applicantId: string) => {
@@ -96,7 +88,7 @@ function BoardPageContent() {
     setDeleteConfirmModal({ isOpen: false, applicantId: '', applicantName: '' });
   };
 
-  const selectedCandidate = isNewForm ? null : applicants.find(a => a.id === selectedId);
+  const selectedCandidate = isNewForm ? null : selectedApplicant;
 
   const [referencesByCandidate, setReferencesByCandidate] = useState<{ [id: string]: Reference[] }>({});
   const [callInProgress, setCallInProgress] = useState(false);
@@ -180,7 +172,7 @@ function BoardPageContent() {
           candidateName: selectedCandidate.name,
           referenceName: reference.name,
           companyName: reference.companyName || 'Previous Company',
-          roleTitle: reference.roleTitle || selectedCandidate.role,
+          roleTitle: reference.roleTitle || selectedCandidate.cv_data?.jobTitle || selectedCandidate.li_data?.headline || '',
           workDuration: reference.workDuration || ''
         })
       });
@@ -266,16 +258,21 @@ function BoardPageContent() {
         {isNewForm ? (
             <NewApplicantForm onSuccess={handleApplicantCreated} />
           ) : selectedCandidate ? (
-            // Show processing loader for uploading/processing/analyzing states OR if LinkedIn is still running
-            (selectedCandidate.status === 'uploading' || 
-             selectedCandidate.status === 'processing' || 
+            // Show processing loader for uploading/processing/analyzing states OR if any individual processing is still running
+            (selectedCandidate.status === 'uploading' ||
+             selectedCandidate.status === 'processing' ||
              selectedCandidate.status === 'analyzing' ||
-             (selectedCandidate.linkedin_job_status === 'running' && selectedCandidate.original_linkedin_url)) ? (
+             selectedCandidate.cv_status === 'processing' ||
+             selectedCandidate.li_status === 'processing' ||
+             selectedCandidate.gh_status === 'processing' ||
+             selectedCandidate.ai_status === 'processing') ? (
               <ProcessingLoader
-                status={selectedCandidate.status === 'uploading' || selectedCandidate.status === 'processing' || selectedCandidate.status === 'analyzing' 
-                  ? selectedCandidate.status 
-                  : 'processing'}
-                fileName={selectedCandidate.original_filename || undefined}
+                status={
+                  selectedCandidate.status === 'uploading' ? 'uploading' :
+                  selectedCandidate.status === 'analyzing' ? 'analyzing' :
+                  'processing'
+                }
+                fileName={selectedCandidate.cv_file_id ? 'CV File' : undefined}
                 applicant={selectedCandidate}
               />
             ) : (
@@ -299,24 +296,28 @@ function BoardPageContent() {
                             CV ✓
                           </span>
                         )}
-                        {selectedCandidate.linkedin_data && (
+                        {selectedCandidate.li_data && (
                           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200 font-medium">
                             LinkedIn ✓
                           </span>
                         )}
-                        {selectedCandidate.github_data && (
+                        {selectedCandidate.gh_data && (
                           <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-full border border-purple-200 font-medium">
                             GitHub ✓
                           </span>
                         )}
                       </div>
                     </div>
-                    <p className="text-gray-600">{selectedCandidate.role || 'Position not specified'}</p>
+                    <p className="text-gray-600">
+                      {selectedCandidate.cv_data?.jobTitle ||
+                       selectedCandidate.li_data?.headline ||
+                       'Position not specified'}
+                    </p>
                     {selectedCandidate.email && (
                       <p className="text-sm text-gray-500">{selectedCandidate.email}</p>
                     )}
                   </div>
-                  
+
                   {/* Actions Menu */}
                   <div className="relative group">
                     <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -332,7 +333,7 @@ function BoardPageContent() {
                         Share
                       </button>
                       <div className="border-t border-gray-100"></div>
-                      <button 
+                      <button
                         onClick={() => handleDeleteApplicant(selectedCandidate.id, selectedCandidate.name)}
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                       >
@@ -345,9 +346,9 @@ function BoardPageContent() {
               </div>
 
               {/* Credibility Analysis */}
-              {selectedCandidate.analysis_result && (
+              {selectedCandidate.ai_data && (
                 <div className="mb-6">
-                  <CredibilityScore analysisResult={selectedCandidate.analysis_result} />
+                  <CredibilityScore analysisResult={selectedCandidate.ai_data} />
                 </div>
               )}
 
@@ -365,9 +366,9 @@ function BoardPageContent() {
 
                 {/* LinkedIn Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                  {selectedCandidate.linkedin_data ? (
-                    <LinkedInProfileSection linkedinData={selectedCandidate.linkedin_data} />
-                  ) : selectedCandidate.linkedin_job_id && selectedCandidate.linkedin_job_status === 'running' ? (
+                  {selectedCandidate.li_data ? (
+                    <LinkedInProfileSection linkedinData={selectedCandidate.li_data} />
+                  ) : (selectedCandidate.li_status as string) === 'processing' ? (
                     <div className="p-6">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-xl">💼</span>
@@ -377,12 +378,8 @@ function BoardPageContent() {
                         </span>
                       </div>
                       <p className="text-gray-600 text-sm mb-3">LinkedIn data is being processed in the background.</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <div className="w-2 h-2 bg-blue-500  animate-pulse"></div>
-                        <span>Job ID: {selectedCandidate.linkedin_job_id.slice(0, 8)}...</span>
-                      </div>
                     </div>
-                  ) : selectedCandidate.linkedin_job_status === 'failed' ? (
+                  ) : selectedCandidate.li_status === 'error' ? (
                     <div className="p-6 opacity-60">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-xl opacity-50">💼</span>
@@ -406,10 +403,10 @@ function BoardPageContent() {
                 </div>
 
                 {/* GitHub Section - Full Width if available */}
-                {(selectedCandidate.github_data || !selectedCandidate.cv_data) && (
-                  <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${selectedCandidate.github_data ? 'lg:col-span-2' : ''}`}>
-                    {selectedCandidate.github_data ? (
-                      <GitHubSection githubData={selectedCandidate.github_data} />
+                {(selectedCandidate.gh_data || !selectedCandidate.cv_data) && (
+                  <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${selectedCandidate.gh_data ? 'lg:col-span-2' : ''}`}>
+                    {selectedCandidate.gh_data ? (
+                      <GitHubSection githubData={selectedCandidate.gh_data} />
                     ) : (
                       <div className="p-6 opacity-60">
                         <div className="flex items-center gap-3 mb-2">

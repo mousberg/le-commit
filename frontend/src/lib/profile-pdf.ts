@@ -469,7 +469,7 @@ Guidelines:
 
     // Clean and fix the data
     const cleanedData = cleanAndFixJsonData(rawData);
-    console.log(`Cleaned ${documentType.toUpperCase()} data:`, cleanedData);
+    // console.log(`Cleaned ${documentType.toUpperCase()} data:`, cleanedData);
 
     return cleanedData;
 

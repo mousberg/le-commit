@@ -154,7 +154,8 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
     if (!searchQuery.trim()) return applicants;
     return applicants.filter(applicant =>
       applicant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (applicant.role && applicant.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      ((applicant.cv_data?.jobTitle && applicant.cv_data.jobTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+       (applicant.li_data?.headline && applicant.li_data.headline.toLowerCase().includes(searchQuery.toLowerCase()))) ||
       (applicant.email && applicant.email.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   }, [applicants, searchQuery]);

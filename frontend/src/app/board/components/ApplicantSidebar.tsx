@@ -81,8 +81,10 @@ export default function ApplicantSidebar({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{applicant.name}</div>
-                        {applicant.role && (
-                          <div className="text-xs text-zinc-500 truncate">{applicant.role}</div>
+                        {(applicant.cv_data?.jobTitle || applicant.li_data?.headline) && (
+                          <div className="text-xs text-zinc-500 truncate">
+                            {applicant.cv_data?.jobTitle || applicant.li_data?.headline}
+                          </div>
                         )}
                       </div>
                     </div>

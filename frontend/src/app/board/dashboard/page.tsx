@@ -121,7 +121,9 @@ export default function DashboardPage() {
                             </div>
                             <div>
                               <p className="text-sm font-medium text-stone-900">{applicant.name}</p>
-                              <p className="text-xs text-stone-500">{applicant.role || 'No role specified'}</p>
+                              <p className="text-xs text-stone-500">
+                                {applicant.cv_data?.jobTitle || applicant.li_data?.headline || 'No role specified'}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
@@ -130,12 +132,12 @@ export default function DashboardPage() {
                                 CV ✓
                               </span>
                             )}
-                            {applicant.linkedin_data && (
+                            {applicant.li_data && (
                               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 font-medium">
                                 LinkedIn ✓
                               </span>
                             )}
-                            {applicant.github_data && (
+                            {applicant.gh_data && (
                               <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 font-medium">
                                 GitHub ✓
                               </span>

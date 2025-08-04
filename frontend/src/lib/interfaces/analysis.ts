@@ -1,5 +1,5 @@
 export interface AnalysisResult {
-  credibilityScore: number; // 0-100
+  score: number; // 0-100 (matches database generated column expectation)
   summary: string; // 1-2 sentence judgment
   flags: AnalysisFlag[];
   suggestedQuestions: string[];

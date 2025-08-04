@@ -55,7 +55,8 @@ export default function ApplicantsPage() {
     const matchesSearch = !searchTerm || 
       applicant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (applicant.email && applicant.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (applicant.role && applicant.role.toLowerCase().includes(searchTerm.toLowerCase()));
+      ((applicant.cv_data?.jobTitle && applicant.cv_data.jobTitle.toLowerCase().includes(searchTerm.toLowerCase())) ||
+       (applicant.li_data?.headline && applicant.li_data.headline.toLowerCase().includes(searchTerm.toLowerCase())));
     
     const matchesStatus = !statusFilter || applicant.status === statusFilter;
     
@@ -181,8 +182,10 @@ export default function ApplicantsPage() {
                       <div className="flex-1 cursor-pointer" onClick={() => router.push(`/board?id=${applicant.id}`)}>
                         <h3 className="text-lg font-medium text-stone-900 mb-1">{applicant.name}</h3>
                         <p className="text-stone-600 text-sm mb-1">{applicant.email}</p>
-                        {applicant.role && (
-                          <p className="text-xs text-stone-500">Role: {applicant.role}</p>
+                        {(applicant.cv_data?.jobTitle || applicant.li_data?.headline) && (
+                          <p className="text-xs text-stone-500">
+                            Role: {applicant.cv_data?.jobTitle || applicant.li_data?.headline}
+                          </p>
                         )}
                       </div>
                       <div className="flex items-center gap-4">

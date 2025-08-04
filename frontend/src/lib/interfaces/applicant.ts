@@ -1,5 +1,5 @@
 import { GitHubData } from './github';
-import { AnalysisResult, CvAnalysis, LinkedInAnalysis, GitHubAnalysis, CrossReferenceAnalysis } from './analysis';
+import { AnalysisResult } from './analysis';
 import { CvData } from './cv';
 
 // LinkedIn specific types (separate from CV data)
@@ -62,39 +62,41 @@ export interface LinkedInCertification {
   credentialUrl?: string;
 }
 
-// Use Supabase generated types as the base, with proper type annotations for JSON fields
+// Event-driven architecture applicant model
 export interface Applicant {
   // Base database fields
   id: string;
   user_id: string;
   name: string;
   email: string | null;
-  status: string;
-  role: string | null;
-  score: number | null;
-  original_filename: string | null;
-  original_github_url: string | null;
-  original_linkedin_url?: string | null; // LinkedIn URL support
-  created_at: string | null;
-  updated_at: string | null;
+  phone: string | null;
 
-  // LinkedIn job tracking (for URL-based LinkedIn processing)
-  linkedin_job_id?: string | null; // BrightData snapshot ID
-  linkedin_job_status?: 'pending' | 'running' | 'completed' | 'failed' | null;
-  linkedin_job_started_at?: string | null;
-  linkedin_job_completed_at?: string | null;
+  // Original URLs/sources
+  linkedin_url: string | null;
+  github_url: string | null;
 
-  // JSON fields with proper types
-  cv_data?: CvData | null;
-  linkedin_data?: LinkedInData | null; // Always from LinkedIn URL API
-  github_data?: GitHubData | null;
-  analysis_result?: AnalysisResult | null;
-  individual_analysis?: {
-    cv?: CvAnalysis;
-    linkedin?: LinkedInAnalysis;
-    github?: GitHubAnalysis;
-  } | null;
-  cross_reference_analysis?: CrossReferenceAnalysis | null;
+  // File handling
+  cv_file_id: string | null;
+
+  // Processing status columns
+  cv_status: 'pending' | 'processing' | 'ready' | 'error';
+  li_status: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
+  gh_status: 'pending' | 'processing' | 'ready' | 'error' | 'not_provided';
+  ai_status: 'pending' | 'processing' | 'ready' | 'error';
+
+  // JSONB data columns
+  cv_data: CvData | null;
+  li_data: LinkedInData | null;
+  gh_data: GitHubData | null;
+  ai_data: AnalysisResult | null;
+
+  // Generated columns (automatically computed from sub-statuses and data)
+  status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed'; // Generated from cv/li/gh/ai statuses
+  score: number | null; // Generated from ai_data.score
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateApplicantRequest {
