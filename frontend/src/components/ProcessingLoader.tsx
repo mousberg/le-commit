@@ -8,39 +8,7 @@ interface ProcessingLoaderProps {
   applicant?: Applicant;
 }
 
-export default function ProcessingLoader({ status, fileName, applicant }: ProcessingLoaderProps) {
-  const getStatusText = () => {
-    if (!applicant) {
-      switch (status) {
-        case 'uploading':
-          return 'Initializing...';
-        case 'processing':
-          return 'Processing...';
-        case 'analyzing':
-          return 'Analyzing...';
-        default:
-          return 'Processing...';
-      }
-    }
-
-    // Use individual status to determine current activity
-    if (applicant.cv_status === 'processing') return 'Processing CV...';
-    if (applicant.li_status === 'processing') return 'Fetching LinkedIn profile...';
-    if (applicant.gh_status === 'processing') return 'Analyzing GitHub repositories...';
-    if (applicant.ai_status === 'processing') return 'Running AI analysis...';
-
-    // Fallback to overall status
-    switch (applicant.status) {
-      case 'uploading':
-        return 'Preparing profile...';
-      case 'processing':
-        return 'Extracting information...';
-      case 'analyzing':
-        return 'Analyzing profile...';
-      default:
-        return 'Processing...';
-    }
-  };
+export default function ProcessingLoader({ applicant }: ProcessingLoaderProps) {
 
   const getStepStatus = (stepStatus: string) => {
     switch (stepStatus) {
@@ -61,98 +29,64 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
           <h2 className="text-2xl font-bold text-gray-900">
             Unmasking Profile
           </h2>
-          <p className="text-emerald-600 font-medium">{getStatusText()}</p>
-          {fileName && (
-            <p className="text-sm text-gray-500">Processing {fileName}</p>
-          )}
         </div>
 
-        {/* Enhanced Progress Steps */}
+        {/* Processing Flow */}
         {applicant && (
-          <div className="w-full space-y-6">
-            <h3 className="text-center text-sm font-medium text-gray-700">Processing Steps</h3>
+          <div className="w-full max-w-lg">
+            {/* Parallel Processing Stage */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2">
+                {/* CV Processing Step */}
+                {(applicant.cv_file_id || applicant.cv_status !== 'pending') && (
+                  <ProcessingStep
+                    label="CV Analysis"
+                    status={getStepStatus(applicant.cv_status)}
+                    compact={true}
+                  />
+                )}
 
-            <div className="space-y-3">
-              {/* CV Processing Step */}
-              {(applicant.cv_file_id || applicant.cv_status !== 'pending') && (
-                <ProcessingStep
-                  label="CV Analysis"
-                  status={getStepStatus(applicant.cv_status)}
-                  data={applicant.cv_data}
-                  previewContent={applicant.cv_data && (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      {applicant.cv_data.firstName && applicant.cv_data.lastName && (
-                        <p className="font-medium">{applicant.cv_data.firstName} {applicant.cv_data.lastName}</p>
-                      )}
-                      {applicant.cv_data.jobTitle && (
-                        <p>{applicant.cv_data.jobTitle}</p>
-                      )}
-                      {applicant.cv_data.skills && applicant.cv_data.skills.length > 0 && (
-                        <p className="text-emerald-600">{applicant.cv_data.skills.slice(0, 3).join(' • ')}</p>
-                      )}
-                    </div>
-                  )}
-                />
-              )}
+                {/* LinkedIn Processing Step */}
+                {(applicant.linkedin_url || applicant.li_status !== 'pending') && (
+                  <ProcessingStep
+                    label="LinkedIn Analysis"
+                    status={getStepStatus(applicant.li_status)}
+                    compact={true}
+                  />
+                )}
 
-              {/* LinkedIn Processing Step */}
-              {(applicant.linkedin_url || applicant.li_status !== 'pending') && (
-                <ProcessingStep
-                  label="LinkedIn Analysis"
-                  status={getStepStatus(applicant.li_status)}
-                  data={applicant.li_data}
-                  previewContent={applicant.li_data && (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      {applicant.li_data.headline && (
-                        <p>{applicant.li_data.headline}</p>
-                      )}
-                      {applicant.li_data.skills && applicant.li_data.skills.length > 0 && (
-                        <p className="text-blue-600">{applicant.li_data.skills.slice(0, 3).join(' • ')}</p>
-                      )}
-                    </div>
-                  )}
-                />
-              )}
+                {/* GitHub Processing Step */}
+                {(applicant.github_url || applicant.gh_status !== 'pending') && (
+                  <ProcessingStep
+                    label="GitHub Analysis"
+                    status={getStepStatus(applicant.gh_status)}
+                    compact={true}
+                  />
+                )}
+              </div>
 
-              {/* GitHub Processing Step */}
-              {(applicant.github_url || applicant.gh_status !== 'pending') && (
-                <ProcessingStep
-                  label="GitHub Analysis"
-                  status={getStepStatus(applicant.gh_status)}
-                  data={applicant.gh_data}
-                  previewContent={applicant.gh_data && (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <p>@{applicant.gh_data.username}</p>
-                      <p>{applicant.gh_data.publicRepos} repositories</p>
-                      {applicant.gh_data.languages && applicant.gh_data.languages.length > 0 && (
-                        <p className="text-purple-600">{applicant.gh_data.languages.slice(0, 3).map(l => l.language).join(' • ')}</p>
-                      )}
-                    </div>
-                  )}
-                />
-              )}
+              {/* Arrow Connector */}
+              <div className="flex justify-center py-2">
+                <div className="text-gray-400 text-lg">↓</div>
+              </div>
 
               {/* AI Analysis Step */}
               <ProcessingStep
                 label="AI Analysis"
                 status={getStepStatus(applicant.ai_status)}
-                data={applicant.ai_data}
-                previewContent={applicant.ai_data && applicant.score && (
-                  <div className="text-xs text-gray-600">
-                    <p className="font-medium text-indigo-600">Score: {applicant.score}/100</p>
-                  </div>
-                )}
+                compact={false}
+                isDependent={true}
               />
             </div>
           </div>
         )}
 
-        {/* Contextual Status Message */}
-        <p className="text-center text-sm text-gray-500 max-w-sm">
-          {applicant?.status === 'failed'
-            ? 'Something went wrong. Please try again.'
-            : 'Analyzing profile and extracting key insights...'}
-        </p>
+        {/* Status Message */}
+        {applicant?.status === 'failed' && (
+          <p className="text-center text-sm text-red-600">
+            Something went wrong. Please try again.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -162,11 +96,11 @@ export default function ProcessingLoader({ status, fileName, applicant }: Proces
 interface ProcessingStepProps {
   label: string;
   status: 'pending' | 'active' | 'completed' | 'error' | 'skipped';
-  data?: unknown;
-  previewContent?: React.ReactNode;
+  compact?: boolean;
+  isDependent?: boolean;
 }
 
-function ProcessingStep({ label, status, previewContent }: ProcessingStepProps) {
+function ProcessingStep({ label, status, compact = false, isDependent = false }: ProcessingStepProps) {
   const getIcon = () => {
     switch (status) {
       case 'completed':
@@ -183,6 +117,21 @@ function ProcessingStep({ label, status, previewContent }: ProcessingStepProps) 
   };
 
   const getStatusColor = () => {
+    if (isDependent) {
+      switch (status) {
+        case 'completed':
+          return 'border-indigo-200 bg-indigo-50';
+        case 'active':
+          return 'border-indigo-200 bg-indigo-50';
+        case 'error':
+          return 'border-red-200 bg-red-50';
+        case 'pending':
+          return 'border-gray-300 bg-gray-100';
+        default:
+          return 'border-gray-300 bg-gray-100';
+      }
+    }
+    
     switch (status) {
       case 'completed':
         return 'border-emerald-200 bg-emerald-50';
@@ -198,6 +147,21 @@ function ProcessingStep({ label, status, previewContent }: ProcessingStepProps) 
   };
 
   const getTextColor = () => {
+    if (isDependent) {
+      switch (status) {
+        case 'completed':
+          return 'text-indigo-700';
+        case 'active':
+          return 'text-indigo-700';
+        case 'error':
+          return 'text-red-700';
+        case 'pending':
+          return 'text-gray-500';
+        default:
+          return 'text-gray-500';
+      }
+    }
+    
     switch (status) {
       case 'completed':
         return 'text-emerald-700';
@@ -213,22 +177,16 @@ function ProcessingStep({ label, status, previewContent }: ProcessingStepProps) 
   };
 
   return (
-    <div className={`border rounded-lg p-3 transition-all duration-300 ${getStatusColor()}`}>
+    <div className={`border rounded-lg transition-all duration-300 ${getStatusColor()} ${
+      compact ? 'p-2' : 'p-3'
+    } ${isDependent ? 'shadow-sm' : ''}`}>
       <div className="flex items-center gap-3">
         {getIcon()}
-        <span className={`text-sm font-medium ${getTextColor()}`}>{label}</span>
-        {status === 'completed' && (
-          <span className="text-xs text-gray-500 ml-auto">✓</span>
-        )}
+        <span className={`text-xs font-medium ${getTextColor()}`}>{label}</span>
         {status === 'skipped' && (
           <span className="text-xs text-gray-400 ml-auto">skipped</span>
         )}
       </div>
-      {previewContent && status === 'completed' && (
-        <div className="mt-2 pl-7">
-          {previewContent}
-        </div>
-      )}
     </div>
   );
 }
