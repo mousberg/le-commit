@@ -17,6 +17,8 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 - React components live in `frontend/src/components/`
 - Pages live in `frontend/src/app/`
 
+- Make sure linting and building works before committing.
+
 ## Event-Driven Architecture & Database Patterns
 
 This application uses an event-driven architecture with database triggers and webhooks for asynchronous processing. Key patterns:
