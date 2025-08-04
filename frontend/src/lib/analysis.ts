@@ -25,7 +25,7 @@ function countAvailableDataSources(applicant: Applicant): number {
  */
 function createInsufficientDataFallback(applicantId: string, availableDataSources: number): AnalysisResult {
   return {
-    credibilityScore: 50,
+    score: 50,
     summary: availableDataSources === 0
       ? 'No data sources available for credibility analysis.'
       : 'Analysis completed with limited data sources.',
@@ -50,7 +50,7 @@ function createInsufficientDataFallback(applicantId: string, availableDataSource
  */
 export function createErrorFallback(error?: string): AnalysisResult {
   return {
-    credibilityScore: 50,
+    score: 50,
     summary: 'Analysis could not be completed due to technical error.',
     flags: [{
       type: 'yellow',
@@ -100,7 +100,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     return {
       ...applicant,
       ai_data: analysisResult,
-      score: analysisResult.credibilityScore
+      score: analysisResult.score
     };
   } catch (error) {
     console.error(`Error during analysis for applicant ${applicant.id}:`, error);
@@ -190,7 +190,7 @@ GitHub Data: ${githubData ? JSON.stringify(githubData, null, 2) : 'Not provided'
 
 Return a JSON object with:
 {
-  "credibilityScore": 0-100,
+  "score": 0-100,
   "summary": "1-2 sentence judgment",
   "flags": [{"type": "red"|"yellow", "category": "consistency"|"verification"|"authenticity"|"activity", "message": "specific concern", "severity": 1-10}],
   "suggestedQuestions": ["array of clarifying questions to ask the candidate"],
@@ -211,7 +211,7 @@ Be objective. Do not make assumptions. Only work with the structured data provid
     const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
 
     return {
-      credibilityScore: result.credibilityScore || 50,
+      score: result.score || 50,
       summary: result.summary || 'Analysis completed with available data.',
       flags: (result.flags || []).map((flag: Record<string, unknown>) => ({
         type: flag.type === 'red' || flag.type === 'yellow' ? flag.type : 'yellow',
@@ -226,7 +226,7 @@ Be objective. Do not make assumptions. Only work with the structured data provid
   } catch (error) {
     console.error('Comprehensive analysis failed:', error);
     return {
-      credibilityScore: 50,
+      score: 50,
       summary: 'Analysis could not be completed due to technical error.',
       flags: [{ type: 'yellow', category: 'verification', message: 'Analysis system temporarily unavailable', severity: 5 }],
       suggestedQuestions: ['Could you provide additional information about your background?'],

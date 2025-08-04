@@ -51,16 +51,16 @@ export function CredibilityScore({ analysisResult }: CredibilityScoreProps) {
   const yellowFlags = analysisResult.flags?.filter(f => f.type === 'yellow') || [];
 
   return (
-    <div className={`rounded-xl border p-6 ${getScoreBgColor(analysisResult.credibilityScore)} shadow-sm`}>
+    <div className={`rounded-xl border p-6 ${getScoreBgColor(analysisResult.score)} shadow-sm`}>
       {/* Header with Score */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{getScoreEmoji(analysisResult.credibilityScore)}</span>
+          <span className="text-2xl">{getScoreEmoji(analysisResult.score)}</span>
           <h3 className="text-xl font-bold text-gray-900">Credibility Analysis</h3>
         </div>
         <div className="text-right">
-          <div className={`text-4xl font-bold ${getScoreColor(analysisResult.credibilityScore)} mb-1`}>
-            {analysisResult.credibilityScore}
+          <div className={`text-4xl font-bold ${getScoreColor(analysisResult.score)} mb-1`}>
+            {analysisResult.score}
           </div>
           <div className="text-sm text-gray-500 font-medium">out of 100</div>
         </div>
@@ -70,12 +70,12 @@ export function CredibilityScore({ analysisResult }: CredibilityScoreProps) {
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>Credibility Score</span>
-          <span>{analysisResult.credibilityScore}%</span>
+          <span>{analysisResult.score}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
           <div
-            className={`h-full ${getProgressBarColor(analysisResult.credibilityScore)} rounded-full transition-all duration-1000 ease-out`}
-            style={{ width: `${Math.min(100, Math.max(0, analysisResult.credibilityScore))}%` }}
+            className={`h-full ${getProgressBarColor(analysisResult.score)} rounded-full transition-all duration-1000 ease-out`}
+            style={{ width: `${Math.min(100, Math.max(0, analysisResult.score))}%` }}
           />
         </div>
         <div className="flex justify-between text-xs text-gray-400 mt-1">

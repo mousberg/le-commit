@@ -5,6 +5,12 @@ export interface User {
   id: string;
   email: string;
   full_name?: string | null;
+  preferred_name?: string | null;
+  avatar_url?: string | null;
+  preferences?: Record<string, unknown> | null;
+  ashby_api_key?: string | null;
+  ashby_sync_cursor?: string | null;
+  ashby_features?: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -12,14 +18,15 @@ export interface User {
 // File interface
 export interface FileRecord {
   id: string;
-  applicantId: string;
-  fileType: 'cv' | 'linkedin' | 'github' | 'other';
-  originalFilename: string;
-  storagePath: string;
-  storageBucket: string;
-  fileSize?: number;
-  mimeType?: string;
-  uploadedAt: string;
+  user_id: string;
+  file_type: 'cv' | 'linkedin' | 'github' | 'other';
+  original_filename: string;
+  storage_path: string;
+  storage_bucket: string;
+  file_size?: number | null;
+  mime_type?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Database operation interfaces (updated for robust schema with generated columns)
@@ -52,13 +59,13 @@ export interface UpdateApplicantData {
 }
 
 export interface CreateFileData {
-  applicantId: string;
-  fileType: 'cv' | 'linkedin' | 'github' | 'other';
-  originalFilename: string;
-  storagePath: string;
-  storageBucket: string;
-  fileSize?: number;
-  mimeType?: string;
+  user_id: string;
+  file_type: 'cv' | 'linkedin' | 'github' | 'other';
+  original_filename: string;
+  storage_path: string;
+  storage_bucket: string;
+  file_size?: number | null;
+  mime_type?: string | null;
 }
 
 // Query options (simplified - no workspace needed)
@@ -99,7 +106,6 @@ export interface DatabaseService {
   // File operations (simplified - no workspace context)
   createFileRecord(data: CreateFileData): Promise<FileRecord>;
   getFileRecord(id: string): Promise<FileRecord | null>;
-  getApplicantFiles(applicantId: string): Promise<FileRecord[]>;
   getUserFiles(userId: string): Promise<FileRecord[]>;
   deleteFileRecord(id: string): Promise<boolean>;
 }

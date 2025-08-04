@@ -62,12 +62,12 @@ export async function POST(request: Request) {
         throw new Error(`Failed to update applicant: ${updateError.message}`);
       }
 
-      console.log(`✅ AI analysis completed for applicant ${applicant_id} with score: ${analyzedApplicant.ai_data?.credibilityScore || 'N/A'}`);
+      console.log(`✅ AI analysis completed for applicant ${applicant_id} with score: ${analyzedApplicant.ai_data?.score || 'N/A'}`);
       return NextResponse.json({
         success: true,
         applicant_id,
         ai_data: analyzedApplicant.ai_data,
-        score: analyzedApplicant.ai_data?.credibilityScore
+        score: analyzedApplicant.ai_data?.score
       });
 
     } catch (analysisError) {

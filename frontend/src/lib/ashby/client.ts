@@ -139,7 +139,7 @@ export class AshbyClient {
   async syncUnmaskResults(
     candidateId: string,
     unmaskData: {
-      credibilityScore: number;
+      score: number;
       verificationStatus: 'verified' | 'flagged' | 'pending';
       flags: Array<{ type: string; message: string }>;
       reportUrl: string;
@@ -147,7 +147,7 @@ export class AshbyClient {
   ): Promise<AshbyApiResponse<AshbyCandidate>> {
     // Prepare custom fields based on Unmask data
     const customFields: Record<string, unknown> = {
-      unmask_score: unmaskData.credibilityScore,
+      unmask_score: unmaskData.score,
       unmask_verification_status: unmaskData.verificationStatus,
       unmask_report_url: unmaskData.reportUrl,
       unmask_flags: JSON.stringify(unmaskData.flags)
@@ -183,7 +183,7 @@ export class AshbyClient {
     candidates: Array<{ 
       ashbyId: string; 
       unmaskId: string;
-      credibilityScore: number;
+      score: number;
       verificationStatus: 'verified' | 'flagged' | 'pending';
     }>
   ): Promise<Array<{ ashbyId: string; success: boolean; error?: string }>> {
@@ -194,7 +194,7 @@ export class AshbyClient {
             candidateId: candidate.ashbyId,
             customFields: {
               unmask_id: candidate.unmaskId,
-              unmask_score: candidate.credibilityScore,
+              unmask_score: candidate.score,
               unmask_verification_status: candidate.verificationStatus
             }
           });

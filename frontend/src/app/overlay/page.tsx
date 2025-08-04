@@ -35,7 +35,7 @@ export default function OverlayPage() {
   const [transcriptItems, setTranscriptItems] = useState<TranscriptItem[]>([]);
   const [flagItems, setFlagItems] = useState<FlagItem[]>([]);
   const [followUpItems, setFollowUpItems] = useState<FollowUpItem[]>([]);
-  const [credibilityScore, setCredibilityScore] = useState(100);
+  const [score, setCredibilityScore] = useState(100);
   const [sessionTime, setSessionTime] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -205,11 +205,11 @@ export default function OverlayPage() {
           <div className="text-xs text-white/70 font-mono">{formatTime(sessionTime)}</div>
           
           <div className={`text-xs px-2 py-1 rounded ${
-            credibilityScore >= 80 ? 'bg-green-500/20 text-green-300' :
-            credibilityScore >= 60 ? 'bg-yellow-500/20 text-yellow-300' :
+            score >= 80 ? 'bg-green-500/20 text-green-300' :
+            score >= 60 ? 'bg-yellow-500/20 text-yellow-300' :
             'bg-red-500/20 text-red-300'
           }`}>
-            {credibilityScore}% credible
+            {score}% credible
           </div>
 
           <div className="flex items-center gap-1">
