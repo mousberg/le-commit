@@ -197,9 +197,13 @@ We provide automated deployment scripts for seamless production deployment:
 - `DELETE /api/applicants/[id]` - Delete applicant
 
 ### **Ashby ATS Integration**
-- `GET /api/ashby/candidates` - List and sync candidates from Ashby
-- `POST /api/ashby/candidates` - Force refresh all candidates
-- `POST /api/ashby/store-cv` - Download and store CV in Supabase Storage
+- `GET /api/ashby/sync` - Fetch and cache candidates from Ashby
+- `POST /api/ashby/sync` - Push verification results to Ashby
+- `PUT /api/ashby/sync` - Batch sync completed verifications
+- `POST /api/ashby/import` - Import cached candidates to applicants
+- `GET /api/ashby/files` - Get resume URL from Ashby
+- `POST /api/ashby/files` - Download and store CV in Supabase Storage
+- `POST /api/ashby/push-score` - Send AI analysis score to Ashby custom field
 
 ### **Reference Calling**
 - `POST /api/reference-call` - Initiate automated reference call

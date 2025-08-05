@@ -57,6 +57,7 @@ export interface AshbyCandidate {
       name: string;
     }>;
   };
+  locationSummary?: string;
   timezone?: string;
   
   // Files
@@ -105,9 +106,9 @@ export interface AshbyCandidateListRequest {
 }
 
 export interface AshbyCandidateListResponse {
-  results: AshbyCandidate[];
-  nextCursor?: string;
-  moreDataAvailable: boolean;
+  candidates: AshbyCandidate[];
+  cursor?: string;
+  moreDataAvailable?: boolean;
 }
 
 // Application Types
@@ -177,6 +178,33 @@ export interface AshbySyncStatus {
   lastSyncedAt: string;
   syncStatus: 'pending' | 'synced' | 'failed';
   syncError?: string;
+}
+
+// Custom Field Types
+export interface AshbyCustomFieldSetValueRequest {
+  objectType: 'Application' | 'Candidate';
+  objectId: string;
+  fieldId: string;
+  fieldValue: string | number | boolean | object;
+}
+
+export interface AshbyCustomFieldSetValueResponse {
+  success: boolean;
+}
+
+// Note Types
+export interface AshbyCreateNoteRequest {
+  candidateId: string;
+  note: string;
+  sendNotifications?: boolean;
+}
+
+export interface AshbyCreateNoteResponse {
+  id: string;
+  candidateId: string;
+  note: string;
+  createdAt: string;
+  sendNotifications: boolean;
 }
 
 // API Response Types

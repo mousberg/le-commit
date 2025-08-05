@@ -25,6 +25,7 @@ export interface ApiHandlerOptions extends AuthMiddlewareOptions {
 export interface ApiHandlerContext extends AuthContext {
     request: NextRequest;
     params?: Record<string, string>;
+    body?: Record<string, unknown> | FormData | null;
 }
 
 export type ApiHandler = (
@@ -122,17 +123,15 @@ export function withApiMiddleware(
                 body = sanitizeInput(body) as Record<string, unknown>;
             }
 
-            // Create enhanced request with parsed body
-            const enhancedRequest = Object.assign(request, { body });
-
             // Extract params from Next.js route context
             const params = await routeParams.params;
 
             // Create handler context
             const handlerContext: ApiHandlerContext = {
                 ...authContext!,
-                request: enhancedRequest,
-                params: params
+                request: request,
+                params: params,
+                body: body
             };
 
             // Call the actual handler

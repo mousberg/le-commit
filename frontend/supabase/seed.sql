@@ -1,13 +1,55 @@
 -- =============================================================================
 -- Seed file for Le-Commit (Unmask) platform
 -- =============================================================================
--- This file is intentionally empty as no initial seed data is required.
--- Add any initial data here if needed for development/testing.
+-- Creates a test user that can be used for development and testing
+-- 
+-- Login credentials:
+-- Email: test@unmask.click
+-- Password: password123
 -- =============================================================================
 
--- Example seed data (commented out):
--- INSERT INTO public.users (id, email, full_name) VALUES
---   ('00000000-0000-0000-0000-000000000001', 'admin@example.com', 'Admin User');
+-- Insert test user into auth.users table (for authentication)
+INSERT INTO auth.users (
+  id,
+  instance_id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin,
+  is_sso_user
+) VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated',
+  'authenticated',
+  'team@unmask.click',
+  crypt('lecommit42', gen_salt('bf')),
+  NOW(),
+  NOW(),
+  NOW(),
+  '',
+  '',
+  '',
+  '',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Test User"}',
+  false,
+  false
+) ON CONFLICT (id) DO NOTHING;
 
--- INSERT INTO public.applicants (user_id, name, email, status) VALUES
---   ('00000000-0000-0000-0000-000000000001', 'John Doe', 'john@example.com', 'pending');
+-- Insert corresponding user into public.users table (this will be created automatically by trigger, but adding for completeness)
+INSERT INTO public.users (id, email, full_name, ashby_api_key) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'test@unmask.click', 'Test User', null)
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  full_name = EXCLUDED.full_name;
