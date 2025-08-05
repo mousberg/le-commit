@@ -11,7 +11,8 @@ import { createClient } from '@/lib/supabase/server';
 export async function checkUserAshbyAccess(userId: string): Promise<boolean> {
   try {
     // In development mode with ASHBY_API_KEY env var, always return true
-    if (process.env.NODE_ENV === 'development' && process.env.ASHBY_API_KEY) {
+    const appEnv = process.env.NEXT_PUBLIC_APP_ENV || 'production';
+    if (appEnv === 'development' && process.env.ASHBY_API_KEY) {
       return true;
     }
     
@@ -37,7 +38,8 @@ export async function checkUserAshbyAccess(userId: string): Promise<boolean> {
  */
 export function getAshbyApiKey(userApiKey?: string | null): string | null {
   // In development mode, prioritize environment variable
-  if (process.env.NODE_ENV === 'development' && process.env.ASHBY_API_KEY) {
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV || 'production';
+  if (appEnv === 'development' && process.env.ASHBY_API_KEY) {
     return process.env.ASHBY_API_KEY;
   }
   

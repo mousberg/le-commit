@@ -70,7 +70,7 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
   const searchParams = useSearchParams();
   const { applicants } = useApplicants();
   const { signOut } = useAuth();
-  const { displayName, displayInitial, authUser } = useSharedUserProfile();
+  const { displayName, displayInitial } = useSharedUserProfile();
   const [applicantsDropdownOpen, setApplicantsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);

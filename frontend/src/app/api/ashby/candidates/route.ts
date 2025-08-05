@@ -46,9 +46,35 @@ interface SocialLink {
   url: string;
 }
 
+interface AshbyCandidate {
+  id: string;
+  name: string;
+  primaryEmailAddress?: { value: string };
+  primaryPhoneNumber?: { value: string };
+  position?: string;
+  company?: string;
+  school?: string;
+  location?: { locationSummary?: string };
+  locationSummary?: string;
+  createdAt: string;
+  updatedAt: string;
+  emailAddresses?: Array<Record<string, unknown>>;
+  phoneNumbers?: Array<Record<string, unknown>>;
+  socialLinks?: SocialLink[];
+  tags?: string[];
+  applicationIds?: string[];
+  fileHandles?: Array<Record<string, unknown>>;
+  resumeFileHandle?: Record<string, unknown>;
+  source?: { title?: string };
+  creditedToUser?: { firstName: string; lastName: string };
+  timezone?: string;
+  profileUrl?: string;
+}
+
 // Helper to transform Ashby API response to database format
 function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId: string): DatabaseCandidate {
-  const socialLinks = ashbyCandidate.socialLinks as SocialLink[] | undefined;
+  const candidate = ashbyCandidate as unknown as AshbyCandidate;
+  const socialLinks = candidate.socialLinks;
   
   const getLinkedInUrl = () => {
     const linkedInLink = socialLinks?.find((link) => 
@@ -73,34 +99,34 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
 
   return {
     user_id: userId,
-    ashby_id: ashbyCandidate.id,
-    name: ashbyCandidate.name,
-    email: ashbyCandidate.primaryEmailAddress?.value || null,
-    phone: ashbyCandidate.primaryPhoneNumber?.value || null,
-    position: ashbyCandidate.position || null,
-    company: ashbyCandidate.company || null,
-    school: ashbyCandidate.school || null,
-    location_summary: ashbyCandidate.location?.locationSummary || ashbyCandidate.locationSummary || null,
+    ashby_id: candidate.id,
+    name: candidate.name,
+    email: candidate.primaryEmailAddress?.value || null,
+    phone: candidate.primaryPhoneNumber?.value || null,
+    position: candidate.position || null,
+    company: candidate.company || null,
+    school: candidate.school || null,
+    location_summary: candidate.location?.locationSummary || candidate.locationSummary || null,
     linkedin_url: getLinkedInUrl(),
     github_url: getGitHubUrl(),
     website_url: getWebsiteUrl(),
-    ashby_created_at: ashbyCandidate.createdAt,
-    ashby_updated_at: ashbyCandidate.updatedAt,
-    emails: ashbyCandidate.emailAddresses || [],
-    phone_numbers: ashbyCandidate.phoneNumbers || [],
-    social_links: ashbyCandidate.socialLinks || [],
-    tags: ashbyCandidate.tags || [],
-    application_ids: ashbyCandidate.applicationIds || [],
-    all_file_handles: ashbyCandidate.fileHandles || [],
-    resume_file_handle: ashbyCandidate.resumeFileHandle || null,
-    source: ashbyCandidate.source || null,
-    source_title: ashbyCandidate.source?.title || null,
-    credited_to_user: ashbyCandidate.creditedToUser || null,
-    credited_to_name: ashbyCandidate.creditedToUser ? 
-      `${ashbyCandidate.creditedToUser.firstName} ${ashbyCandidate.creditedToUser.lastName}` : null,
-    timezone: ashbyCandidate.timezone || null,
-    profile_url: ashbyCandidate.profileUrl || null,
-    location_details: ashbyCandidate.location || null,
+    ashby_created_at: candidate.createdAt,
+    ashby_updated_at: candidate.updatedAt,
+    emails: candidate.emailAddresses || [],
+    phone_numbers: candidate.phoneNumbers || [],
+    social_links: (socialLinks as unknown as Array<Record<string, unknown>>) || [],
+    tags: candidate.tags || [],
+    application_ids: candidate.applicationIds || [],
+    all_file_handles: candidate.fileHandles || [],
+    resume_file_handle: candidate.resumeFileHandle || null,
+    source: candidate.source || null,
+    source_title: candidate.source?.title || null,
+    credited_to_user: candidate.creditedToUser || null,
+    credited_to_name: candidate.creditedToUser ? 
+      `${candidate.creditedToUser.firstName} ${candidate.creditedToUser.lastName}` : null,
+    timezone: candidate.timezone || null,
+    profile_url: candidate.profileUrl || null,
+    location_details: candidate.location || null,
     last_synced_at: new Date().toISOString()
   };
 }
@@ -170,7 +196,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       });
 
       if (response.success && response.results) {
-        const candidates = response.results as Record<string, unknown>;
+        const candidates = response.results as unknown as Record<string, unknown>;
         const candidatesList = candidates.results || candidates;
         
         if (Array.isArray(candidatesList)) {
@@ -370,7 +396,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
         );
       }
 
-      const results = response.results as Record<string, unknown>;
+      const results = response.results as unknown as Record<string, unknown>;
       const candidatesList = results.results || results.candidates || results;
       const moreDataAvailable = results.moreDataAvailable;
       const nextCursor = results.nextCursor || results.cursor;
@@ -380,7 +406,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
         totalFetched += candidatesList.length;
       }
 
-      cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor : undefined;
+      cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor as string : undefined;
 
     } while (cursor);
 

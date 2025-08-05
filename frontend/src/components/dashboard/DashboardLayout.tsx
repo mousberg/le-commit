@@ -57,7 +57,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { displayName, displayInitial, authUser } = useSharedUserProfile();
+  const { displayName, displayInitial } = useSharedUserProfile();
   
   const { hasAccess: hasATSAccess } = useAshbyAccess();
   

@@ -15,8 +15,6 @@ import {
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
 
-import { ATSCandidate } from '@/lib/ashby/interfaces';
-
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
 }
@@ -247,7 +245,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation(); // Prevent row click
-                          window.open(candidate.linkedin_url, '_blank');
+                          if (candidate.linkedin_url) window.open(candidate.linkedin_url, '_blank');
                         }}
                         className="hover:bg-blue-100 p-1 rounded"
                         title="Open LinkedIn Profile"

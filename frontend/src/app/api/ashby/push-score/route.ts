@@ -52,7 +52,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
 
     if (scoreOverride !== undefined) {
       // Use override score for testing
-      scoreToSend = scoreOverride;
+      scoreToSend = scoreOverride as number;
       
       // For testing with scoreOverride, ashbyObjectId must be provided
       if (!ashbyObjectId) {
@@ -61,7 +61,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
           { status: 400 }
         );
       }
-      finalAshbyObjectId = ashbyObjectId;
+      finalAshbyObjectId = ashbyObjectId as string;
     } else {
       // Get applicant data and linked Ashby information
       const applicantResult = await supabase
@@ -105,10 +105,10 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       // Determine the Ashby Object ID (Candidate-level for authenticity)
       if (ashbyObjectId) {
         // Use provided ID (manual override)
-        finalAshbyObjectId = ashbyObjectId;
+        finalAshbyObjectId = ashbyObjectId as string;
       } else {
         // Use Ashby Candidate ID for authenticity analysis
-        finalAshbyObjectId = ashby_candidates.ashby_id;
+        finalAshbyObjectId = ashby_candidates[0].ashby_id;
       }
     }
 
@@ -122,9 +122,9 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
 
     // Send score to Ashby using customField.setValue
     const ashbyResponse = await ashbyClient.setCustomFieldValue({
-      objectType: ashbyObjectType,
+      objectType: ashbyObjectType as "Application" | "Candidate",
       objectId: finalAshbyObjectId,
-      fieldId: customFieldId,
+      fieldId: customFieldId as string,
       fieldValue: scoreToSend
     });
 

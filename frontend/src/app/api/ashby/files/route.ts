@@ -8,7 +8,7 @@ import { getAshbyApiKey } from '@/lib/ashby/server';
 export async function POST(request: NextRequest) {
   try {
     // Create server-side client with service role key
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // For webhook calls, we'll use the service role key to bypass RLS
     // This is safe because the trigger already validated the candidate belongs to the user
