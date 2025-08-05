@@ -43,6 +43,9 @@ export interface AshbyCandidate {
     url: string;
   }>;
   
+  // Website URL (extracted from socialLinks for convenience)
+  website_url?: string;
+  
   // Professional information
   position?: string;
   company?: string;

@@ -23,7 +23,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useSharedUserProfile } from '@/lib/contexts/UserProfileContext';
 import { usePathname } from 'next/navigation';
-import { isAuthorizedForATS } from '@/lib/auth/ats-access';
+import { useAshbyAccess } from '@/lib/ashby/config';
 import SearchOverlay from './SearchOverlay';
 
 // Base navigation items
@@ -57,19 +57,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { displayName, displayInitial, authUser } = useSharedUserProfile();
+  const { displayName, displayInitial } = useSharedUserProfile();
+  
+  const { hasAccess: hasATSAccess } = useAshbyAccess();
   
   // Create navigation with conditional ATS item
   const navigation = useMemo(() => {
     const nav = [...baseNavigation];
     
-    // Add ATS item if user is authorized
-    if (authUser && isAuthorizedForATS(authUser.email)) {
+    // Add ATS item if user has Ashby configuration
+    if (hasATSAccess) {
       nav.splice(2, 0, { name: 'ATS', href: '/board/ats', icon: Building2 });
     }
     
     return nav;
-  }, [authUser]);
+  }, [hasATSAccess]);
 
   const handleSearchClick = (e: React.MouseEvent) => {
     e.preventDefault();

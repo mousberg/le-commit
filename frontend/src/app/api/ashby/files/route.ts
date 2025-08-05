@@ -1,134 +1,120 @@
-// Ashby Files API - Unified endpoint for file operations
-// GET: Get resume URL from Ashby
-// POST: Download and store CV in Supabase Storage
+// Ashby Files API - CV download webhook endpoint
+// POST: Download and store CV in Supabase Storage (called by database triggers)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AshbyClient } from '@/lib/ashby/client';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { getAshbyApiKey } from '@/lib/ashby/server';
 
-// GET - Get resume URL from Ashby
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const fileHandle = searchParams.get('fileHandle');
-
-    if (!fileHandle) {
-      return NextResponse.json(
-        { error: 'File handle is required', success: false },
-        { status: 400 }
-      );
-    }
-
-    const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
-    });
-
-    // Get the download URL from Ashby
-    const fileResponse = await ashbyClient.getResumeUrl(fileHandle);
-
-    if (!fileResponse.success) {
-      return NextResponse.json(
-        { 
-          error: fileResponse.error?.message || 'Failed to get resume URL', 
-          success: false
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      url: fileResponse.results?.url,
-      fileHandle
-    });
-
-  } catch (error) {
-    console.error('Error getting resume URL:', error);
-    return NextResponse.json(
-      { error: 'Failed to get resume URL', success: false },
-      { status: 500 }
-    );
-  }
-}
-
-// POST - Download and store CV in Supabase Storage
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
+    // Create server-side client with service role key
+    const supabase = createServiceRoleClient();
+    
+    // For webhook calls, we'll use the service role key to bypass RLS
+    // This is safe because the trigger already validated the candidate belongs to the user
+    
     const body = await request.json();
-    const { candidateId, fileHandle } = body;
+    const { candidateId, fileHandle, applicantId, userId, mode } = body;
 
-    if (!candidateId) {
+
+    if (!candidateId || !fileHandle) {
       return NextResponse.json(
-        { error: 'Candidate ID is required', success: false },
+        { error: 'candidateId and fileHandle are required', success: false },
         { status: 400 }
       );
     }
 
-    // Get candidate from database
-    const candidateResult = await supabase
-      .from('ashby_candidates')
-      .select('*')
-      .eq('ashby_id', candidateId)
-      .eq('user_id', user.id)
-      .single();
+    // Extract the actual file handle ID from the JSON object
+    let actualFileHandle: string;
+    if (typeof fileHandle === 'string') {
+      actualFileHandle = fileHandle;
+    } else if (typeof fileHandle === 'object' && fileHandle !== null) {
+      // Handle JSONB object from database - extract the file handle token
+      const fileHandleObj = fileHandle as { id?: string; fileHandle?: string; handle?: string };
+      actualFileHandle = fileHandleObj.handle || fileHandleObj.id || fileHandleObj.fileHandle || '';
+      if (!actualFileHandle) {
+        console.error('❌ Could not extract file handle from object:', fileHandle);
+        return NextResponse.json(
+          { error: 'Invalid file handle format', success: false },
+          { status: 400 }
+        );
+      }
+    } else {
+      console.error('❌ Invalid file handle type:', typeof fileHandle, fileHandle);
+      return NextResponse.json(
+        { error: 'Invalid file handle format', success: false },
+        { status: 400 }
+      );
+    }
 
-    if (candidateResult.error) {
+
+    // Get candidate from database (using service role - no RLS restrictions)
+    let candidate = null;
+    let candidateError = null;
+    let retries = 3;
+    
+    while (retries > 0 && !candidate) {
+      const { data, error } = await supabase
+        .from('ashby_candidates')
+        .select('*, user_id, unmask_applicant_id')
+        .eq('ashby_id', candidateId)
+        .maybeSingle(); // Use maybeSingle to avoid error on no rows
+
+      candidate = data;
+      candidateError = error;
+      
+      if (!candidate && retries > 1) {
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+      }
+      retries--;
+    }
+
+    if (candidateError || !candidate) {
+      console.error('Candidate not found after retries:', candidateError);
       return NextResponse.json(
         { error: 'Candidate not found', success: false },
         { status: 404 }
       );
     }
 
-    const candidate = candidateResult.data;
-    const resumeFileHandle = fileHandle || candidate.resume_file_handle?.handle || candidate.resume_file_handle;
+    const targetUserId = userId || candidate.user_id;
+    
+    // For shared_file mode, we need an applicant ID
+    if (mode !== 'file_only') {
+      const targetApplicantId = applicantId || candidate.unmask_applicant_id;
+      
+      if (!targetApplicantId) {
+        return NextResponse.json(
+          { error: 'Candidate not linked to applicant', success: false },
+          { status: 400 }
+        );
+      }
+    }
 
-    if (!resumeFileHandle) {
+    // Get user's API key from database
+    const { data: userData } = await supabase
+      .from('users')
+      .select('ashby_api_key')
+      .eq('id', targetUserId)
+      .single();
+
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    if (!apiKey) {
       return NextResponse.json(
-        { error: 'No resume file available for this candidate', success: false },
-        { status: 400 }
+        { error: 'Ashby integration not configured for user', success: false },
+        { status: 500 }
       );
     }
 
+    // Import AshbyClient dynamically
+    const AshbyClient = (await import('@/lib/ashby/client')).AshbyClient;
+    
     const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
+      apiKey: apiKey
     });
 
     // Get the download URL from Ashby
-    const fileResponse = await ashbyClient.getResumeUrl(resumeFileHandle);
+    const fileResponse = await ashbyClient.getResumeUrl(actualFileHandle);
 
     if (!fileResponse.success || !fileResponse.results?.url) {
       return NextResponse.json(
@@ -161,13 +147,13 @@ export async function POST(request: NextRequest) {
       extension = '.doc';
     }
 
-    // Create file path
+    // Create file path using the same pattern as form uploads
     const fileName = `${candidate.name.replace(/[^a-zA-Z0-9]/g, '_')}_resume_${candidateId}${extension}`;
-    const filePath = `ashby-cvs/${user.id}/${fileName}`;
+    const filePath = `${candidate.user_id}/${Date.now()}_${fileName}`;
 
     // Upload to Supabase Storage
     const uploadResult = await supabase.storage
-      .from('cv-files')
+      .from('candidate-cvs')
       .upload(filePath, fileBuffer, {
         contentType,
         cacheControl: '3600',
@@ -182,36 +168,100 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from('cv-files')
-      .getPublicUrl(filePath);
-
-    // Update candidate record with storage path
-    await supabase
-      .from('ashby_candidates')
-      .update({
-        cv_storage_path: filePath,
-        resume_url: publicUrlData.publicUrl,
-        updated_at: new Date().toISOString()
+    // Create file record in files table
+    const { data: fileRecord, error: fileError } = await supabase
+      .from('files')
+      .insert({
+        user_id: targetUserId,
+        file_type: 'cv',
+        original_filename: fileName,
+        storage_path: filePath,
+        storage_bucket: 'candidate-cvs',
+        file_size: fileBuffer.byteLength,
+        mime_type: contentType
       })
-      .eq('ashby_id', candidateId)
-      .eq('user_id', user.id);
+      .select()
+      .single();
+
+    if (fileError) {
+      console.error('Error creating file record:', fileError);
+      return NextResponse.json(
+        { error: 'Failed to create file record', success: false },
+        { status: 500 }
+      );
+    }
+
+    if (mode === 'shared_file') {
+      // Shared file mode: Update both ashby_candidate and applicant with same file reference
+      const targetApplicantId = applicantId || candidate.unmask_applicant_id;
+      
+      // Update ashby_candidates with the file reference
+      const { error: ashbyUpdateError } = await supabase
+        .from('ashby_candidates')
+        .update({
+          cv_file_id: fileRecord.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('ashby_id', candidateId);
+
+      if (ashbyUpdateError) {
+        console.error('Error updating ashby candidate:', ashbyUpdateError);
+      }
+
+      // Update applicant with the same file reference
+      if (targetApplicantId) {
+        const { error: updateError } = await supabase
+          .from('applicants')
+          .update({
+            cv_file_id: fileRecord.id,
+            cv_status: 'pending',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', targetApplicantId);
+
+        if (updateError) {
+          console.error('Error updating applicant:', updateError);
+          return NextResponse.json(
+            { error: 'Failed to update applicant', success: false },
+            { status: 500 }
+          );
+        }
+      }
+
+    } else {
+      // Legacy mode: Update existing applicant only
+      const targetApplicantId = applicantId || candidate.unmask_applicant_id;
+      const { error: updateError } = await supabase
+        .from('applicants')
+        .update({
+          cv_file_id: fileRecord.id,
+          cv_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', targetApplicantId);
+
+      if (updateError) {
+        console.error('Error updating applicant:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to update applicant', success: false },
+          { status: 500 }
+        );
+      }
+
+    }
+
 
     return NextResponse.json({
       success: true,
-      message: 'Resume successfully stored',
-      storagePath: filePath,
-      publicUrl: publicUrlData.publicUrl,
+      message: 'Resume successfully processed',
       fileName,
-      fileSize: fileBuffer.byteLength,
-      contentType
+      fileSize: fileBuffer.byteLength
     });
 
   } catch (error) {
-    console.error('Error storing CV:', error);
+    console.error('CV processing error:', error);
     return NextResponse.json(
-      { error: 'Failed to store CV', success: false },
+      { error: 'Failed to process CV', success: false },
       { status: 500 }
     );
   }

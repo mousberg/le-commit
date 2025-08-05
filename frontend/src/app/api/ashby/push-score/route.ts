@@ -5,9 +5,10 @@ import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
+import { getAshbyApiKey } from '@/lib/ashby/server';
 
 async function pushScoreToAshby(context: ApiHandlerContext) {
-  const { request, body: requestBody } = context;
+  const { body: requestBody } = context;
   const supabase = await createClient();
 
   try {
@@ -27,8 +28,15 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       );
     }
 
-    // Initialize Ashby client
-    if (!process.env.ASHBY_API_KEY) {
+    // Get user's API key from context (middleware provides authenticated user)
+    const { data: userData } = await supabase
+      .from('users')
+      .select('ashby_api_key')
+      .eq('id', context.user.id)
+      .single();
+
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    if (!apiKey) {
       return NextResponse.json(
         { error: 'Ashby integration not configured', success: false },
         { status: 500 }
@@ -36,7 +44,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
     }
 
     const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
+      apiKey: apiKey
     });
 
     let scoreToSend: number;
@@ -44,7 +52,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
 
     if (scoreOverride !== undefined) {
       // Use override score for testing
-      scoreToSend = scoreOverride;
+      scoreToSend = scoreOverride as number;
       
       // For testing with scoreOverride, ashbyObjectId must be provided
       if (!ashbyObjectId) {
@@ -53,7 +61,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
           { status: 400 }
         );
       }
-      finalAshbyObjectId = ashbyObjectId;
+      finalAshbyObjectId = ashbyObjectId as string;
     } else {
       // Get applicant data and linked Ashby information
       const applicantResult = await supabase
@@ -97,10 +105,10 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       // Determine the Ashby Object ID (Candidate-level for authenticity)
       if (ashbyObjectId) {
         // Use provided ID (manual override)
-        finalAshbyObjectId = ashbyObjectId;
+        finalAshbyObjectId = ashbyObjectId as string;
       } else {
         // Use Ashby Candidate ID for authenticity analysis
-        finalAshbyObjectId = ashby_candidates.ashby_id;
+        finalAshbyObjectId = ashby_candidates[0].ashby_id;
       }
     }
 
@@ -114,9 +122,9 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
 
     // Send score to Ashby using customField.setValue
     const ashbyResponse = await ashbyClient.setCustomFieldValue({
-      objectType: ashbyObjectType,
+      objectType: ashbyObjectType as "Application" | "Candidate",
       objectId: finalAshbyObjectId,
-      fieldId: customFieldId,
+      fieldId: customFieldId as string,
       fieldValue: scoreToSend
     });
 

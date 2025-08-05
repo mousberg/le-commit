@@ -9,7 +9,7 @@ import { useApplicants } from '@/lib/contexts/ApplicantContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useSharedUserProfile } from '@/lib/contexts/UserProfileContext';
 import { Button } from '@/components/ui/button';
-import { isAuthorizedForATS } from '@/lib/auth/ats-access';
+import { useAshbyAccess } from '@/lib/ashby/config';
 
 const ANIMATION_DURATION = {
     SIDEBAR: 500,
@@ -70,13 +70,13 @@ const BoardSidebarComponent = ({ isCollapsed, onToggle }: BoardSidebarProps) => 
   const searchParams = useSearchParams();
   const { applicants } = useApplicants();
   const { signOut } = useAuth();
-  const { displayName, displayInitial, authUser } = useSharedUserProfile();
+  const { displayName, displayInitial } = useSharedUserProfile();
   const [applicantsDropdownOpen, setApplicantsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
 
   const selectedApplicantId = searchParams.get('id');
-  const showATSTab = useMemo(() => isAuthorizedForATS(authUser?.email), [authUser?.email]);
+  const { hasAccess: showATSTab } = useAshbyAccess();
 
   const {
     getTextContainerStyle,

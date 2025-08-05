@@ -12,6 +12,7 @@ export interface AuthContext {
 
 export interface AuthMiddlewareOptions {
   requireAuth?: boolean;
+  requireATSAccess?: boolean; // Check if user has Ashby API key configured
   requireWorkspaceAccess?: {
     workspaceIdParam?: string;
     requiredRole?: 'admin' | 'owner';
@@ -96,6 +97,25 @@ export async function withAuth(
         },
         dbService
       };
+
+      // ATS access validation
+      if (options.requireATSAccess) {
+        const { checkUserAshbyAccess } = await import('@/lib/ashby/server');
+        
+        const hasATSAccess = await checkUserAshbyAccess(user.id);
+        if (!hasATSAccess) {
+          return {
+            context: null,
+            error: NextResponse.json(
+              { 
+                error: 'Access denied. ATS dashboard requires Ashby API key configuration.',
+                success: false 
+              },
+              { status: 403 }
+            )
+          };
+        }
+      }
 
       // Workspace access validation
       if (options.requireWorkspaceAccess) {

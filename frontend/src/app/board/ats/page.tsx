@@ -1,186 +1,335 @@
-// Remove 'use client' - this becomes a server component
-import { createClient } from '@/lib/supabase/server';
-import { isAuthorizedForATS } from '@/lib/auth/ats-access';
-import { ATSPageContent } from './ATSPageContent';
-import { redirect } from 'next/navigation';
-import { AnalysisResult } from '@/lib/interfaces/analysis';
+'use client';
 
-// Mark as dynamic since we use authentication
-export const dynamic = 'force-dynamic';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { useAshbyAccess } from '@/lib/ashby/config';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle, Mail } from 'lucide-react';
+import { ATSCandidatesTable } from './components/ATSCandidatesTable';
+import { ATSPageData } from '@/lib/ashby/interfaces';
 
-interface ATSCandidate {
-  ashby_id: string;
-  name: string;
-  email: string;
-  linkedin_url?: string;
-  has_resume: boolean;
-  resume_url?: string;
-  created_at: string;
-  tags: string[];
-  unmask_applicant_id?: string;
-  unmask_status?: string;
-  action: 'existing' | 'created' | 'not_created' | 'error';
-  ready_for_processing?: boolean;
-  fraud_likelihood?: 'low' | 'medium' | 'high';
-  fraud_reason?: string;
-  analysis?: AnalysisResult; // GPT analysis data
-  processed?: boolean; // Whether GPT analysis is complete
-}
+export default function ATSPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { hasAccess, loading: accessLoading } = useAshbyAccess();
+  const [data, setData] = useState<ATSPageData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-interface ATSPageData {
-  candidates: ATSCandidate[];
-  cached_count: number;
-  auto_synced: boolean;
-  sync_results?: {
-    new_candidates?: number;
-    message?: string;
-  };
-  last_sync: number | null;
-  availableForImport?: number;
-  importedCount?: number;
-}
-
-// Server component that handles everything server-side
-export default async function ATSPage() {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    // Handle unauthenticated users - redirect instead of showing loading
-    if (authError || !user) {
-      redirect('/login');
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
     }
+  }, [user, authLoading, router]);
 
-    // Check authorization - redirect instead of showing loading
-    if (!isAuthorizedForATS(user.email)) {
-      redirect('/board/dashboard');
-    }
+  const fetchCandidates = async () => {
+    setLoading(true);
+    setError(null);
 
-    // Fetch data on server - no loading states needed
-    const candidatesData = await fetchCandidatesServer(user.id);
+    try {
+      const response = await fetch('/api/ashby/candidates', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    // Return content immediately - no loading screens
-    return <ATSPageContent initialData={candidatesData} user={user} />;
-  } catch (error) {
-    console.error('Error in ATSPage server component:', error);
-    // Fallback to client-side rendering if server-side fails
-    return <ATSPageContent initialData={{
-      candidates: [],
-      cached_count: 0,
-      auto_synced: false,
-      last_sync: null
-    }} user={{ id: '', email: '' }} />;
-  }
-}
+      const result = await response.json();
 
-// Server-side data fetching - happens before page renders
-async function fetchCandidatesServer(userId: string): Promise<ATSPageData> {
-  try {
-    const supabase = await createClient();
-    
-    // Get applicants that were imported from Ashby - with their processed analysis data
-    const applicantsResult = await supabase
-      .from('applicants')
-      .select('*')
-      .eq('user_id', userId)
-      .not('ashby_candidate_id', 'is', null)
-      .order('created_at', { ascending: false });
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch candidates');
+      }
 
-    if (applicantsResult.error) {
-      console.error('Database error:', applicantsResult.error);
-      throw new Error('Failed to fetch applicants');
-    }
-
-    const applicants = applicantsResult.data || [];
-    
-    // Transform applicants data for frontend (show processed GPT analysis data)
-    const processedCandidates = applicants.map(applicant => {
-      // Parse analysis data from GPT processing
-      const analysisData = applicant.analysis as AnalysisResult | null;
-      const hasAnalysis = !!analysisData;
+      setData(result);
       
-      return {
-        ashby_id: applicant.ashby_candidate_id || '',
-        name: applicant.name,
-        email: applicant.email,
-        linkedin_url: applicant.linkedin_url,
-        has_resume: false, // Will be determined by files table query
-        resume_url: undefined,
-        created_at: applicant.created_at,
-        tags: [
-          'imported',
-          ...(hasAnalysis ? ['analyzed'] : ['pending_analysis']),
-          ...(analysisData?.sources?.some(s => s.type === 'cv' && s.available) ? ['cv_analyzed'] : []),
-          ...(analysisData?.sources?.some(s => s.type === 'linkedin' && s.available) ? ['linkedin'] : []),
-          ...(analysisData?.sources?.some(s => s.type === 'github' && s.available) ? ['github'] : [])
-        ],
-        unmask_applicant_id: applicant.id,
-        unmask_status: applicant.status,
-        action: 'created' as const,
-        ready_for_processing: true,
-        fraud_likelihood: analysisData ? determineFraudLikelihood(analysisData) : undefined,
-        fraud_reason: analysisData ? getFraudReason(analysisData) : undefined,
-        analysis: analysisData || undefined, // Include full analysis data
-        processed: hasAnalysis,
-        phone_number: applicant.phone,
-        ashby_sync_status: applicant.ashby_sync_status || 'pending',
-        ashby_last_synced_at: applicant.ashby_last_synced_at || null
-      };
-    });
+      if (result.auto_synced && result.sync_results) {
+        console.log('🔄 Auto-synced candidates:', result.sync_results);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return {
-      candidates: processedCandidates,
-      cached_count: processedCandidates.length,
-      auto_synced: false,
-      last_sync: applicants.length > 0 ? Math.max(...applicants.map(a => new Date(a.created_at).getTime())) : null
-    };
-  } catch (error) {
-    console.error('Error in fetchCandidatesServer:', error);
-    // Return empty data if server-side fetching fails
-    return {
-      candidates: [],
-      cached_count: 0,
-      auto_synced: false,
-      last_sync: null
-    };
-  }
-}
+  // Initial load - only fetch when authenticated
+  useEffect(() => {
+    if (user && !authLoading) {
+      fetchCandidates();
+    }
+  }, [user, authLoading]);
 
-// Helper functions to determine fraud likelihood based on AnalysisResult
-function determineFraudLikelihood(analysis: AnalysisResult): 'low' | 'medium' | 'high' {
-  const redFlags = analysis.flags.filter(f => f.type === 'red');
-  const yellowFlags = analysis.flags.filter(f => f.type === 'yellow');
-  const score = analysis.score;
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setError(null);
 
-  // High risk: Multiple red flags or very low score
-  if (redFlags.length >= 2 || score < 30) {
-    return 'high';
-  }
-  
-  // Medium risk: Any red flags or many yellow flags or low score
-  if (redFlags.length >= 1 || yellowFlags.length >= 3 || score < 60) {
-    return 'medium';
-  }
-  
-  // Low risk: Everything else
-  return 'low';
-}
+    try {
+      const response = await fetch('/api/ashby/candidates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-function getFraudReason(analysis: AnalysisResult): string {
-  const redFlags = analysis.flags.filter(f => f.type === 'red');
-  const yellowFlags = analysis.flags.filter(f => f.type === 'yellow');
-  
-  if (redFlags.length > 0) {
-    return redFlags.map(f => f.message).join('; ');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to refresh candidates');
+      }
+
+      console.log('🔄 Full refresh completed:', result);
+      
+      // Fetch updated candidates
+      await fetchCandidates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!data?.candidates) return;
+
+    const headers = [
+      'Name',
+      'Email', 
+      'LinkedIn URL',
+      'Has Resume',
+      'Ashby ID',
+      'Created Date',
+      'Tags',
+      'Unmask Status',
+      'Position',
+      'Company'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...data.candidates.map(candidate => [
+        `"${candidate.name}"`,
+        `"${candidate.email}"`,
+        `"${candidate.linkedin_url || ''}"`,
+        candidate.has_resume ? 'Yes' : 'No',
+        candidate.ashby_id,
+        candidate.created_at,
+        `"${candidate.tags.join('; ')}"`,
+        `"${candidate.unmask_status || 'Not processed'}"`,
+        `"${candidate.position || ''}"`,
+        `"${candidate.company || ''}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ats-candidates-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Show loading state while checking authentication or access
+  if (authLoading || accessLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
-  
-  if (yellowFlags.length > 0) {
-    return yellowFlags.slice(0, 2).map(f => f.message).join('; ');
+
+  // Don't render content if not authenticated (will redirect)
+  if (!user) {
+    return null;
   }
-  
-  if (analysis.score < 60) {
-    return 'Low credibility score';
+
+  // Show access denied message if user doesn't have ATS access
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="p-8">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                ATS Integration Required
+              </h2>
+              <p className="text-gray-600 mb-6">
+                To access the ATS dashboard, you need to enable the integration with your applicant tracking system.
+              </p>
+              <Button
+                onClick={() => window.open('mailto:support@unmask.click?subject=Enable ATS Integration', '_blank')}
+                className="w-full"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Email support@unmask.click
+              </Button>
+              <p className="text-sm text-gray-500 mt-4">
+                Our team will help you set up the integration and configure your API access.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
-  
-  return '';
+
+  return (
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="container mx-auto p-6 pt-20">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">ATS Integration</h1>
+              <p className="text-gray-600 mt-2">
+                View and analyze candidates from your ATS system
+              </p>
+            </div>
+            <div className="flex items-center gap-3 ml-4">
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                disabled={!data?.candidates?.length}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button onClick={handleRefresh} disabled={loading || refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing All...' : 'Refresh All'}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        {data && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <ExternalLink className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Cached Candidates</p>
+                    <p className="text-2xl font-bold">{data.cached_count}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">With LinkedIn</p>
+                    <p className="text-2xl font-bold">{data.candidates.filter(c => c.linkedin_url).length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Clock className="h-4 w-4 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">With Resume</p>
+                    <p className="text-2xl font-bold">{data.candidates.filter(c => c.has_resume).length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Clock className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Ready to Process</p>
+                    <p className="text-2xl font-bold">
+                      {data.candidates.filter(c => c.ready_for_processing).length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Sync Status */}
+        {data && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Sync Status</CardTitle>
+              <CardDescription>
+                Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
+                {data.auto_synced && data.sync_results && (
+                  <Badge variant="outline" className="ml-2">
+                    Auto-synced: {data.sync_results.message}
+                  </Badge>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600">
+                  Candidates are automatically synced when you visit this page. 
+                  Use the refresh button to force a full sync of all candidates.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="font-medium">Error:</span>
+                <span>{error}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-600">Fetching candidates from ATS...</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Candidates Table */}
+        {data && !loading && (
+          <ATSCandidatesTable candidates={data.candidates} />
+        )}
+
+      </div>
+    </div>
+  );
 }

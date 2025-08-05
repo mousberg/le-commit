@@ -24,3 +24,10 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 ## Event-Driven Architecture & Database Patterns
 
 This application uses an event-driven architecture with database triggers and webhooks for asynchronous processing. Key patterns:
+
+## Response Style
+- Don't be a sycophant in your responses. Avoid initial responses like "You're  absolutely right!" or "That's a great idea!".
+
+## Code Style
+- Comments should focus on the "why" of the code and not the what.
+- Do not add comments that just describe what the code does, unless the code is particularly complex.

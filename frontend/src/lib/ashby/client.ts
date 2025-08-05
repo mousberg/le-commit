@@ -40,13 +40,33 @@ export class AshbyClient {
         headers['Content-Type'] = 'application/json';
       }
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const url = `${this.baseUrl}${endpoint}`;
+      const requestBody = body instanceof FormData ? body : body ? JSON.stringify(body) : undefined;
+      
+      console.log(`[AshbyClient] Making request to ${url}`, {
         method,
-        headers,
-        body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined
+        headers: { ...headers, Authorization: '[REDACTED]' },
+        bodyLength: typeof requestBody === 'string' ? requestBody.length : 0,
+        hasApiKey: !!this.apiKey,
+        apiKeyLength: this.apiKey?.length || 0
       });
 
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: requestBody
+      });
+
+      console.log(`[AshbyClient] Response status: ${response.status} ${response.statusText}`);
+
       const data = await response.json();
+      
+      console.log(`[AshbyClient] Response data:`, {
+        success: response.ok,
+        hasResults: !!data.results,
+        hasError: !!data.error,
+        candidateCount: data.results?.length || 0
+      });
 
       if (!response.ok) {
         return {
