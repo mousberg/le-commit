@@ -1,8 +1,8 @@
 'use client';
 
 import { Trash2, Check, RefreshCw } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
-import { useApplicants } from '../../../lib/contexts/ApplicantContext';
+import { Button } from '@/components/ui/button';
+import { useApplicants } from '@/lib/contexts/ApplicantContext';
 import { useState } from 'react';
 
 interface ApplicantSidebarProps {

@@ -5,11 +5,11 @@ import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { LayoutDashboard, Users, Plus, ChevronDown, Settings, Check, Search, LogOut, User, Shield, Database, CreditCard, Building2 } from 'lucide-react';
-import { useApplicants } from '../lib/contexts/ApplicantContext';
-import { useAuth } from '../lib/contexts/AuthContext';
-import { useSharedUserProfile } from '../lib/contexts/UserProfileContext';
-import { Button } from './ui/button';
-import { isAuthorizedForATS } from '../lib/auth/ats-access';
+import { useApplicants } from '@/lib/contexts/ApplicantContext';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { useSharedUserProfile } from '@/lib/contexts/UserProfileContext';
+import { Button } from '@/components/ui/button';
+import { isAuthorizedForATS } from '@/lib/auth/ats-access';
 
 const ANIMATION_DURATION = {
     SIDEBAR: 500,

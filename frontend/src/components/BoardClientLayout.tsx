@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import BoardSidebar from './BoardSidebar';
-import { ApplicantProvider } from '../lib/contexts/ApplicantContext';
+import BoardSidebar from '@/components/BoardSidebar';
+import { ApplicantProvider } from '@/lib/contexts/ApplicantContext';
 
 interface BoardClientLayoutProps {
   children: React.ReactNode;

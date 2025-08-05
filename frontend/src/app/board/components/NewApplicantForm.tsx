@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Button } from '../../../components/ui/button';
-import { useApplicants } from '../../../lib/contexts/ApplicantContext';
+import { Button } from '@/components/ui/button';
+import { useApplicants } from '@/lib/contexts/ApplicantContext';
 
 interface NewApplicantFormProps {
   onSuccess?: (applicantId: string) => void;

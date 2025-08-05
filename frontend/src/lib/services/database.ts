@@ -1,10 +1,10 @@
 // Simplified Database Service - No Workspaces, Just Users → Applicants
 
-import { DatabaseClient } from '../supabase/database';
-import { TABLES } from '../supabase/database';
-import { Applicant } from '../interfaces/applicant';
-import { User, CreateApplicantData, UpdateApplicantData } from '../interfaces/database';
-import { withRetry, safeExecute, safeExecuteOptional, safeExecuteArray } from '../supabase/errors';
+import { DatabaseClient } from '@/lib/supabase/database';
+import { TABLES } from '@/lib/supabase/database';
+import { Applicant } from '@/lib/interfaces/applicant';
+import { User, CreateApplicantData, UpdateApplicantData } from '@/lib/interfaces/database';
+import { withRetry, safeExecute, safeExecuteOptional, safeExecuteArray } from '@/lib/supabase/errors';
 
 class SimpleSupabaseDatabaseService {
   private dbClient: DatabaseClient;

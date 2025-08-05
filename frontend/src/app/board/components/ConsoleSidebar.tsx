@@ -2,8 +2,8 @@
 
 import { Trash2, LayoutDashboard, Users, Settings, CreditCard, Cog, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
-import { Button } from '../../../components/ui/button';
-import { useApplicants } from '../../../lib/contexts/ApplicantContext';
+import { Button } from '@/components/ui/button';
+import { useApplicants } from '@/lib/contexts/ApplicantContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
