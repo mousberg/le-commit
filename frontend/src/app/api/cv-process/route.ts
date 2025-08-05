@@ -5,6 +5,14 @@ import { CvData } from '@/lib/interfaces/cv';
 
 export async function POST(request: Request) {
   try {
+    const contentLength = request.headers.get('content-length');
+    if (!contentLength || contentLength === '0') {
+      return NextResponse.json(
+        { error: 'Empty request body' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { applicant_id, file_id } = body;
 
@@ -32,6 +40,21 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Applicant not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if already processing or completed
+    if (applicant.cv_status === 'processing') {
+      return NextResponse.json(
+        { success: false, error: 'CV processing already in progress', applicant_id },
+        { status: 409 }
+      );
+    }
+
+    if (applicant.cv_status === 'ready') {
+      return NextResponse.json(
+        { success: true, applicant_id, cv_data: applicant.cv_data },
+        { status: 200 }
       );
     }
 
