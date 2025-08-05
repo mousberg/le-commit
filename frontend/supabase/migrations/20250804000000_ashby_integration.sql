@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS public.ashby_candidates (
   timezone text,
   profile_url text, -- Ashby profile URL
   unmask_applicant_id uuid REFERENCES public.applicants(id) ON DELETE SET NULL,
+  cv_file_id uuid REFERENCES public.files(id) ON DELETE SET NULL, -- Shared reference to same file as applicants
   
   -- Cache metadata
   last_synced_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -105,6 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_ashby_candidates_phone_numbers ON public.ashby_ca
 CREATE INDEX IF NOT EXISTS idx_ashby_candidates_unmask_applicant_id ON public.ashby_candidates(unmask_applicant_id);
 CREATE INDEX IF NOT EXISTS idx_ashby_candidates_source_title ON public.ashby_candidates(source_title);
 CREATE INDEX IF NOT EXISTS idx_ashby_candidates_credited_to_name ON public.ashby_candidates(credited_to_name);
+CREATE INDEX IF NOT EXISTS idx_ashby_candidates_cv_file_id ON public.ashby_candidates(cv_file_id);
 
 -- =============================================================================
 -- ASHBY TRIGGERS
@@ -130,13 +132,15 @@ CREATE POLICY "Users can manage own Ashby candidates" ON public.ashby_candidates
 -- ASHBY INTEGRATION FUNCTIONS
 -- =============================================================================
 
--- Function to sync ashby_candidates to applicants table
+-- Function to handle Ashby candidate synchronization with shared file references
 CREATE OR REPLACE FUNCTION public.sync_ashby_candidate_to_applicant()
 RETURNS trigger AS $$
+DECLARE
+  applicant_id uuid;
 BEGIN
   -- Check if this ashby candidate is already linked to an applicant
   IF NEW.unmask_applicant_id IS NOT NULL THEN
-    -- Update existing linked applicant
+    -- Update existing linked applicant (keep same cv_file_id if it exists)
     UPDATE public.applicants
     SET
       name = NEW.name,
@@ -145,10 +149,11 @@ BEGIN
       linkedin_url = NEW.linkedin_url,
       github_url = NEW.github_url,
       source = 'ashby',
+      cv_file_id = COALESCE(NEW.cv_file_id, cv_file_id), -- Use shared file if available
       updated_at = now()
     WHERE id = NEW.unmask_applicant_id;
   ELSE
-    -- Insert new applicant and link it
+    -- Insert new applicant with shared file reference
     INSERT INTO public.applicants (
       user_id,
       name,
@@ -157,6 +162,7 @@ BEGIN
       linkedin_url,
       github_url,
       source,
+      cv_file_id,
       cv_status,
       li_status,
       gh_status,
@@ -171,34 +177,33 @@ BEGIN
       NEW.linkedin_url,
       NEW.github_url,
       'ashby',
-      CASE WHEN NEW.resume_file_handle IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
+      NEW.cv_file_id, -- Use the same file reference
+      CASE 
+        WHEN NEW.cv_file_id IS NOT NULL THEN 'pending'::processing_status 
+        WHEN NEW.resume_file_handle IS NOT NULL THEN 'pending'::processing_status 
+        ELSE 'not_provided'::processing_status 
+      END,
       CASE WHEN NEW.linkedin_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
       CASE WHEN NEW.github_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
       'pending'::processing_status,
       COALESCE(NEW.ashby_created_at, now()),
       now()
-    );
+    ) RETURNING id INTO applicant_id;
     
     -- Update the ashby_candidates record with the new applicant ID
     UPDATE public.ashby_candidates
-    SET unmask_applicant_id = (
-      SELECT id FROM public.applicants 
-      WHERE user_id = NEW.user_id
-      AND name = NEW.name
-      AND email = NEW.email
-      AND source = 'ashby'
-      ORDER BY created_at DESC
-      LIMIT 1
-    )
+    SET unmask_applicant_id = applicant_id
     WHERE id = NEW.id;
     
-    -- Trigger CV download if resume_file_handle exists
-    IF NEW.resume_file_handle IS NOT NULL THEN
+    -- If there's a resume file handle but no cv_file_id yet, trigger download
+    IF NEW.resume_file_handle IS NOT NULL AND NEW.cv_file_id IS NULL THEN
       PERFORM net.http_post(
         url => 'http://host.docker.internal:3000/api/ashby/files',
         body => jsonb_build_object(
           'candidateId', NEW.ashby_id,
-          'fileHandle', NEW.resume_file_handle
+          'fileHandle', NEW.resume_file_handle,
+          'applicantId', applicant_id,
+          'mode', 'shared_file'
         ),
         headers => '{"Content-Type": "application/json"}'::jsonb,
         timeout_milliseconds => 10000
@@ -291,4 +296,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 COMMENT ON TABLE public.ashby_candidates IS 'Cache of candidates from Ashby ATS integration';
 COMMENT ON COLUMN public.applicants.source IS 'Source system where the applicant was created (manual, ashby, etc)';
 COMMENT ON COLUMN public.ashby_candidates.unmask_applicant_id IS 'Links to applicants table for synchronized records';
+COMMENT ON COLUMN public.ashby_candidates.cv_file_id IS 'Shared reference to the same file record as applicants table';
 COMMENT ON COLUMN public.ashby_candidates.github_url IS 'GitHub profile URL for the candidate';
+COMMENT ON FUNCTION public.sync_ashby_candidate_to_applicant() IS 'Syncs Ashby candidates to applicants table with shared file references';
