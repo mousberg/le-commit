@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Supabase Storage
     const uploadResult = await supabase.storage
-      .from('cv-files')
+      .from('candidate-cvs')
       .upload(filePath, fileBuffer, {
         contentType,
         cacheControl: '3600',
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         file_type: 'cv',
         original_filename: fileName,
         storage_path: filePath,
-        storage_bucket: 'cv-files',
+        storage_bucket: 'candidate-cvs',
         file_size: fileBuffer.byteLength,
         mime_type: contentType
       })
