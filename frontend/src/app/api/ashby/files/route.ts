@@ -72,13 +72,40 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+    
+    // Try to get authenticated user first (for regular API calls)
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-
+    
+    let currentUser = user;
+    
+    // If no authenticated user, this might be a webhook call - get user from candidate data
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
+      const body = await request.json();
+      const { candidateId } = body;
+      
+      if (!candidateId) {
+        return NextResponse.json(
+          { error: 'Authentication required or candidateId missing', success: false },
+          { status: 401 }
+        );
+      }
+      
+      // Get user_id from the ashby_candidates table
+      const { data: candidateData, error: candidateError } = await supabase
+        .from('ashby_candidates')
+        .select('user_id')
+        .eq('ashby_id', candidateId)
+        .single();
+        
+      if (candidateError || !candidateData) {
+        return NextResponse.json(
+          { error: 'Candidate not found', success: false },
+          { status: 404 }
+        );
+      }
+      
+      // Set currentUser to the candidate's user
+      currentUser = { id: candidateData.user_id };
     }
 
     if (!process.env.ASHBY_API_KEY) {

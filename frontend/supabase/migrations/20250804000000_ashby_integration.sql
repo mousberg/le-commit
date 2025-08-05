@@ -191,6 +191,19 @@ BEGIN
       LIMIT 1
     )
     WHERE id = NEW.id;
+    
+    -- Trigger CV download if resume_file_handle exists
+    IF NEW.resume_file_handle IS NOT NULL THEN
+      PERFORM net.http_post(
+        url => 'http://host.docker.internal:3000/api/ashby/files/webhook',
+        body => jsonb_build_object(
+          'candidateId', NEW.ashby_id,
+          'fileHandle', NEW.resume_file_handle
+        ),
+        headers => '{"Content-Type": "application/json"}'::jsonb,
+        timeout_milliseconds => 10000
+      );
+    END IF;
   END IF;
   
   RETURN NEW;

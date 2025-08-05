@@ -429,6 +429,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
 // Export route handlers
 export const GET = withApiMiddleware(getCandidatesHandler, {
   requireAuth: true,
+  requireATSAccess: true, // Add ATS access check
   enableCors: true,
   enableLogging: true,
   rateLimit: { 
@@ -439,6 +440,7 @@ export const GET = withApiMiddleware(getCandidatesHandler, {
 
 export const POST = withApiMiddleware(refreshCandidatesHandler, {
   requireAuth: true,
+  requireATSAccess: true, // Add ATS access check
   enableCors: true,
   enableLogging: true,
   rateLimit: { 

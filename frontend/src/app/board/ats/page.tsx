@@ -3,16 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useAshbyAccess } from '@/lib/ashby/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle, Mail } from 'lucide-react';
 import { ATSCandidatesTable } from './components/ATSCandidatesTable';
 import { ATSPageData } from '@/lib/ashby/interfaces';
 
 export default function ATSPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { hasAccess, loading: accessLoading } = useAshbyAccess();
   const [data, setData] = useState<ATSPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,8 +134,8 @@ export default function ATSPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  // Show loading state while checking authentication
-  if (authLoading) {
+  // Show loading state while checking authentication or access
+  if (authLoading || accessLoading) {
     return (
       <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
         <div className="text-center">
@@ -147,6 +149,39 @@ export default function ATSPage() {
   // Don't render content if not authenticated (will redirect)
   if (!user) {
     return null;
+  }
+
+  // Show access denied message if user doesn't have ATS access
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="p-8">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                ATS Integration Required
+              </h2>
+              <p className="text-gray-600 mb-6">
+                To access the ATS dashboard, you need to enable the integration with your applicant tracking system.
+              </p>
+              <Button
+                onClick={() => window.open('mailto:support@unmask.click?subject=Enable ATS Integration', '_blank')}
+                className="w-full"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Email support@unmask.click
+              </Button>
+              <p className="text-sm text-gray-500 mt-4">
+                Our team will help you set up the integration and configure your API access.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
