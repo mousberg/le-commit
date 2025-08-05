@@ -65,7 +65,7 @@ export class AshbyClient {
         success: response.ok,
         hasResults: !!data.results,
         hasError: !!data.error,
-        candidateCount: data.results?.candidates?.length || 0
+        candidateCount: data.results?.length || 0
       });
 
       if (!response.ok) {

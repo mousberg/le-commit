@@ -6,7 +6,7 @@ import { AshbyClient } from '@/lib/ashby/client';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
 async function createNoteHandler(context: ApiHandlerContext) {
-  const { request, body: requestBody } = context;
+  const { body: requestBody } = context;
 
   try {
     const body = requestBody as Record<string, unknown>;

@@ -6,36 +6,9 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, AlertTriangle, CheckCircle, Clock, ExternalLink } from 'lucide-react';
+import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
 import { ATSCandidatesTable } from './components/ATSCandidatesTable';
-
-interface ATSCandidate {
-  ashby_id: string;
-  name: string;
-  email: string;
-  linkedin_url?: string;
-  has_resume: boolean;
-  resume_url?: string;
-  created_at: string;
-  tags: string[];
-  unmask_applicant_id?: string;
-  unmask_status?: string;
-  action: 'existing' | 'created' | 'not_created' | 'error';
-  ready_for_processing?: boolean;
-  fraud_likelihood?: 'low' | 'medium' | 'high';
-  fraud_reason?: string;
-}
-
-interface ATSPageData {
-  candidates: ATSCandidate[];
-  cached_count: number;
-  auto_synced: boolean;
-  sync_results?: {
-    new_candidates?: number;
-    message?: string;
-  };
-  last_sync: number | null;
-}
+import { ATSPageData } from '@/lib/ashby/interfaces';
 
 export default function ATSPage() {
   const router = useRouter();
@@ -130,8 +103,8 @@ export default function ATSPage() {
       'Created Date',
       'Tags',
       'Unmask Status',
-      'Fraud Likelihood',
-      'Fraud Reason'
+      'Position',
+      'Company'
     ];
 
     const csvContent = [
@@ -145,8 +118,8 @@ export default function ATSPage() {
         candidate.created_at,
         `"${candidate.tags.join('; ')}"`,
         `"${candidate.unmask_status || 'Not processed'}"`,
-        `"${candidate.fraud_likelihood || 'Not assessed'}"`,
-        `"${candidate.fraud_reason || ''}"`
+        `"${candidate.position || ''}"`,
+        `"${candidate.company || ''}"`
       ].join(','))
     ].join('\n');
 
@@ -254,12 +227,12 @@ export default function ATSPage() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <AlertTriangle className="h-4 w-4 text-purple-600" />
+                    <Clock className="h-4 w-4 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">High Risk</p>
+                    <p className="text-sm text-gray-600">Ready to Process</p>
                     <p className="text-2xl font-bold">
-                      {data.candidates.filter(c => c.fraud_likelihood === 'high').length}
+                      {data.candidates.filter(c => c.ready_for_processing).length}
                     </p>
                   </div>
                 </div>

@@ -1,26 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, FileText, ExternalLink, Mail, Calendar, Tag, Shield, ShieldAlert, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { X, FileText, ExternalLink, Mail, Calendar, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-interface ATSCandidate {
-  ashby_id: string;
-  name: string;
-  email: string;
-  linkedin_url?: string;
-  has_resume: boolean;
-  resume_url?: string;
-  created_at: string;
-  tags: string[];
-  unmask_applicant_id?: string;
-  unmask_status?: string;
-  action: 'existing' | 'created' | 'not_created' | 'error';
-  ready_for_processing?: boolean;
-  fraud_likelihood?: 'low' | 'medium' | 'high';
-  fraud_reason?: string;
-}
+import { ATSCandidate } from '@/lib/ashby/interfaces';
 
 interface ATSCandidateDetailsTrayProps {
   candidate: ATSCandidate | null;
@@ -49,18 +33,7 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
 
   if (!mounted) return null;
 
-  const getFraudLikelihoodBadge = (likelihood?: string) => {
-    switch (likelihood) {
-      case 'high':
-        return <Badge variant="destructive" className="gap-1"><ShieldAlert className="h-3 w-3" />High Risk</Badge>;
-      case 'medium':
-        return <Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" />Medium Risk</Badge>;
-      case 'low':
-        return <Badge variant="outline" className="gap-1"><ShieldCheck className="h-3 w-3" />Low Risk</Badge>;
-      default:
-        return <Badge variant="outline" className="gap-1">Not Assessed</Badge>;
-    }
-  };
+  // Fraud analysis not available yet - removed for now
 
   const getStatusBadge = (status?: string, action?: string) => {
     if (action === 'error') {
@@ -116,7 +89,6 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                 <h2 className="text-2xl font-semibold text-gray-900">{candidate.name}</h2>
                 <div className="flex items-center gap-3 mt-2">
                   {getStatusBadge(candidate.unmask_status, candidate.action)}
-                  {getFraudLikelihoodBadge(candidate.fraud_likelihood)}
                 </div>
               </div>
               <button
@@ -196,25 +168,32 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                   </div>
                 </div>
 
-                {/* Fraud Analysis */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-900 mb-3">Fraud Risk Analysis</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Risk Level</span>
-                      {getFraudLikelihoodBadge(candidate.fraud_likelihood)}
-                    </div>
-                    {candidate.fraud_reason && (
-                      <div>
-                        <span className="text-sm text-gray-600 block mb-1">Risk Reason</span>
-                        <div className="flex items-start gap-2 p-3 bg-white rounded-lg border border-gray-200">
-                          <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-gray-700">{candidate.fraud_reason}</span>
+                {/* Professional Information */}
+                {(candidate.position || candidate.company || candidate.school) && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-3">Professional Information</h3>
+                    <div className="space-y-2">
+                      {candidate.position && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Position</span>
+                          <span className="text-gray-900">{candidate.position}</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {candidate.company && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Company</span>
+                          <span className="text-gray-900">{candidate.company}</span>
+                        </div>
+                      )}
+                      {candidate.school && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">School</span>
+                          <span className="text-gray-900">{candidate.school}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Processing Status */}
                 <div className="bg-gray-50 rounded-lg p-4">

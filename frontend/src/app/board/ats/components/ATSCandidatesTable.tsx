@@ -10,45 +10,12 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Clock,
-  User,
-  Shield,
-  ShieldAlert,
-  ShieldCheck
+  User
 } from 'lucide-react';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
+import { ATSCandidate } from '@/lib/ashby/interfaces';
 
-interface ATSCandidate {
-  ashby_id: string;
-  name: string;
-  email: string;
-  phone_number?: string;
-  all_emails?: Array<{value: string; type: string; isPrimary: boolean}>;
-  all_phone_numbers?: Array<{value: string; type: string; isPrimary: boolean}>;
-  social_links?: Array<{type: string; url: string}>;
-  linkedin_url?: string;
-  github_url?: string;
-  position?: string;
-  company?: string;
-  school?: string;
-  location_summary?: string;
-  location_details?: Record<string, unknown>;
-  timezone?: string;
-  source_info?: Record<string, unknown>;
-  profile_url?: string;
-  has_resume: boolean;
-  resume_file_handle?: string;
-  resume_url?: string;
-  all_file_handles?: Array<Record<string, unknown>>;
-  created_at: string;
-  tags: string[];
-  unmask_applicant_id?: string;
-  unmask_status?: string;
-  action: 'existing' | 'created' | 'not_created' | 'error';
-  ready_for_processing?: boolean;
-  fraud_likelihood?: 'low' | 'medium' | 'high';
-  fraud_reason?: string;
-  last_synced_at?: string;
-}
+import { ATSCandidate } from '@/lib/ashby/interfaces';
 
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
@@ -88,18 +55,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     );
   };
 
-  const getFraudLikelihoodBadge = (likelihood?: string) => {
-    switch (likelihood) {
-      case 'high':
-        return <Badge variant="destructive" className="gap-1"><ShieldAlert className="h-3 w-3" />High Risk</Badge>;
-      case 'medium':
-        return <Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" />Medium Risk</Badge>;
-      case 'low':
-        return <Badge variant="outline" className="gap-1"><ShieldCheck className="h-3 w-3" />Low Risk</Badge>;
-      default:
-        return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" />Not Assessed</Badge>;
-    }
-  };
+  // Fraud analysis not available yet - removed for now
 
   const getStatusBadge = (status?: string, action?: string) => {
     if (action === 'error') {
@@ -208,8 +164,8 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                 <th className="text-left p-3 font-medium text-gray-900">CV</th>
                 <th className="text-left p-3 font-medium text-gray-900">LinkedIn</th>
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
-                <th className="text-left p-3 font-medium text-gray-900">Fraud Risk</th>
-                <th className="text-left p-3 font-medium text-gray-900 w-2/5">Fraud Reason</th>
+                <th className="text-left p-3 font-medium text-gray-900">Position</th>
+                <th className="text-left p-3 font-medium text-gray-900">Company</th>
               </tr>
             </thead>
             <tbody>
@@ -235,13 +191,16 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                       {candidate.email && (
                         <div className="text-sm text-gray-500">{candidate.email}</div>
                       )}
+                      {candidate.location_summary && (
+                        <div className="text-xs text-gray-400">{candidate.location_summary}</div>
+                      )}
                     </div>
                   </td>
 
                   {/* CV */}
                   <td className="p-3">
                     <div className="flex gap-1">
-                      {candidate.has_resume && candidate.resume_file_handle ? (
+                      {candidate.has_resume && (candidate.resume_file_handle || candidate.resume_url) ? (
                         <button
                           onClick={async (e) => {
                             e.stopPropagation(); // Prevent row click
@@ -305,23 +264,18 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     {getStatusBadge(candidate.unmask_status, candidate.action)}
                   </td>
 
-                  {/* Fraud Risk */}
+                  {/* Position */}
                   <td className="p-3">
-                    {getFraudLikelihoodBadge(candidate.fraud_likelihood)}
+                    <span className="text-sm text-gray-900">
+                      {candidate.position || '-'}
+                    </span>
                   </td>
 
-                  {/* Fraud Reason */}
+                  {/* Company */}
                   <td className="p-3">
-                    <div className="text-sm text-gray-900">
-                      {candidate.fraud_reason ? (
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                          <span>{candidate.fraud_reason}</span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">No issues detected</span>
-                      )}
-                    </div>
+                    <span className="text-sm text-gray-900">
+                      {candidate.company || '-'}
+                    </span>
                   </td>
 
                 </tr>

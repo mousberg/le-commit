@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
 async function pushScoreToAshby(context: ApiHandlerContext) {
-  const { request, body: requestBody } = context;
+  const { body: requestBody } = context;
   const supabase = await createClient();
 
   try {
