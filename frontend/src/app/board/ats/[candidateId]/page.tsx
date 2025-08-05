@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { useAshbyAccess } from '@/lib/ashby/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +17,8 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 
 interface CandidateDetail {
@@ -38,14 +41,28 @@ interface CandidateDetail {
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { hasAccess, loading: accessLoading } = useAshbyAccess();
   const candidateId = params.candidateId as string;
   
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
   useEffect(() => {
     const fetchCandidate = async () => {
+      // Don't fetch if not authenticated or no access
+      if (!user || !hasAccess) {
+        return;
+      }
+
       try {
         // For now, we'll simulate fetching candidate details
         // In a real implementation, you'd fetch from your API
@@ -74,8 +91,10 @@ export default function CandidateDetailPage() {
       }
     };
 
-    fetchCandidate();
-  }, [candidateId]);
+    if (user && hasAccess && !accessLoading) {
+      fetchCandidate();
+    }
+  }, [candidateId, user, hasAccess, accessLoading]);
 
   const getFraudRiskColor = (likelihood?: string) => {
     switch (likelihood) {
@@ -95,10 +114,60 @@ export default function CandidateDetailPage() {
     }
   };
 
+  // Show loading state while checking authentication or access
+  if (authLoading || accessLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
+
+  // Show access denied message if user doesn't have ATS access
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="p-8">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                ATS Integration Required
+              </h2>
+              <p className="text-gray-600 mb-6">
+                To access the ATS dashboard, you need to enable the integration with your applicant tracking system.
+              </p>
+              <Button
+                onClick={() => window.open('mailto:support@unmask.click?subject=Enable ATS Integration', '_blank')}
+                className="w-full"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Email support@unmask.click
+              </Button>
+              <p className="text-sm text-gray-500 mt-4">
+                Our team will help you set up the integration and configure your API access.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50/50">
-        <div className="container mx-auto p-6">
+        <div className="container mx-auto p-6 pt-20">
           <div className="flex items-center gap-4 mb-6">
             <Button variant="ghost" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4 mr-2" />

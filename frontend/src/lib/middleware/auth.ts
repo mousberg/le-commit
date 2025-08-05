@@ -100,7 +100,7 @@ export async function withAuth(
 
       // ATS access validation
       if (options.requireATSAccess) {
-        const { checkUserAshbyAccess } = await import('@/lib/ashby/config');
+        const { checkUserAshbyAccess } = await import('@/lib/ashby/server');
         
         const hasATSAccess = await checkUserAshbyAccess(user.id);
         if (!hasATSAccess) {

@@ -1,33 +1,10 @@
 /**
- * Ashby configuration and access utilities
+ * Client-side Ashby configuration and React hooks
  */
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-
-/**
- * Get Ashby API key, prioritizing environment variable in development mode
- * @param userApiKey - API key from user's database record
- * @returns API key to use for Ashby requests
- */
-export function getAshbyApiKey(userApiKey?: string | null): string | null {
-  // In development mode, prioritize environment variable
-  if (process.env.NODE_ENV === 'development' && process.env.ASHBY_API_KEY) {
-    return process.env.ASHBY_API_KEY;
-  }
-  
-  // Otherwise, use user's API key from database
-  return userApiKey || null;
-}
-
-/**
- * Check if Ashby integration is configured for a user
- * @param userApiKey - API key from user's database record
- * @returns true if Ashby is configured
- */
-export function isAshbyConfigured(userApiKey?: string | null): boolean {
-  return !!getAshbyApiKey(userApiKey);
-}
 
 /**
  * React hook to check if current user has ATS access
@@ -47,17 +24,16 @@ export function useAshbyAccess() {
       }
 
       try {
-        // Dynamic import to avoid client-side bundling issues
-        const { createClient } = await import('@/lib/supabase/client');
-        const supabase = createClient();
-        
-        const { data: userData } = await supabase
-          .from('users')
-          .select('ashby_api_key')
-          .eq('id', user.id)
-          .single();
+        // Use candidates API with limit=1 to check access
+        const response = await fetch('/api/ashby/candidates?limit=1', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-        setHasAccess(isAshbyConfigured(userData?.ashby_api_key));
+        // If we get a successful response, user has access
+        setHasAccess(response.ok);
       } catch (error) {
         console.error('Error checking Ashby access:', error);
         setHasAccess(false);
@@ -72,24 +48,4 @@ export function useAshbyAccess() {
   return { hasAccess, loading };
 }
 
-/**
- * Server-side function to check if user has ATS access
- * Used by middleware and API routes
- */
-export async function checkUserAshbyAccess(userId: string): Promise<boolean> {
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    
-    const { data: userData } = await supabase
-      .from('users')
-      .select('ashby_api_key')
-      .eq('id', userId)
-      .single();
-    
-    return isAshbyConfigured(userData?.ashby_api_key);
-  } catch (error) {
-    console.error('Error checking user Ashby access:', error);
-    return false;
-  }
-}
+

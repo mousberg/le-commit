@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { getAshbyApiKey, isAshbyConfigured } from '@/lib/ashby/config';
+import { getAshbyApiKey, isAshbyConfigured } from '@/lib/ashby/server';
 
 export async function GET(request: NextRequest) {
   try {

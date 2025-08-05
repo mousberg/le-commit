@@ -195,7 +195,7 @@ BEGIN
     -- Trigger CV download if resume_file_handle exists
     IF NEW.resume_file_handle IS NOT NULL THEN
       PERFORM net.http_post(
-        url => 'http://host.docker.internal:3000/api/ashby/files/webhook',
+        url => 'http://host.docker.internal:3000/api/ashby/files',
         body => jsonb_build_object(
           'candidateId', NEW.ashby_id,
           'fileHandle', NEW.resume_file_handle

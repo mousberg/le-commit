@@ -4,6 +4,8 @@
 import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
+import { getAshbyApiKey } from '@/lib/ashby/server';
+import { createClient } from '@/lib/supabase/server';
 
 async function createNoteHandler(context: ApiHandlerContext) {
   const { body: requestBody } = context;
@@ -27,7 +29,16 @@ async function createNoteHandler(context: ApiHandlerContext) {
       );
     }
 
-    if (!process.env.ASHBY_API_KEY) {
+    // Get user's API key from context (middleware provides authenticated user)
+    const supabase = await createClient();
+    const { data: userData } = await supabase
+      .from('users')
+      .select('ashby_api_key')
+      .eq('id', context.user.id)
+      .single();
+
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    if (!apiKey) {
       return NextResponse.json(
         { error: 'Ashby integration not configured', success: false },
         { status: 500 }
@@ -35,7 +46,7 @@ async function createNoteHandler(context: ApiHandlerContext) {
     }
 
     const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
+      apiKey: apiKey
     });
 
     // Create note for the candidate

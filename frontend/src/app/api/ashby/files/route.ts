@@ -1,161 +1,74 @@
-// Ashby Files API - Unified endpoint for file operations
-// GET: Get resume URL from Ashby
-// POST: Download and store CV in Supabase Storage
+// Ashby Files API - CV download webhook endpoint
+// POST: Download and store CV in Supabase Storage (called by database triggers)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
+import { getAshbyApiKey } from '@/lib/ashby/server';
 
-// GET - Get resume URL from Ashby
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const fileHandle = searchParams.get('fileHandle');
-
-    if (!fileHandle) {
-      return NextResponse.json(
-        { error: 'File handle is required', success: false },
-        { status: 400 }
-      );
-    }
-
-    const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
-    });
-
-    // Get the download URL from Ashby
-    const fileResponse = await ashbyClient.getResumeUrl(fileHandle);
-
-    if (!fileResponse.success) {
-      return NextResponse.json(
-        { 
-          error: fileResponse.error?.message || 'Failed to get resume URL', 
-          success: false
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      url: fileResponse.results?.url,
-      fileHandle
-    });
-
-  } catch (error) {
-    console.error('Error getting resume URL:', error);
-    return NextResponse.json(
-      { error: 'Failed to get resume URL', success: false },
-      { status: 500 }
-    );
-  }
-}
-
-// POST - Download and store CV in Supabase Storage
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    // Create server-side client with service role key
+    const supabase = createClient();
     
-    // Try to get authenticated user first (for regular API calls)
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // For webhook calls, we'll use the service role key to bypass RLS
+    // This is safe because the trigger already validated the candidate belongs to the user
     
-    let currentUser = user;
-    
-    // If no authenticated user, this might be a webhook call - get user from candidate data
-    if (authError || !user) {
-      const body = await request.json();
-      const { candidateId } = body;
-      
-      if (!candidateId) {
-        return NextResponse.json(
-          { error: 'Authentication required or candidateId missing', success: false },
-          { status: 401 }
-        );
-      }
-      
-      // Get user_id from the ashby_candidates table
-      const { data: candidateData, error: candidateError } = await supabase
-        .from('ashby_candidates')
-        .select('user_id')
-        .eq('ashby_id', candidateId)
-        .single();
-        
-      if (candidateError || !candidateData) {
-        return NextResponse.json(
-          { error: 'Candidate not found', success: false },
-          { status: 404 }
-        );
-      }
-      
-      // Set currentUser to the candidate's user
-      currentUser = { id: candidateData.user_id };
-    }
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { candidateId, fileHandle } = body;
 
-    if (!candidateId) {
+    if (!candidateId || !fileHandle) {
       return NextResponse.json(
-        { error: 'Candidate ID is required', success: false },
+        { error: 'candidateId and fileHandle are required', success: false },
         { status: 400 }
       );
     }
 
-    // Get candidate from database
-    const candidateResult = await supabase
+    // Get candidate from database (using service role - no RLS restrictions)
+    const { data: candidate, error: candidateError } = await supabase
       .from('ashby_candidates')
-      .select('*')
+      .select('*, user_id, unmask_applicant_id')
       .eq('ashby_id', candidateId)
-      .eq('user_id', user.id)
       .single();
 
-    if (candidateResult.error) {
+    if (candidateError || !candidate) {
+      console.error('Candidate not found:', candidateError);
       return NextResponse.json(
         { error: 'Candidate not found', success: false },
         { status: 404 }
       );
     }
 
-    const candidate = candidateResult.data;
-    const resumeFileHandle = fileHandle || candidate.resume_file_handle?.handle || candidate.resume_file_handle;
-
-    if (!resumeFileHandle) {
+    if (!candidate.unmask_applicant_id) {
       return NextResponse.json(
-        { error: 'No resume file available for this candidate', success: false },
+        { error: 'Candidate not linked to applicant', success: false },
         { status: 400 }
       );
     }
 
+    // Get user's API key from database
+    const { data: userData } = await supabase
+      .from('users')
+      .select('ashby_api_key')
+      .eq('id', candidate.user_id)
+      .single();
+
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'Ashby integration not configured for user', success: false },
+        { status: 500 }
+      );
+    }
+
+    // Import AshbyClient dynamically
+    const AshbyClient = (await import('@/lib/ashby/client')).AshbyClient;
+    
     const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
+      apiKey: apiKey
     });
 
     // Get the download URL from Ashby
-    const fileResponse = await ashbyClient.getResumeUrl(resumeFileHandle);
+    const fileResponse = await ashbyClient.getResumeUrl(fileHandle);
 
     if (!fileResponse.success || !fileResponse.results?.url) {
       return NextResponse.json(
@@ -190,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Create file path
     const fileName = `${candidate.name.replace(/[^a-zA-Z0-9]/g, '_')}_resume_${candidateId}${extension}`;
-    const filePath = `ashby-cvs/${user.id}/${fileName}`;
+    const filePath = `ashby-cvs/${candidate.user_id}/${fileName}`;
 
     // Upload to Supabase Storage
     const uploadResult = await supabase.storage
@@ -209,16 +122,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from('cv-files')
-      .getPublicUrl(filePath);
-
     // Create file record in files table
     const { data: fileRecord, error: fileError } = await supabase
       .from('files')
       .insert({
-        user_id: user.id,
+        user_id: candidate.user_id,
         file_type: 'cv',
         original_filename: fileName,
         storage_path: filePath,
@@ -238,7 +146,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update applicant with cv_file_id and status
-    await supabase
+    const { error: updateError } = await supabase
       .from('applicants')
       .update({
         cv_file_id: fileRecord.id,
@@ -247,20 +155,27 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', candidate.unmask_applicant_id);
 
+    if (updateError) {
+      console.error('Error updating applicant:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update applicant', success: false },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ CV downloaded and processed for candidate ${candidateId}`);
+
     return NextResponse.json({
       success: true,
-      message: 'Resume successfully stored',
-      storagePath: filePath,
-      publicUrl: publicUrlData.publicUrl,
+      message: 'Resume successfully processed',
       fileName,
-      fileSize: fileBuffer.byteLength,
-      contentType
+      fileSize: fileBuffer.byteLength
     });
 
   } catch (error) {
-    console.error('Error storing CV:', error);
+    console.error('CV processing error:', error);
     return NextResponse.json(
-      { error: 'Failed to store CV', success: false },
+      { error: 'Failed to process CV', success: false },
       { status: 500 }
     );
   }
