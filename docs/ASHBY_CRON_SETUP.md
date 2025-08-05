@@ -11,7 +11,7 @@ The Ashby integration now includes a consolidated API structure and daily sync c
 - `/api/ashby/pull` ❌  
 - `/api/ashby/test` ❌
 - `/api/ashby/resume` ❌
-- `/api/ashby/store-cv` ❌
+- `/api/ashby/files` ✅ (webhook endpoint for CV processing)
 
 ### After Consolidation (Current)
 - `/api/ashby/sync` - Unified sync endpoint
