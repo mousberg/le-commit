@@ -1,30 +1,15 @@
 // Ashby Notes API - Create notes for candidates
 // POST: Create a note for a specific candidate
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { createClient } from '@/lib/supabase/server';
+import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 
-export async function POST(request: NextRequest) {
+async function createNoteHandler(context: ApiHandlerContext) {
+  const { request, body: requestBody } = context;
+
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
-    const body = await request.json();
+    const body = requestBody as Record<string, unknown>;
     const { candidateId, note, sendNotifications = false } = body;
 
     // Validate required parameters
@@ -42,15 +27,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!process.env.ASHBY_API_KEY) {
+      return NextResponse.json(
+        { error: 'Ashby integration not configured', success: false },
+        { status: 500 }
+      );
+    }
+
     const ashbyClient = new AshbyClient({
       apiKey: process.env.ASHBY_API_KEY
     });
 
     // Create note for the candidate
     const noteResponse = await ashbyClient.createNote({
-      candidateId,
-      note,
-      sendNotifications
+      candidateId: candidateId as string,
+      note: note as string,
+      sendNotifications: sendNotifications as boolean
     });
 
     if (!noteResponse.success) {
@@ -81,3 +73,13 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withApiMiddleware(createNoteHandler, {
+  requireAuth: true,
+  enableCors: true,
+  enableLogging: true,
+  rateLimit: { 
+    maxRequests: 30,
+    windowMs: 60000 // 1-minute window
+  }
+});
