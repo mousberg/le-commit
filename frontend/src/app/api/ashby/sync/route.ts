@@ -3,6 +3,203 @@ import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
+import { getAshbyApiKey, isAshbyConfigured } from '@/lib/ashby/config';
+
+// GET - Sync candidates FROM Ashby TO our system (used by cron)
+async function syncFromAshby(context: ApiHandlerContext) {
+  const { request } = context;
+  const supabase = await createClient();
+
+  try {
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required', success: false },
+        { status: 401 }
+      );
+    }
+
+    // Note: Force refresh functionality removed with sync cursor
+
+    // Get user's Ashby API key
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('ashby_api_key')
+      .eq('id', user.id)
+      .single();
+
+    if (userError) {
+      return NextResponse.json(
+        { error: 'Failed to get user data', success: false },
+        { status: 500 }
+      );
+    }
+
+    // Get API key (prioritizes environment variable in development)
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    
+    if (!isAshbyConfigured(userData?.ashby_api_key)) {
+      return NextResponse.json(
+        { error: 'Ashby API key not configured', success: false },
+        { status: 400 }
+      );
+    }
+
+    // Initialize Ashby client
+    const ashbyClient = new AshbyClient({
+      apiKey: apiKey!
+    });
+
+    // Get cursor from query params for pagination (not stored in database)
+    const searchParams = new URL(request.url).searchParams;
+    const cursor = searchParams.get('cursor') || undefined;
+    const forceRefresh = searchParams.get('force') === 'true';
+    
+    // Fetch candidates from Ashby with cursor support
+    const candidatesResponse = await ashbyClient.listCandidates({
+      limit: 100,
+      cursor: forceRefresh ? undefined : cursor
+    });
+
+    if (!candidatesResponse.success) {
+      return NextResponse.json(
+        { 
+          error: candidatesResponse.error?.message || 'Failed to fetch candidates from Ashby', 
+          success: false 
+        },
+        { status: 500 }
+      );
+    }
+
+    const candidates = candidatesResponse.results?.candidates || [];
+    const nextCursor = candidatesResponse.results?.cursor;
+
+    // Process and store candidates
+    const syncResults = {
+      new_candidates: 0,
+      updated_candidates: 0,
+      errors: [] as Array<{ candidateId: string; error: string }>
+    };
+
+    for (const candidate of candidates) {
+      try {
+        // Extract social links
+        const linkedinUrl = candidate.socialLinks?.find(link => 
+          link.type === 'LinkedIn' || link.url?.includes('linkedin.com')
+        )?.url;
+        
+        const githubUrl = candidate.socialLinks?.find(link => 
+          link.type === 'GitHub' || link.url?.includes('github.com')
+        )?.url;
+        
+        const websiteUrl = candidate.socialLinks?.find(link => 
+          link.type === 'Website' || link.type === 'PersonalWebsite'
+        )?.url;
+
+        // Check if candidate already exists
+        const { data: existing } = await supabase
+          .from('ashby_candidates')
+          .select('id, updated_at')
+          .eq('ashby_id', candidate.id)
+          .eq('user_id', user.id)
+          .single();
+
+        // Prepare candidate data
+        const candidateData = {
+          user_id: user.id,
+          ashby_id: candidate.id,
+          name: candidate.name || 'Unknown',
+          email: candidate.primaryEmailAddress?.value || null,
+          phone: candidate.primaryPhoneNumber?.value || null,
+          position: candidate.position || null,
+          company: candidate.company || null,
+          school: candidate.school || null,
+          location_summary: candidate.locationSummary || null,
+          linkedin_url: linkedinUrl || null,
+          github_url: githubUrl || null,
+          website_url: websiteUrl || null,
+          
+          // Resume info
+          resume_file_handle: candidate.resumeFileHandle || null,
+          has_resume: !!candidate.resumeFileHandle,
+          
+          // Timestamps
+          ashby_created_at: candidate.createdAt ? new Date(candidate.createdAt).toISOString() : null,
+          ashby_updated_at: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
+          
+          // Arrays
+          emails: candidate.emailAddresses || [],
+          phone_numbers: candidate.phoneNumbers || [],
+          social_links: candidate.socialLinks || [],
+          tags: candidate.tags || [],
+          application_ids: candidate.applicationIds || [],
+          all_file_handles: candidate.fileHandles || [],
+          
+          // Source info
+          source: candidate.source || null,
+          source_title: candidate.source?.title || null,
+          credited_to_user: candidate.creditedToUser || null,
+          credited_to_name: candidate.creditedToUser ? 
+            `${candidate.creditedToUser.firstName || ''} ${candidate.creditedToUser.lastName || ''}`.trim() : null,
+          
+          // Additional fields
+          custom_fields: candidate.customFields || {},
+          location_details: candidate.location || null,
+          timezone: candidate.timezone || null,
+          profile_url: candidate.profileUrl || null,
+          
+          // Update timestamp
+          last_synced_at: new Date().toISOString()
+        };
+
+        // Upsert candidate
+        const { error: upsertError } = await supabase
+          .from('ashby_candidates')
+          .upsert(candidateData, {
+            onConflict: 'ashby_id',
+            ignoreDuplicates: false
+          });
+
+        if (upsertError) {
+          syncResults.errors.push({
+            candidateId: candidate.id,
+            error: upsertError.message
+          });
+        } else {
+          if (existing) {
+            syncResults.updated_candidates++;
+          } else {
+            syncResults.new_candidates++;
+          }
+        }
+      } catch (error) {
+        syncResults.errors.push({
+          candidateId: candidate.id,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    // Note: nextCursor is already declared above, using it for pagination
+
+    return NextResponse.json({
+      success: true,
+      sync_results: syncResults,
+      total_candidates: candidates.length,
+      has_more: !!nextCursor,
+      cursor: nextCursor
+    });
+
+  } catch (error) {
+    console.error('Error in Ashby sync:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', success: false },
+      { status: 500 }
+    );
+  }
+}
 
 async function syncSingleApplicant(context: ApiHandlerContext) {
   const { request } = context;
@@ -42,8 +239,24 @@ async function syncSingleApplicant(context: ApiHandlerContext) {
       );
     }
 
-    // Initialize Ashby client
-    if (!process.env.ASHBY_API_KEY) {
+    // Get user data for API key
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('ashby_api_key')
+      .eq('id', applicant.user_id)
+      .single();
+
+    if (userError) {
+      return NextResponse.json(
+        { error: 'Failed to get user data', success: false },
+        { status: 500 }
+      );
+    }
+
+    // Get API key (prioritizes environment variable in development)
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    
+    if (!isAshbyConfigured(userData?.ashby_api_key)) {
       return NextResponse.json(
         { error: 'Ashby integration not configured', success: false },
         { status: 500 }
@@ -51,7 +264,7 @@ async function syncSingleApplicant(context: ApiHandlerContext) {
     }
 
     const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY
+      apiKey: apiKey!
     });
 
     let result;
@@ -245,8 +458,29 @@ async function syncBatchApplicants(context: ApiHandlerContext) {
       });
     }
 
+    // For batch operations, we need at least one user's API key
+    // In development, use environment variable if available
+    const envApiKey = process.env.NODE_ENV === 'development' ? process.env.ASHBY_API_KEY : null;
+    
+    if (!envApiKey && applicants.length > 0) {
+      // Get API key from first applicant's user
+      const { data: userData } = await supabase
+        .from('users')
+        .select('ashby_api_key')
+        .eq('id', applicants[0].user_id)
+        .single();
+      
+      const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: 'Ashby integration not configured', success: false },
+          { status: 500 }
+        );
+      }
+    }
+
     const ashbyClient = new AshbyClient({
-      apiKey: process.env.ASHBY_API_KEY!
+      apiKey: envApiKey || getAshbyApiKey(null)!
     });
 
     // Batch sync results
@@ -301,6 +535,12 @@ function determineVerificationStatus(applicant: Applicant): 'verified' | 'flagge
 
 
 // Export handlers with middleware
+export const GET = withApiMiddleware(syncFromAshby, {
+  requireAuth: true,
+  enableCors: true,
+  rateLimit: { maxRequests: 10, windowMs: 60000 } // 10 requests per minute for GET sync
+});
+
 export const POST = withApiMiddleware(syncSingleApplicant, {
   requireAuth: true,
   enableCors: true,

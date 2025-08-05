@@ -7,34 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Download, AlertTriangle, CheckCircle, Clock, ExternalLink} from 'lucide-react';
 import { ATSCandidatesTable } from '@/app/board/components/ATSCandidatesTable';
 import { refreshCandidates, autoSyncCandidates } from './actions';
-
-interface ATSCandidate {
-  ashby_id: string;
-  name: string;
-  email: string;
-  linkedin_url?: string;
-  has_resume: boolean;
-  resume_url?: string;
-  created_at: string;
-  tags: string[];
-  unmask_applicant_id?: string;
-  unmask_status?: string;
-  action: 'existing' | 'created' | 'not_created' | 'error';
-  ready_for_processing?: boolean;
-  fraud_likelihood?: 'low' | 'medium' | 'high';
-  fraud_reason?: string;
-}
-
-interface ATSPageData {
-  candidates: ATSCandidate[];
-  cached_count: number;
-  auto_synced: boolean;
-  sync_results?: {
-    new_candidates?: number;
-    message?: string;
-  };
-  last_sync: number | null;
-}
+import { ATSPageData } from '@/lib/ashby/interfaces';
 
 interface ATSPageContentProps {
   initialData: ATSPageData;
@@ -46,6 +19,15 @@ export function ATSPageContent({ initialData }: ATSPageContentProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug logging
+  console.log('ATSPageContent received initialData:', {
+    candidatesCount: initialData.candidates?.length || 0,
+    cachedCount: initialData.cached_count,
+    autoSynced: initialData.auto_synced,
+    lastSync: initialData.last_sync,
+    syncResults: initialData.sync_results
+  });
+
   // Auto-sync on client if needed (silent, no loading UI)
   useEffect(() => {
     if (shouldAutoSync(initialData)) {
@@ -54,6 +36,11 @@ export function ATSPageContent({ initialData }: ATSPageContentProps) {
   }, [initialData]);
 
   const shouldAutoSync = (data: ATSPageData) => {
+    // Don't auto-sync if the server already performed a sync
+    if (data.auto_synced) {
+      return false;
+    }
+    
     return data.cached_count === 0 || 
       (data.last_sync && Date.now() - data.last_sync > 60 * 60 * 1000);
   };

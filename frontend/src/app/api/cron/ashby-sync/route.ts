@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { AshbyClient } from '@/lib/ashby/client';
+import { getAshbyApiKey, isAshbyConfigured } from '@/lib/ashby/config';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,31 +19,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!process.env.ASHBY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
+    // Note: Global Ashby configuration handled in utility function
 
     const supabase = await createClient();
     
-    // Get all users who have Ashby candidates cached
+    // Get all users with Ashby API keys configured or in development mode with global key
     const usersResult = await supabase
-      .from('ashby_candidates')
-      .select('user_id')
-      .neq('user_id', null);
+      .from('users')
+      .select('id, ashby_api_key');
 
     if (usersResult.error) {
       throw usersResult.error;
     }
 
-    const uniqueUserIds = [...new Set(usersResult.data?.map(row => row.user_id) || [])];
+    const allUsers = usersResult.data || [];
+    const usersWithAshby = allUsers.filter(user => isAshbyConfigured(user.ashby_api_key));
     
-    if (uniqueUserIds.length === 0) {
+    if (usersWithAshby.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No users with Ashby integration to sync',
+        message: 'No users with Ashby integration configured',
         users_synced: 0
       });
     }
@@ -49,30 +46,98 @@ export async function GET(request: NextRequest) {
     const syncResults = [];
     
     // Sync candidates for each user
-    for (const userId of uniqueUserIds) {
+    for (const userData of usersWithAshby) {
       try {
-        // Call the consolidated sync endpoint for each user
-        const syncResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ashby/sync?force=true`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            // We'd need to handle auth differently for system-level cron jobs
-            // This is a simplified approach - in production you might want service-to-service auth
-          }
+        const apiKey = getAshbyApiKey(userData.ashby_api_key);
+        
+        if (!apiKey) {
+          syncResults.push({
+            user_id: userData.id,
+            success: false,
+            error: 'No API key configured'
+          });
+          continue;
+        }
+        
+        const ashbyClient = new AshbyClient({
+          apiKey: apiKey
         });
 
-        const result = await syncResponse.json();
+        // Fetch candidates from Ashby (incremental sync)
+        const candidatesResponse = await ashbyClient.listCandidates({
+          limit: 100
+        });
+
+        if (!candidatesResponse.success) {
+          syncResults.push({
+            user_id: userData.id,
+            success: false,
+            error: candidatesResponse.error?.message || 'Failed to fetch from Ashby'
+          });
+          continue;
+        }
+
+        const candidates = candidatesResponse.results?.candidates || [];
+        let syncedCount = 0;
+
+        // Process candidates
+        for (const candidate of candidates) {
+          try {
+            // Extract social links
+            const linkedinUrl = candidate.socialLinks?.find(link => 
+              link.type === 'LinkedIn' || link.url?.includes('linkedin.com')
+            )?.url;
+            
+            const githubUrl = candidate.socialLinks?.find(link => 
+              link.type === 'GitHub' || link.url?.includes('github.com')
+            )?.url;
+
+            // Upsert candidate
+            const { error: upsertError } = await supabase
+              .from('ashby_candidates')
+              .upsert({
+                user_id: userData.id,
+                ashby_id: candidate.id,
+                name: candidate.name || 'Unknown',
+                email: candidate.primaryEmailAddress?.value || null,
+                phone: candidate.primaryPhoneNumber?.value || null,
+                linkedin_url: linkedinUrl || null,
+                github_url: githubUrl || null,
+                has_resume: !!candidate.resumeFileHandle,
+                resume_file_handle: candidate.resumeFileHandle || null,
+                ashby_created_at: candidate.createdAt ? new Date(candidate.createdAt).toISOString() : null,
+                ashby_updated_at: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
+                emails: candidate.emailAddresses || [],
+                phone_numbers: candidate.phoneNumbers || [],
+                social_links: candidate.socialLinks || [],
+                tags: candidate.tags || [],
+                application_ids: candidate.applicationIds || [],
+                source: candidate.source || null,
+                source_title: candidate.source?.title || null,
+                last_synced_at: new Date().toISOString()
+              }, {
+                onConflict: 'ashby_id',
+                ignoreDuplicates: false
+              });
+
+            if (!upsertError) {
+              syncedCount++;
+            }
+          } catch (error) {
+            console.error(`Error syncing candidate ${candidate.id}:`, error);
+          }
+        }
         
         syncResults.push({
-          user_id: userId,
-          success: result.success,
-          candidates_synced: result.sync_results?.new_candidates || 0,
-          error: result.success ? null : result.error
+          user_id: userData.id,
+          success: true,
+          candidates_synced: syncedCount,
+          error: null
         });
 
       } catch (error) {
         syncResults.push({
-          user_id: userId,
+          user_id: userData.id,
           success: false,
           error: error instanceof Error ? error.message : 'Sync failed'
         });
@@ -84,7 +149,7 @@ export async function GET(request: NextRequest) {
 
     // Log the results
     console.log(`🕐 Daily Ashby sync completed:`, {
-      users_processed: uniqueUserIds.length,
+      users_processed: usersWithAshby.length,
       successful_syncs: successfulSyncs.length,
       total_candidates_synced: totalCandidatesSynced,
       timestamp: new Date().toISOString()
@@ -92,8 +157,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Daily sync completed for ${uniqueUserIds.length} users`,
-      users_processed: uniqueUserIds.length,
+      message: `Daily sync completed for ${usersWithAshby.length} users`,
+      users_processed: usersWithAshby.length,
       successful_syncs: successfulSyncs.length,
       failed_syncs: syncResults.length - successfulSyncs.length,
       total_candidates_synced: totalCandidatesSynced,
