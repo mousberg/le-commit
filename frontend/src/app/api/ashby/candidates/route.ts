@@ -105,56 +105,6 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
   };
 }
 
-// Transform database record to frontend format
-function transformToFrontendFormat(dbCandidate: DatabaseCandidate & { 
-  unmask_applicant_id?: string | null;
-  applicants?: { 
-    id: string;
-    status: string;
-    cv_status: string;
-    li_status: string;
-    gh_status: string;
-    ai_status: string;
-  };
-}): ATSCandidate {
-  return {
-    id: dbCandidate.id,
-    ashby_id: dbCandidate.ashby_id,
-    name: dbCandidate.name,
-    email: dbCandidate.email,
-    phone: dbCandidate.phone,
-    position: dbCandidate.position,
-    company: dbCandidate.company,
-    school: dbCandidate.school,
-    location_summary: dbCandidate.location_summary,
-    timezone: dbCandidate.timezone,
-    linkedin_url: dbCandidate.linkedin_url,
-    github_url: dbCandidate.github_url,
-    website_url: dbCandidate.website_url,
-    resume_file_handle: dbCandidate.resume_file_handle,
-    has_resume: !!dbCandidate.resume_file_handle,
-    emails: dbCandidate.emails || [],
-    phone_numbers: dbCandidate.phone_numbers || [],
-    social_links: dbCandidate.social_links || [],
-    tags: dbCandidate.tags || [],
-    application_ids: dbCandidate.application_ids || [],
-    all_file_handles: dbCandidate.all_file_handles || [],
-    source: dbCandidate.source,
-    source_title: dbCandidate.source_title,
-    credited_to_user: dbCandidate.credited_to_user,
-    credited_to_name: dbCandidate.credited_to_name,
-    profile_url: dbCandidate.profile_url,
-    ashby_created_at: dbCandidate.ashby_created_at,
-    ashby_updated_at: dbCandidate.ashby_updated_at,
-    created_at: dbCandidate.created_at,
-    updated_at: dbCandidate.updated_at,
-    last_synced_at: dbCandidate.last_synced_at,
-    unmask_applicant_id: dbCandidate.unmask_applicant_id,
-    unmask_status: dbCandidate.unmask_status || 'not_processed',
-    action: dbCandidate.unmask_applicant_id ? 'existing' : 'not_created',
-    ready_for_processing: !!(dbCandidate.linkedin_url || dbCandidate.resume_file_handle),
-  };
-}
 
 // GET handler - List cached candidates
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -249,22 +199,36 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       }
     }
 
-    // Fetch all cached candidates with applicant data
+    // Fetch applicants from Ashby source with their linked ashby_candidates data
     const { data: candidates, error: candidatesError } = await supabase
-      .from('ashby_candidates')
+      .from('applicants')
       .select(`
         *,
-        applicants!ashby_candidates_unmask_applicant_id_fkey(
-          id,
-          status,
-          cv_status,
-          li_status,
-          gh_status,
-          ai_status
+        ashby_candidates!ashby_candidates_unmask_applicant_id_fkey(
+          ashby_id,
+          name,
+          email,
+          phone,
+          position,
+          company,
+          school,
+          location_summary,
+          linkedin_url,
+          github_url,
+          website_url,
+          resume_file_handle,
+          ashby_created_at,
+          ashby_updated_at,
+          tags,
+          application_ids,
+          source_title,
+          credited_to_name,
+          profile_url
         )
       `)
       .eq('user_id', user.id)
-      .order('ashby_updated_at', { ascending: false });
+      .eq('source', 'ashby')
+      .order('created_at', { ascending: false });
 
     if (candidatesError) {
       console.error('Error fetching candidates:', candidatesError);
@@ -274,16 +238,48 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       );
     }
 
-    // Transform candidates for frontend
-    const transformedCandidates = (candidates || []).map(candidate => {
-      const frontendCandidate = transformToFrontendFormat(candidate);
+    // Transform applicants for frontend (now querying applicants, not ashby_candidates)
+    const transformedCandidates = (candidates || []).map(applicant => {
+      const ashbyData = applicant.ashby_candidates;
       
-      // Add unmask status from linked applicant
-      if (candidate.applicants) {
-        const applicant = candidate.applicants;
-        frontendCandidate.unmask_status = applicant.status;
-        frontendCandidate.action = 'existing';
-      }
+      // Create ATSCandidate format using applicant as base and ashby_candidates for additional data
+      const frontendCandidate: ATSCandidate = {
+        id: applicant.id,
+        ashby_id: ashbyData?.ashby_id || '',
+        name: applicant.name,
+        email: applicant.email,
+        phone: applicant.phone,
+        position: ashbyData?.position || null,
+        company: ashbyData?.company || null,
+        school: ashbyData?.school || null,
+        location_summary: ashbyData?.location_summary || null,
+        timezone: null,
+        linkedin_url: applicant.linkedin_url,
+        github_url: applicant.github_url,
+        website_url: ashbyData?.website_url || null,
+        resume_file_handle: ashbyData?.resume_file_handle || null,
+        has_resume: !!(ashbyData?.resume_file_handle || ashbyData?.resume_url),
+        emails: [],
+        phone_numbers: [],
+        social_links: [],
+        tags: ashbyData?.tags || [],
+        application_ids: ashbyData?.application_ids || [],
+        all_file_handles: [],
+        source: null,
+        source_title: ashbyData?.source_title || null,
+        credited_to_user: null,
+        credited_to_name: ashbyData?.credited_to_name || null,
+        profile_url: ashbyData?.profile_url || null,
+        ashby_created_at: ashbyData?.ashby_created_at || applicant.created_at,
+        ashby_updated_at: ashbyData?.ashby_updated_at || applicant.updated_at,
+        created_at: applicant.created_at,
+        updated_at: applicant.updated_at,
+        last_synced_at: applicant.updated_at,
+        unmask_applicant_id: applicant.id,
+        unmask_status: applicant.status,
+        action: 'existing',
+        ready_for_processing: !!(applicant.linkedin_url || ashbyData?.resume_file_handle)
+      };
       
       return frontendCandidate;
     });

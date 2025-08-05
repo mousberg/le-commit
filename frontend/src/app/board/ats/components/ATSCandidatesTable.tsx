@@ -171,7 +171,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
             <tbody>
               {candidates.map((candidate) => (
                 <tr 
-                  key={candidate.ashby_id} 
+                  key={candidate.id} 
                   className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                   onClick={(e) => handleRowClick(candidate, e)}
                 >

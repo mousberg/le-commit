@@ -187,16 +187,38 @@ export async function POST(request: NextRequest) {
       .from('cv-files')
       .getPublicUrl(filePath);
 
-    // Update candidate record with storage path
+    // Create file record in files table
+    const { data: fileRecord, error: fileError } = await supabase
+      .from('files')
+      .insert({
+        user_id: user.id,
+        file_type: 'cv',
+        original_filename: fileName,
+        storage_path: filePath,
+        storage_bucket: 'cv-files',
+        file_size: fileBuffer.byteLength,
+        mime_type: contentType
+      })
+      .select()
+      .single();
+
+    if (fileError) {
+      console.error('Error creating file record:', fileError);
+      return NextResponse.json(
+        { error: 'Failed to create file record', success: false },
+        { status: 500 }
+      );
+    }
+
+    // Update applicant with cv_file_id and status
     await supabase
-      .from('ashby_candidates')
+      .from('applicants')
       .update({
-        cv_storage_path: filePath,
-        resume_url: publicUrlData.publicUrl,
+        cv_file_id: fileRecord.id,
+        cv_status: 'ready',
         updated_at: new Date().toISOString()
       })
-      .eq('ashby_id', candidateId)
-      .eq('user_id', user.id);
+      .eq('id', candidate.unmask_applicant_id);
 
     return NextResponse.json({
       success: true,
