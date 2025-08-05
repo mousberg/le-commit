@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, Upload, FileJson, Github, Linkedin, FileText, AlertCircle, X, Check, Search, Plus } from 'lucide-react'
-import { useApplicants } from '../../../lib/contexts/ApplicantContext'
+import { useApplicants } from '@/lib/contexts/ApplicantContext'
 
 // Interview-specific preset templates
 const interviewTemplates = [

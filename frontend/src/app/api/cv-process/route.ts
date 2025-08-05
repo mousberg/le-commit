@@ -1,49 +1,32 @@
 import { NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { startProcessing, validateRequestBody } from '@/lib/processing';
 import { processCvPdf, validateAndCleanCvData } from '@/lib/profile-pdf';
 import { CvData } from '@/lib/interfaces/cv';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { applicant_id, file_id } = body;
+  // Validate request body
+  const bodyValidation = validateRequestBody(request);
+  if (bodyValidation) return bodyValidation;
 
-    if (!applicant_id) {
-      return NextResponse.json(
-        { error: 'applicant_id is required' },
-        { status: 400 }
-      );
-    }
+  const body = await request.json();
+  const { applicant_id, file_id } = body;
 
-    console.log(`🔄 Starting CV processing for applicant ${applicant_id}`);
+  if (!applicant_id) {
+    return NextResponse.json(
+      { error: 'applicant_id is required' },
+      { status: 400 }
+    );
+  }
 
-    // Get server-side Supabase client with service role
-    const supabase = createServiceRoleClient();
+  // Use the reusable processing function
+  return startProcessing(
+    applicant_id,
+    'cv_status',
+    async (applicant) => {
+      const supabase = createServiceRoleClient();
+      let cvData: CvData | null = null;
 
-    // Get the applicant record
-    const { data: applicant, error: applicantError } = await supabase
-      .from('applicants')
-      .select('*')
-      .eq('id', applicant_id)
-      .single();
-
-    if (applicantError || !applicant) {
-      console.error('Failed to get applicant:', applicantError);
-      return NextResponse.json(
-        { error: 'Applicant not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update status to processing
-    await supabase
-      .from('applicants')
-      .update({ cv_status: 'processing' })
-      .eq('id', applicant_id);
-
-    let cvData: CvData | null = null;
-
-    try {
       if (file_id) {
         // Get file information
         const { data: fileRecord, error: fileError } = await supabase
@@ -88,69 +71,20 @@ export async function POST(request: Request) {
         throw new Error('No CV file or data available');
       }
 
-      // Extract name and email from CV data
-      let name = applicant.name;
-      let email = applicant.email;
-
+      // Extract name and email from CV data and update applicant info
       if (cvData) {
-        name = `${cvData.firstName} ${cvData.lastName}`.trim() || applicant.name;
-        email = cvData.email || applicant.email;
+        const name = `${cvData.firstName} ${cvData.lastName}`.trim() || applicant.name;
+        const email = cvData.email || applicant.email;
+
+        // Update name and email in addition to cv_data
+        await supabase
+          .from('applicants')
+          .update({ name, email })
+          .eq('id', applicant_id);
       }
 
-      // Update applicant with processed CV data
-      const { error: updateError } = await supabase
-        .from('applicants')
-        .update({
-          cv_data: cvData,
-          cv_status: 'ready',
-          name,
-          email
-          // Note: status is now a generated column - automatically derived from sub-statuses
-        })
-        .eq('id', applicant_id);
-
-      if (updateError) {
-        throw new Error(`Failed to update applicant: ${updateError.message}`);
-      }
-
-      console.log(`✅ CV processing completed for applicant ${applicant_id}`);
-
-      return NextResponse.json({
-        success: true,
-        applicant_id,
-        cv_data: cvData
-      });
-
-    } catch (processingError) {
-      console.error(`❌ CV processing failed for applicant ${applicant_id}:`, processingError);
-
-      // Update status to error
-      await supabase
-        .from('applicants')
-        .update({
-          cv_status: 'error',
-          cv_data: {
-            error: processingError instanceof Error ? processingError.message : 'CV processing failed',
-            processed_at: new Date().toISOString()
-          }
-        })
-        .eq('id', applicant_id);
-
-      return NextResponse.json({
-        success: false,
-        error: processingError instanceof Error ? processingError.message : 'CV processing failed',
-        applicant_id
-      }, { status: 500 });
-    }
-
-  } catch (error) {
-    console.error('CV processing endpoint error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      },
-      { status: 500 }
-    );
-  }
+      return cvData;
+    },
+    'CV'
+  );
 }

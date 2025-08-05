@@ -1,6 +1,6 @@
 import React from "react";
-import { ApplicantProvider } from "../../lib/contexts/ApplicantContext";
-import DashboardLayout from "../../components/dashboard/DashboardLayout";
+import { ApplicantProvider } from "@/lib/contexts/ApplicantContext";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 
 export default function BoardLayout({
   children,

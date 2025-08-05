@@ -1,6 +1,6 @@
 'use client';
 
-import { useApplicants } from '../../../lib/contexts/ApplicantContext';
+import { useApplicants } from '@/lib/contexts/ApplicantContext';
 import { useEffect } from 'react';
 import { Users, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';

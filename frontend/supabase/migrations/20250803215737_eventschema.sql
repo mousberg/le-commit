@@ -161,9 +161,7 @@ CREATE TABLE public.applicants (
       WHEN ai_status = 'ready' THEN 'completed'::overall_status
 
       -- Data collection phase
-      WHEN cv_status = 'processing' OR
-           (li_status = 'processing' AND li_status != 'not_provided') OR
-           (gh_status = 'processing' AND gh_status != 'not_provided') THEN 'processing'::overall_status
+      WHEN cv_status = 'processing' OR li_status = 'processing' OR gh_status = 'processing' THEN 'processing'::overall_status
 
       -- Initial state
       ELSE 'uploading'::overall_status
@@ -307,21 +305,15 @@ $$;
 -- WEBHOOK FUNCTIONS
 -- =============================================================================
 
--- CV Processing Webhook
+-- CV Processing Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_cv_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Trigger if cv_file_id is set and CV processing should start
-  -- Handle both INSERT (OLD is NULL) and UPDATE operations
-  IF NEW.cv_file_id IS NOT NULL AND NEW.cv_status = 'pending' AND
-     (TG_OP = 'INSERT' OR OLD.cv_file_id IS NULL OR OLD.cv_status = 'pending') THEN
+  -- Trigger if cv_file_id is set and not currently processing
+  IF NEW.cv_file_id IS NOT NULL AND NEW.cv_status != 'processing' AND
+     (TG_OP = 'INSERT' OR OLD.cv_file_id IS DISTINCT FROM NEW.cv_file_id) THEN
 
-    -- Update status to processing
-    UPDATE public.applicants
-    SET cv_status = 'processing'::processing_status
-    WHERE id = NEW.id;
-
-    -- Fire webhook asynchronously using pg_net
+    -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
       url => 'http://host.docker.internal:3000/api/cv-process',
       body => jsonb_build_object(
@@ -329,8 +321,7 @@ BEGIN
         'applicant_id', NEW.id,
         'file_id', NEW.cv_file_id
       ),
-      headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 3000
+      headers => '{"Content-Type": "application/json"}'::jsonb
     );
 
     RAISE NOTICE 'CV processing webhook triggered for applicant % with file %', NEW.id, NEW.cv_file_id;
@@ -340,21 +331,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- LinkedIn Processing Webhook
+-- LinkedIn Processing Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_linkedin_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Trigger if linkedin_url is set and LinkedIn processing should start
-  -- Handle both INSERT (OLD is NULL) and UPDATE operations
-  IF NEW.linkedin_url IS NOT NULL AND NEW.li_status = 'pending' AND
-     (TG_OP = 'INSERT' OR OLD.linkedin_url IS NULL OR OLD.li_status = 'pending') THEN
+  -- Trigger if linkedin_url is set and not currently processing
+  IF NEW.linkedin_url IS NOT NULL AND NEW.li_status != 'processing' AND
+     (TG_OP = 'INSERT' OR OLD.linkedin_url IS DISTINCT FROM NEW.linkedin_url) THEN
 
-    -- Update status to processing
-    UPDATE public.applicants
-    SET li_status = 'processing'::processing_status
-    WHERE id = NEW.id;
-
-    -- Fire webhook asynchronously using pg_net
+    -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
       url => 'http://host.docker.internal:3000/api/linkedin-fetch',
       body => jsonb_build_object(
@@ -362,8 +347,7 @@ BEGIN
         'applicant_id', NEW.id,
         'linkedin_url', NEW.linkedin_url
       ),
-      headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 3000
+      headers => '{"Content-Type": "application/json"}'::jsonb
     );
 
     RAISE NOTICE 'LinkedIn processing webhook triggered for applicant % with URL %', NEW.id, NEW.linkedin_url;
@@ -373,21 +357,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- GitHub Processing Webhook
+-- GitHub Processing Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_github_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Trigger if github_url is set and GitHub processing should start
-  -- Handle both INSERT (OLD is NULL) and UPDATE operations
-  IF NEW.github_url IS NOT NULL AND NEW.gh_status = 'pending' AND
-     (TG_OP = 'INSERT' OR OLD.github_url IS NULL OR OLD.gh_status = 'pending') THEN
+  -- Trigger if github_url is set and not currently processing
+  IF NEW.github_url IS NOT NULL AND NEW.gh_status != 'processing' AND
+     (TG_OP = 'INSERT' OR OLD.github_url IS DISTINCT FROM NEW.github_url) THEN
 
-    -- Update status to processing
-    UPDATE public.applicants
-    SET gh_status = 'processing'::processing_status
-    WHERE id = NEW.id;
-
-    -- Fire webhook asynchronously using pg_net
+    -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
       url => 'http://host.docker.internal:3000/api/github-fetch',
       body => jsonb_build_object(
@@ -395,8 +373,7 @@ BEGIN
         'applicant_id', NEW.id,
         'github_url', NEW.github_url
       ),
-      headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 3000
+      headers => '{"Content-Type": "application/json"}'::jsonb
     );
 
     RAISE NOTICE 'GitHub processing webhook triggered for applicant % with URL %', NEW.id, NEW.github_url;
@@ -406,12 +383,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- AI Analysis Webhook
+-- AI Analysis Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_ai_analysis()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Check if AI analysis should start
-  -- Now triggers when CV is ready and either other sources are ready OR not provided
+  -- Triggers when CV is ready and either other sources are ready OR not provided
   IF NEW.ai_status = 'pending' AND NEW.cv_status = 'ready' AND (
     -- If LinkedIn is provided, it must be ready; if not provided, that's fine
     (NEW.linkedin_url IS NULL OR NEW.li_status IN ('ready', 'not_provided')) AND
@@ -419,21 +396,17 @@ BEGIN
     (NEW.github_url IS NULL OR NEW.gh_status IN ('ready', 'not_provided'))
   ) THEN
 
-    -- Update status to processing
-    UPDATE public.applicants
-    SET ai_status = 'processing'::processing_status
-    WHERE id = NEW.id;
-
-    -- Fire webhook asynchronously using pg_net
+    -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
       url => 'http://host.docker.internal:3000/api/analysis',
       body => jsonb_build_object(
         'type', 'AI_ANALYSIS',
         'applicant_id', NEW.id
       ),
-      headers => '{"Content-Type": "application/json"}'::jsonb,
-      timeout_milliseconds => 5000
+      headers => '{"Content-Type": "application/json"}'::jsonb
     );
+
+    RAISE NOTICE 'AI analysis webhook triggered for applicant %', NEW.id;
   END IF;
 
   RETURN NEW;
@@ -569,7 +542,7 @@ COMMENT ON COLUMN public.applicants.status IS 'Generated column: overall status 
 COMMENT ON COLUMN public.applicants.score IS 'Generated column: AI analysis score from ai_data JSON';
 COMMENT ON FUNCTION public.sync_applicant_scalars() IS 'Sync scalar fields (name, email, phone) from JSON data while preserving manual edits';
 COMMENT ON TABLE public.applicants IS 'Consolidated schema with event-driven processing via database webhooks';
-COMMENT ON FUNCTION public.webhook_cv_processing() IS 'Asynchronous webhook for CV processing using pg_net';
-COMMENT ON FUNCTION public.webhook_linkedin_processing() IS 'Asynchronous webhook for LinkedIn processing using pg_net';
-COMMENT ON FUNCTION public.webhook_github_processing() IS 'Asynchronous webhook for GitHub processing using pg_net';
-COMMENT ON FUNCTION public.webhook_ai_analysis() IS 'Asynchronous webhook for AI analysis using pg_net';
+COMMENT ON FUNCTION public.webhook_cv_processing() IS 'Fire-and-forget webhook for CV processing - API manages its own status';
+COMMENT ON FUNCTION public.webhook_linkedin_processing() IS 'Fire-and-forget webhook for LinkedIn processing - API manages its own status';
+COMMENT ON FUNCTION public.webhook_github_processing() IS 'Fire-and-forget webhook for GitHub processing - API manages its own status';
+COMMENT ON FUNCTION public.webhook_ai_analysis() IS 'Fire-and-forget webhook for AI analysis - API manages its own status';
