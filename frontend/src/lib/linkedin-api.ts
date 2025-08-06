@@ -221,8 +221,10 @@ async function pollForLinkedInResults(
   apiKey: string,
   onProgress?: (progress: { attempt: number; maxAttempts: number; status: string; message: string }) => void
 ): Promise<unknown[]> {
-  const maxAttempts = 60; // 5 minutes with 5-second intervals
+  const maxAttempts = 30; // Reduced from 60 to 30 (2.5 minutes)
   const pollInterval = 5000; // 5 seconds
+  let consecutiveEmptySnapshots = 0;
+  const maxEmptySnapshots = 3; // Allow 3 consecutive empty snapshots before giving up
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -269,6 +271,25 @@ async function pollForLinkedInResults(
           const data = await downloadResponse.json();
           if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
             return Array.isArray(data) ? data : [data];
+          } else {
+            // Empty data returned - this could be a "Snapshot is empty" case
+            console.log(`⚠️ Empty data returned for snapshot ${snapshotId} (attempt ${attempt + 1})`);
+            consecutiveEmptySnapshots++;
+            if (consecutiveEmptySnapshots >= maxEmptySnapshots) {
+              throw new Error(`LinkedIn snapshot consistently empty after ${maxEmptySnapshots} attempts - profile may be private or inaccessible`);
+            }
+          }
+        } else {
+          // Check if this is a "Snapshot is empty" error
+          const errorText = await downloadResponse.text();
+          if (errorText.includes('Snapshot is empty') || errorText.includes('empty')) {
+            console.log(`⚠️ Snapshot is empty for ${snapshotId} (attempt ${attempt + 1})`);
+            consecutiveEmptySnapshots++;
+            if (consecutiveEmptySnapshots >= maxEmptySnapshots) {
+              throw new Error('LinkedIn profile not accessible - snapshot consistently empty');
+            }
+          } else {
+            console.error(`LinkedIn download failed: ${downloadResponse.status} ${downloadResponse.statusText} - ${errorText}`);
           }
         }
       }
@@ -639,12 +660,20 @@ export async function checkLinkedInJob(jobId: string, isExisting?: boolean): Pro
         console.log(`Downloaded existing data for job ${jobId}:`, Array.isArray(data) ? `Array with ${data.length} items` : typeof data);
         if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
           return { status: 'completed', data };
+        } else {
+          console.log(`⚠️ Existing snapshot ${jobId} returned empty data - marking as failed`);
+          return { status: 'failed' };
         }
       } else {
-        console.error(`Failed to download existing LinkedIn data: ${downloadResponse.status} ${downloadResponse.statusText}`);
+        const errorText = await downloadResponse.text();
+        console.error(`Failed to download existing LinkedIn data: ${downloadResponse.status} ${downloadResponse.statusText} - ${errorText}`);
+        if (errorText.includes('Snapshot is empty') || errorText.includes('empty')) {
+          console.log(`⚠️ Existing snapshot ${jobId} is empty - marking as failed`);
+          return { status: 'failed' };
+        }
       }
       
-      return { status: 'completed' };
+      return { status: 'failed' };
     }
     
     // Check job status for new jobs
@@ -690,15 +719,22 @@ export async function checkLinkedInJob(jobId: string, isExisting?: boolean): Pro
         console.log(`Downloaded data for job ${jobId}:`, Array.isArray(data) ? `Array with ${data.length} items` : typeof data);
         if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
           return { status: 'completed', data };
+        } else {
+          console.log(`⚠️ Job ${jobId} returned empty data - marking as failed`);
+          return { status: 'failed' };
         }
       } else {
         console.error(`Failed to download LinkedIn data: ${downloadResponse.status} ${downloadResponse.statusText}`);
         const errorText = await downloadResponse.text();
         console.error(`Error response:`, errorText);
+        if (errorText.includes('Snapshot is empty') || errorText.includes('empty')) {
+          console.log(`⚠️ Job ${jobId} has empty snapshot - marking as failed`);
+          return { status: 'failed' };
+        }
       }
       
-      // If download failed but status was ready, still mark as completed
-      return { status: 'completed' };
+      // If download failed, mark as failed instead of completed
+      return { status: 'failed' };
     }
 
     return { status: 'running' };
