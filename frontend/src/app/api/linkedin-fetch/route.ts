@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Custom processing with special error handling for LinkedIn
+  // Use standard processing - we'll handle special responses after
   try {
     return await startProcessing(
       applicant_id,
@@ -36,7 +36,11 @@ export async function POST(request: Request) {
           if (result.data) {
             linkedinData = processLinkedInData(result.data);
           } else {
-            throw new Error('No data available from existing snapshot');
+            return {
+              error: 'existing_snapshot_no_data',
+              message: 'No data available from existing snapshot',
+              processed_at: new Date().toISOString()
+            };
           }
         } else {
           // Poll until complete for new jobs
@@ -60,11 +64,19 @@ export async function POST(request: Request) {
               break;
             } else if (result.status === 'failed') {
               console.log(`❌ LinkedIn job ${jobId} failed - profile may be private or inaccessible`);
-              throw new Error('LinkedIn profile not accessible - snapshot empty or blocked');
+              return {
+                error: 'profile_not_accessible',
+                message: 'LinkedIn profile not accessible - snapshot empty or blocked',
+                processed_at: new Date().toISOString()
+              };
             } else if (result.status === 'completed' && !result.data) {
               // This should not happen with our updated logic, but handle it gracefully
               console.log(`⚠️ LinkedIn job ${jobId} completed but returned no data - treating as failed`);
-              throw new Error('LinkedIn profile returned no data');
+              return {
+                error: 'profile_no_data',
+                message: 'LinkedIn profile returned no data',
+                processed_at: new Date().toISOString()
+              };
             }
 
             attempts++;
@@ -73,8 +85,32 @@ export async function POST(request: Request) {
 
           if (!linkedinData) {
             console.log(`⏰ LinkedIn job ${jobId} timed out after ${maxAttempts} attempts`);
-            throw new Error(`LinkedIn job timed out after ${Math.floor(maxAttempts * 5 / 60)} minutes`);
+            return {
+              error: 'profile_timeout',
+              message: `LinkedIn job timed out after ${Math.floor(maxAttempts * 5 / 60)} minutes`,
+              processed_at: new Date().toISOString()
+            };
           }
+        }
+
+        // Check if we got an error response instead of data
+        if (linkedinData && typeof linkedinData === 'object' && 'error' in linkedinData) {
+          // Handle profile accessibility issues by marking as not_provided
+          const errorData = linkedinData as unknown as { error: string; message: string; processed_at: string };
+          console.log(`🔒 LinkedIn profile not accessible for ${applicant_id} - ${errorData.message}`);
+          
+          // Update the applicant directly to bypass startProcessing error handling
+          const supabase = createServiceRoleClient();
+          await supabase
+            .from('applicants')
+            .update({ 
+              li_status: 'not_provided',
+              li_data: linkedinData
+            })
+            .eq('id', applicant_id);
+          
+          // Return a response that indicates success but with not_provided status
+          throw new Error(`HANDLE_AS_NOT_PROVIDED: ${errorData.message}`);
         }
 
         // Update name from LinkedIn data if available
@@ -91,29 +127,11 @@ export async function POST(request: Request) {
       'LinkedIn'
     );
   } catch (error) {
-    // Check if this is a profile accessibility error
+    // Check if this is our special "not provided" error
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const isProfileInaccessible = errorMessage.includes('snapshot empty') || 
-                                 errorMessage.includes('not accessible') || 
-                                 errorMessage.includes('blocked') ||
-                                 errorMessage.includes('private');
     
-    if (isProfileInaccessible) {
-      // Handle privately/blocked profiles by marking as 'not_provided' instead of 'error'
-      console.log(`🔒 LinkedIn profile not accessible for ${applicant_id} - marking as not_provided`);
-      
-      const supabase = createServiceRoleClient();
-      await supabase
-        .from('applicants')
-        .update({ 
-          li_status: 'not_provided',
-          li_data: {
-            error: 'Profile not accessible (private or blocked)',
-            processed_at: new Date().toISOString()
-          }
-        })
-        .eq('id', applicant_id);
-      
+    if (errorMessage.startsWith('HANDLE_AS_NOT_PROVIDED:')) {
+      // This was already handled - return success response
       return NextResponse.json({
         success: true,
         applicant_id: applicant_id,
