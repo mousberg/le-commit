@@ -127,7 +127,12 @@ class SimpleSupabaseDatabaseService {
             phone: data.phone,
             linkedin_url: data.linkedin_url,
             github_url: data.github_url,
-            cv_file_id: data.cv_file_id
+            cv_file_id: data.cv_file_id,
+            // Set proper initial status values
+            cv_status: data.cv_file_id ? 'pending' : 'not_provided',
+            li_status: data.linkedin_url ? 'pending' : 'not_provided', 
+            gh_status: data.github_url ? 'pending' : 'not_provided',
+            ai_status: 'pending'
           }).select().single(),
           'Applicant creation'
         );

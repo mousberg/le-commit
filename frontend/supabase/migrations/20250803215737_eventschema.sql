@@ -388,13 +388,13 @@ CREATE OR REPLACE FUNCTION public.webhook_ai_analysis()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Check if AI analysis should start
-  -- Triggers when CV is ready and either other sources are ready OR not provided
-  IF NEW.ai_status = 'pending' AND NEW.cv_status = 'ready' AND (
-    -- If LinkedIn is provided, it must be ready; if not provided, that's fine
-    (NEW.linkedin_url IS NULL OR NEW.li_status IN ('ready', 'not_provided')) AND
-    -- If GitHub is provided, it must be ready; if not provided, that's fine
-    (NEW.github_url IS NULL OR NEW.gh_status IN ('ready', 'not_provided'))
-  ) THEN
+  -- Triggers when at least one source is ready and nothing is processing
+  IF NEW.ai_status = 'pending' AND 
+     -- At least one source is ready (any of them)
+     (NEW.cv_status = 'ready' OR NEW.li_status = 'ready' OR NEW.gh_status = 'ready') AND
+     -- No sources are currently processing
+     NEW.cv_status NOT IN ('processing') AND NEW.li_status NOT IN ('processing') AND NEW.gh_status NOT IN ('processing')
+  THEN
 
     -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
@@ -467,7 +467,7 @@ BEGIN
     p_cv_file_id,
     p_linkedin_url,
     p_github_url,
-    CASE WHEN p_cv_file_id IS NOT NULL THEN 'pending'::processing_status ELSE 'ready'::processing_status END,
+    CASE WHEN p_cv_file_id IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
     CASE WHEN p_linkedin_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
     CASE WHEN p_github_url IS NOT NULL THEN 'pending'::processing_status ELSE 'not_provided'::processing_status END,
     'pending'::processing_status
