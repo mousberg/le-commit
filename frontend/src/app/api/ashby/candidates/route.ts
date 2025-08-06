@@ -75,23 +75,23 @@ interface AshbyCandidate {
 function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId: string): DatabaseCandidate {
   const candidate = ashbyCandidate as unknown as AshbyCandidate;
   const socialLinks = candidate.socialLinks;
-  
+
   const getLinkedInUrl = () => {
-    const linkedInLink = socialLinks?.find((link) => 
+    const linkedInLink = socialLinks?.find((link) =>
       link.type?.toLowerCase() === 'linkedin'
     );
     return linkedInLink?.url || null;
   };
 
   const getGitHubUrl = () => {
-    const githubLink = socialLinks?.find((link) => 
+    const githubLink = socialLinks?.find((link) =>
       link.type?.toLowerCase() === 'github'
     );
     return githubLink?.url || null;
   };
 
   const getWebsiteUrl = () => {
-    const websiteLink = socialLinks?.find((link) => 
+    const websiteLink = socialLinks?.find((link) =>
       link.type?.toLowerCase() === 'website' || link.type?.toLowerCase() === 'personal'
     );
     return websiteLink?.url || null;
@@ -122,7 +122,7 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
     source: candidate.source || null,
     source_title: candidate.source?.title || null,
     credited_to_user: candidate.creditedToUser || null,
-    credited_to_name: candidate.creditedToUser ? 
+    credited_to_name: candidate.creditedToUser ?
       `${candidate.creditedToUser.firstName} ${candidate.creditedToUser.lastName}` : null,
     timezone: candidate.timezone || null,
     profile_url: candidate.profileUrl || null,
@@ -136,7 +136,7 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getCandidatesHandler(_context: ApiHandlerContext) {
   const supabase = await createClient();
-  
+
   try {
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -163,7 +163,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     }
 
     const apiKey = getAshbyApiKey(userData?.ashby_api_key);
-    
+
     if (!isAshbyConfigured(userData?.ashby_api_key)) {
       return NextResponse.json(
         { error: 'Ashby integration not configured', success: false },
@@ -183,25 +183,25 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     let autoSynced = false;
     let syncResults = null;
     const lastSync = syncCheckData?.last_synced_at ? new Date(syncCheckData.last_synced_at).getTime() : null;
-    
+
     const hourInMs = 60 * 60 * 1000;
     const shouldAutoSync = !lastSync || (Date.now() - lastSync) > hourInMs;
 
     if (shouldAutoSync && apiKey) {
       // Perform auto-sync
       const ashbyClient = new AshbyClient({ apiKey });
-      const response = await ashbyClient.listCandidates({ 
-        limit: 50,
-        includeArchived: false 
+      const response = await ashbyClient.listCandidates({
+        limit: 5, // TODO: increase later
+        includeArchived: false
       });
 
       if (response.success && response.results) {
         const candidates = response.results as unknown as Record<string, unknown>;
         const candidatesList = candidates.results || candidates;
-        
+
         if (Array.isArray(candidatesList)) {
           // Upsert candidates
-          const transformedCandidates = candidatesList.map(c => 
+          const transformedCandidates = candidatesList.map(c =>
             transformAshbyCandidate(c, user.id)
           );
 
@@ -211,9 +211,9 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
               onConflict: 'user_id,ashby_id',
               ignoreDuplicates: false
             });
-          
+
           console.log('Upserted:', upsertError);
-            
+
           if (!upsertError) {
             autoSynced = true;
             syncResults = {
@@ -267,7 +267,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     // Transform applicants for frontend (now querying applicants, not ashby_candidates)
     const transformedCandidates = (candidates || []).map(applicant => {
       const ashbyData = applicant.ashby_candidates;
-      
+
       // Create ATSCandidate format using applicant as base and ashby_candidates for additional data
       const frontendCandidate: ATSCandidate = {
         id: applicant.id,
@@ -306,7 +306,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         action: 'existing',
         ready_for_processing: !!(applicant.linkedin_url || ashbyData?.resume_file_handle)
       };
-      
+
       return frontendCandidate;
     });
 
@@ -334,7 +334,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function refreshCandidatesHandler(_context: ApiHandlerContext) {
   const supabase = await createClient();
-  
+
   try {
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -361,7 +361,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
     }
 
     const apiKey = getAshbyApiKey(userData?.ashby_api_key);
-    
+
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Ashby API key not configured', success: false },
@@ -371,7 +371,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
 
     // Initialize Ashby client
     const ashbyClient = new AshbyClient({ apiKey });
-    
+
     // Fetch candidates from Ashby with pagination
     const allCandidates: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
@@ -388,9 +388,9 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
       if (!response.success) {
         console.error('Ashby API error:', response.error);
         return NextResponse.json(
-          { 
-            error: response.error?.message || 'Failed to fetch from Ashby', 
-            success: false 
+          {
+            error: response.error?.message || 'Failed to fetch from Ashby',
+            success: false
           },
           { status: 500 }
         );
@@ -400,7 +400,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
       const candidatesList = results.results || results.candidates || results;
       const moreDataAvailable = results.moreDataAvailable;
       const nextCursor = results.nextCursor || results.cursor;
-      
+
       if (Array.isArray(candidatesList)) {
         allCandidates.push(...candidatesList);
         totalFetched += candidatesList.length;
@@ -412,7 +412,7 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
 
     // Transform and upsert all candidates
     if (allCandidates.length > 0) {
-      const transformedCandidates = allCandidates.map(candidate => 
+      const transformedCandidates = allCandidates.map(candidate =>
         transformAshbyCandidate(candidate, user.id)
       );
 
@@ -442,8 +442,8 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
   } catch (error) {
     console.error('Error refreshing candidates:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to refresh candidates', 
+      {
+        error: 'Failed to refresh candidates',
         success: false,
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -458,7 +458,7 @@ export const GET = withApiMiddleware(getCandidatesHandler, {
   requireATSAccess: true, // Add ATS access check
   enableCors: true,
   enableLogging: true,
-  rateLimit: { 
+  rateLimit: {
     maxRequests: 60,
     windowMs: 60000 // 1-minute window
   }
@@ -469,7 +469,7 @@ export const POST = withApiMiddleware(refreshCandidatesHandler, {
   requireATSAccess: true, // Add ATS access check
   enableCors: true,
   enableLogging: true,
-  rateLimit: { 
+  rateLimit: {
     maxRequests: 10,
     windowMs: 60000 // 1-minute window
   }
