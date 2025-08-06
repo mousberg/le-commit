@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,9 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Clock,
-  User
+  User,
+  Eye,
+  Loader2
 } from 'lucide-react';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
@@ -20,9 +23,11 @@ interface ATSCandidatesTableProps {
 }
 
 export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
+  const router = useRouter();
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
+  const [downloadingCandidates, setDownloadingCandidates] = useState<Set<string>>(new Set());
 
   const toggleCandidate = (ashbyId: string) => {
     setSelectedCandidates(prev => 
@@ -73,6 +78,27 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
       default:
         return <Badge variant="outline">Not Processed</Badge>;
     }
+  };
+
+  const getScoreBadge = (score?: number) => {
+    if (score === undefined || score === null) {
+      return <span className="text-gray-400 text-sm">-</span>;
+    }
+    
+    let colorClass = 'bg-gray-100 text-gray-700';
+    if (score >= 80) {
+      colorClass = 'bg-green-100 text-green-800';
+    } else if (score >= 60) {
+      colorClass = 'bg-yellow-100 text-yellow-800';
+    } else if (score < 60) {
+      colorClass = 'bg-red-100 text-red-800';
+    }
+    
+    return (
+      <Badge variant="outline" className={`${colorClass} border-0`}>
+        {score}
+      </Badge>
+    );
   };
 
   // const formatDate = (dateString: string) => {
@@ -162,8 +188,10 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                 <th className="text-left p-3 font-medium text-gray-900">CV</th>
                 <th className="text-left p-3 font-medium text-gray-900">LinkedIn</th>
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
+                <th className="text-left p-3 font-medium text-gray-900">Score</th>
                 <th className="text-left p-3 font-medium text-gray-900">Position</th>
                 <th className="text-left p-3 font-medium text-gray-900">Company</th>
+                <th className="text-left p-3 font-medium text-gray-900">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -202,35 +230,76 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                         <button
                           onClick={async (e) => {
                             e.stopPropagation(); // Prevent row click
+                            
+                            const candidateId = candidate.ashby_id;
+                            if (downloadingCandidates.has(candidateId)) {
+                              return; // Already downloading
+                            }
+                            
                             try {
+                              setDownloadingCandidates(prev => new Set(prev).add(candidateId));
+                              
                               const response = await fetch('/api/ashby/resume', {
                                 method: 'POST',
                                 headers: {
                                   'Content-Type': 'application/json',
                                 },
                                 body: JSON.stringify({
+                                  candidateId: candidate.ashby_id,
                                   fileHandle: candidate.resume_file_handle
                                 })
                               });
                               
-                              const result = await response.json();
-                              
-                              if (result.success && result.url) {
-                                // Open download URL in new tab
-                                window.open(result.url, '_blank');
+                              if (response.ok) {
+                                // For direct file download
+                                const contentDisposition = response.headers.get('content-disposition');
+                                let filename = 'resume.pdf';
+                                if (contentDisposition) {
+                                  const matches = /filename="([^"]+)"/.exec(contentDisposition);
+                                  if (matches) filename = matches[1];
+                                }
+                                
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
                               } else {
-                                console.error('Failed to get resume URL:', result.error);
-                                alert('Failed to download resume');
+                                let errorMessage = 'Unknown error';
+                                try {
+                                  const result = await response.json();
+                                  errorMessage = result.error || `Server error: ${response.status}`;
+                                } catch {
+                                  errorMessage = `Server error: ${response.status}`;
+                                }
+                                console.error('Failed to download resume:', errorMessage);
+                                alert('Failed to download resume: ' + errorMessage);
                               }
                             } catch (error) {
                               console.error('Error downloading resume:', error);
-                              alert('Failed to download resume');
+                              const errorMessage = error instanceof Error ? error.message : 'Network error';
+                              alert('Failed to download resume: ' + errorMessage);
+                            } finally {
+                              setDownloadingCandidates(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(candidateId);
+                                return newSet;
+                              });
                             }
                           }}
-                          className="hover:bg-green-100 p-1 rounded"
+                          className="hover:bg-green-100 p-1 rounded disabled:opacity-50"
                           title="Download Resume/CV"
+                          disabled={downloadingCandidates.has(candidate.ashby_id)}
                         >
-                          <FileText className="h-5 w-5 text-green-600" />
+                          {downloadingCandidates.has(candidate.ashby_id) ? (
+                            <Loader2 className="h-5 w-5 text-green-600 animate-spin" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-green-600" />
+                          )}
                         </button>
                       ) : (
                         <FileText className="h-5 w-5 text-gray-300" />
@@ -262,18 +331,61 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     {getStatusBadge(candidate.unmask_status, candidate.action)}
                   </td>
 
+                  {/* Score */}
+                  <td className="p-3">
+                    {getScoreBadge(candidate.analysis?.score)}
+                  </td>
+
                   {/* Position */}
                   <td className="p-3">
                     <span className="text-sm text-gray-900">
-                      {candidate.position || '-'}
+                      {candidate.position || (
+                        <span className="text-gray-400 italic">Not specified</span>
+                      )}
                     </span>
                   </td>
 
                   {/* Company */}
                   <td className="p-3">
                     <span className="text-sm text-gray-900">
-                      {candidate.company || '-'}
+                      {candidate.company || (
+                        <span className="text-gray-400 italic">Not specified</span>
+                      )}
                     </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      {candidate.unmask_applicant_id ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/board/applicants/${candidate.unmask_applicant_id}`);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: Implement start analysis flow
+                            alert('Analysis not yet implemented for this candidate');
+                          }}
+                          className="h-8 px-2 text-gray-500"
+                          disabled
+                        >
+                          Start Analysis
+                        </Button>
+                      )}
+                    </div>
                   </td>
 
                 </tr>

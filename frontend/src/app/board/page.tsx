@@ -348,7 +348,10 @@ function BoardPageContent() {
               {/* Credibility Analysis */}
               {selectedCandidate.ai_data && (
                 <div className="mb-6">
-                  <CredibilityScore analysisResult={selectedCandidate.ai_data} />
+                  <CredibilityScore 
+                    analysisResult={selectedCandidate.ai_data} 
+                    cvFileId={selectedCandidate.cv_file_id}
+                  />
                 </div>
               )}
 

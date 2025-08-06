@@ -1,10 +1,53 @@
 import { AnalysisResult } from '@/lib/interfaces/analysis';
+import { useState } from 'react';
+import { Eye, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 interface CredibilityScoreProps {
   analysisResult: AnalysisResult;
+  cvFileId?: string | null;
 }
 
-export function CredibilityScore({ analysisResult }: CredibilityScoreProps) {
+export function CredibilityScore({ analysisResult, cvFileId }: CredibilityScoreProps) {
+  const [loadingCv, setLoadingCv] = useState(false);
+  
+  const handleCvView = async () => {
+    if (!cvFileId || loadingCv) return;
+    
+    setLoadingCv(true);
+    try {
+      const supabase = createClient();
+      
+      // Get file record
+      const { data: fileRecord, error: fileError } = await supabase
+        .from('files')
+        .select('storage_bucket, storage_path, original_filename, mime_type')
+        .eq('id', cvFileId)
+        .single();
+        
+      if (fileError || !fileRecord) {
+        throw new Error('File not found');
+      }
+      
+      // Generate signed URL for viewing
+      const { data: signedUrl, error: urlError } = await supabase.storage
+        .from(fileRecord.storage_bucket)
+        .createSignedUrl(fileRecord.storage_path, 3600); // 1 hour for viewing
+        
+      if (urlError || !signedUrl) {
+        throw new Error('Failed to generate view URL');
+      }
+      
+      // Open in new tab for viewing
+      window.open(signedUrl.signedUrl, '_blank');
+      
+    } catch (error) {
+      console.error('CV view error:', error);
+      alert('Failed to open CV: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setLoadingCv(false);
+    }
+  };
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-emerald-600';
     if (score >= 70) return 'text-green-600';
@@ -177,6 +220,22 @@ export function CredibilityScore({ analysisResult }: CredibilityScoreProps) {
                   <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
                     {source.score}/100
                   </span>
+                )}
+                {/* CV View Button */}
+                {source.type === 'cv' && source.available && cvFileId && (
+                  <button
+                    onClick={handleCvView}
+                    disabled={loadingCv}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-green-100 hover:bg-green-200 disabled:bg-gray-100 text-green-700 disabled:text-gray-500 rounded transition-colors"
+                    title="View CV"
+                  >
+                    {loadingCv ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Eye className="h-3 w-3" />
+                    )}
+                    {loadingCv ? 'Loading...' : 'View'}
+                  </button>
                 )}
               </div>
             ))}

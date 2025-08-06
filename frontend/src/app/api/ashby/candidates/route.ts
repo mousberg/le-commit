@@ -97,14 +97,39 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
     return websiteLink?.url || null;
   };
 
+  // Try to extract position/company from source or tags if not directly available
+  const extractPositionFromTags = () => {
+    const tags = candidate.tags || [];
+    const positionTag = tags.find(tag => 
+      tag.toLowerCase().includes('position:') || 
+      tag.toLowerCase().includes('role:') ||
+      tag.toLowerCase().includes('title:')
+    );
+    return positionTag ? positionTag.split(':')[1]?.trim() : null;
+  };
+
+  const extractCompanyFromSource = () => {
+    if (candidate.source?.title) {
+      // Some sources might include company name
+      const sourceTitle = candidate.source.title;
+      if (sourceTitle.includes('Company:') || sourceTitle.includes('Employer:')) {
+        return sourceTitle.split(':')[1]?.trim();
+      }
+    }
+    return null;
+  };
+
+  const position = candidate.position || extractPositionFromTags() || null;
+  const company = candidate.company || extractCompanyFromSource() || null;
+
   return {
     user_id: userId,
     ashby_id: candidate.id,
     name: candidate.name,
     email: candidate.primaryEmailAddress?.value || null,
     phone: candidate.primaryPhoneNumber?.value || null,
-    position: candidate.position || null,
-    company: candidate.company || null,
+    position,
+    company,
     school: candidate.school || null,
     location_summary: candidate.location?.locationSummary || candidate.locationSummary || null,
     linkedin_url: getLinkedInUrl(),
