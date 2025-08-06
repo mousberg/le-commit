@@ -15,6 +15,7 @@ import {
   Eye,
   Loader2
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
 
@@ -27,7 +28,49 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
-  const [downloadingCandidates, setDownloadingCandidates] = useState<Set<string>>(new Set());
+  const [viewingCandidates, setViewingCandidates] = useState<Set<string>>(new Set());
+
+  const handleCvView = async (candidateId: string, cvFileId: string | null | undefined) => {
+    if (!cvFileId || viewingCandidates.has(candidateId)) return;
+    
+    setViewingCandidates(prev => new Set(prev).add(candidateId));
+    try {
+      const supabase = createClient();
+      
+      // Get file record
+      const { data: fileRecord, error: fileError } = await supabase
+        .from('files')
+        .select('storage_bucket, storage_path, original_filename')
+        .eq('id', cvFileId)
+        .single();
+        
+      if (fileError || !fileRecord) {
+        throw new Error('File not found');
+      }
+      
+      // Generate signed URL for viewing
+      const { data: signedUrl, error: urlError } = await supabase.storage
+        .from(fileRecord.storage_bucket)
+        .createSignedUrl(fileRecord.storage_path, 3600); // 1 hour
+        
+      if (urlError || !signedUrl) {
+        throw new Error('Failed to generate view URL');
+      }
+      
+      // Open in new tab for viewing
+      window.open(signedUrl.signedUrl, '_blank');
+      
+    } catch (error) {
+      console.error('CV view error:', error);
+      alert('Failed to view CV: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setViewingCandidates(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(candidateId);
+        return newSet;
+      });
+    }
+  };
 
   const toggleCandidate = (ashbyId: string) => {
     setSelectedCandidates(prev => 
@@ -226,85 +269,25 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                   {/* CV */}
                   <td className="p-3">
                     <div className="flex gap-1">
-                      {candidate.has_resume && (candidate.resume_file_handle || candidate.resume_url) ? (
+                      {candidate.has_resume && candidate.cv_file_id ? (
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation(); // Prevent row click
-                            
-                            const candidateId = candidate.ashby_id;
-                            if (downloadingCandidates.has(candidateId)) {
-                              return; // Already downloading
-                            }
-                            
-                            try {
-                              setDownloadingCandidates(prev => new Set(prev).add(candidateId));
-                              
-                              const response = await fetch('/api/ashby/resume', {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  candidateId: candidate.ashby_id,
-                                  fileHandle: candidate.resume_file_handle
-                                })
-                              });
-                              
-                              if (response.ok) {
-                                // For direct file download
-                                const contentDisposition = response.headers.get('content-disposition');
-                                let filename = 'resume.pdf';
-                                if (contentDisposition) {
-                                  const matches = /filename="([^"]+)"/.exec(contentDisposition);
-                                  if (matches) filename = matches[1];
-                                }
-                                
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = filename;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                                document.body.removeChild(a);
-                              } else {
-                                let errorMessage = 'Unknown error';
-                                try {
-                                  const result = await response.json();
-                                  errorMessage = result.error || `Server error: ${response.status}`;
-                                } catch {
-                                  errorMessage = `Server error: ${response.status}`;
-                                }
-                                console.error('Failed to download resume:', errorMessage);
-                                alert('Failed to download resume: ' + errorMessage);
-                              }
-                            } catch (error) {
-                              console.error('Error downloading resume:', error);
-                              const errorMessage = error instanceof Error ? error.message : 'Network error';
-                              alert('Failed to download resume: ' + errorMessage);
-                            } finally {
-                              setDownloadingCandidates(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(candidateId);
-                                return newSet;
-                              });
-                            }
+                            handleCvView(candidate.ashby_id, candidate.cv_file_id);
                           }}
                           className="hover:bg-green-100 p-1 rounded disabled:opacity-50"
-                          title="Download Resume/CV"
-                          disabled={downloadingCandidates.has(candidate.ashby_id)}
+                          title="View CV"
+                          disabled={viewingCandidates.has(candidate.ashby_id)}
                         >
-                          {downloadingCandidates.has(candidate.ashby_id) ? (
+                          {viewingCandidates.has(candidate.ashby_id) ? (
                             <Loader2 className="h-5 w-5 text-green-600 animate-spin" />
                           ) : (
-                            <FileText className="h-5 w-5 text-green-600" />
+                            <Eye className="h-5 w-5 text-green-600" />
                           )}
                         </button>
                       ) : (
                         <FileText className="h-5 w-5 text-gray-300" />
                       )}
-                      
                     </div>
                   </td>
 
@@ -363,7 +346,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/board/applicants/${candidate.unmask_applicant_id}`);
+                            router.push(`/board?id=${candidate.unmask_applicant_id}`);
                           }}
                           className="h-8 px-2"
                         >

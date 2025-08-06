@@ -55,6 +55,7 @@ export interface ATSCandidate {
   // Integration with unmask
   unmask_applicant_id?: string | null;
   unmask_status?: string;
+  cv_file_id?: string | null;
   
   // UI specific fields (not in DB)
   action?: 'existing' | 'created' | 'not_created' | 'error';

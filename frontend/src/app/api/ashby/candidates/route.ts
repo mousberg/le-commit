@@ -250,7 +250,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       }
     }
 
-    // Fetch applicants from Ashby source with their linked ashby_candidates data
+    // Fetch applicants from Ashby source with their linked ashby_candidates data and analysis
     const { data: candidates, error: candidatesError } = await supabase
       .from('applicants')
       .select(`
@@ -293,6 +293,19 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     const transformedCandidates = (candidates || []).map(applicant => {
       const ashbyData = applicant.ashby_candidates;
 
+      // Better position/company fallback logic
+      const getPosition = () => {
+        return ashbyData?.position || 
+               applicant.cv_data?.jobTitle || 
+               null;
+      };
+
+      const getCompany = () => {
+        return ashbyData?.company || 
+               (applicant.cv_data?.professionalExperiences?.[0]?.companyName) || 
+               null;
+      };
+
       // Create ATSCandidate format using applicant as base and ashby_candidates for additional data
       const frontendCandidate: ATSCandidate = {
         id: applicant.id,
@@ -300,8 +313,8 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         name: applicant.name,
         email: applicant.email,
         phone: applicant.phone,
-        position: ashbyData?.position || null,
-        company: ashbyData?.company || null,
+        position: getPosition(),
+        company: getCompany(),
         school: ashbyData?.school || null,
         location_summary: ashbyData?.location_summary || null,
         timezone: null,
@@ -309,7 +322,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         github_url: applicant.github_url,
         website_url: ashbyData?.website_url || null,
         resume_file_handle: ashbyData?.resume_file_handle || null,
-        has_resume: !!(ashbyData?.resume_file_handle || ashbyData?.resume_url),
+        has_resume: !!(applicant.cv_file_id || ashbyData?.resume_file_handle || ashbyData?.resume_url),
         emails: [],
         phone_numbers: [],
         social_links: [],
@@ -328,8 +341,11 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         last_synced_at: applicant.updated_at,
         unmask_applicant_id: applicant.id,
         unmask_status: applicant.status,
+        // Add analysis data from applicant
+        analysis: applicant.ai_data,
+        cv_file_id: applicant.cv_file_id,
         action: 'existing',
-        ready_for_processing: !!(applicant.linkedin_url || ashbyData?.resume_file_handle)
+        ready_for_processing: !!(applicant.linkedin_url || applicant.cv_file_id || ashbyData?.resume_file_handle)
       };
 
       return frontendCandidate;
