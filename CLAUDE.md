@@ -4,6 +4,8 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 
 - We use a local supabase instance for development. The migrations are in `frontend/supabase/migrations`. Make sure to follow best practices. Some information on this can be found in `docs/context/supabase_prompts/`.
 
+- Avoid unessecary endpoints if it can be solved with direct supabase client calls from the frontend. It should be safe with row level security.
+
 - This is a Next.js, TypeScript, Tailwind CSS, and shadcn/ui project.
 
 - When working with supabase, use the supabase CLI when appropriate, for example for creating migrations.
