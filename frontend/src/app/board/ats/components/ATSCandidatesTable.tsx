@@ -13,7 +13,11 @@ import {
   Clock,
   User,
   Eye,
-  Loader2
+  Loader2,
+  Send,
+  Edit2,
+  Check,
+  X
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
@@ -29,6 +33,9 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const [viewingCandidates, setViewingCandidates] = useState<Set<string>>(new Set());
+  const [editingScores, setEditingScores] = useState<Record<string, number>>({});
+  const [pushingScores, setPushingScores] = useState(false);
+  const [pushResults, setPushResults] = useState<Record<string, any>>({});
 
   const handleCvView = async (candidateId: string, cvFileId: string | null | undefined) => {
     if (!cvFileId || viewingCandidates.has(candidateId)) return;
@@ -93,6 +100,119 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   const closeTray = () => {
     setIsTrayOpen(false);
     setTimeout(() => setSelectedCandidate(null), 300);
+  };
+
+  const handleScoreEdit = (candidateId: string, newScore: number) => {
+    setEditingScores(prev => ({
+      ...prev,
+      [candidateId]: newScore
+    }));
+  };
+
+  const handleSaveScore = async (candidateId: string) => {
+    const newScore = editingScores[candidateId];
+    if (newScore === undefined) return;
+
+    try {
+      const supabase = createClient();
+      
+      // Update the score in the database
+      const { error } = await supabase
+        .from('applicants')
+        .update({
+          ai_data: {
+            score: newScore,
+            updated_at: new Date().toISOString(),
+            manually_edited: true
+          }
+        })
+        .eq('ashby_candidates.ashby_id', candidateId);
+
+      if (error) throw error;
+
+      // Remove from editing state
+      setEditingScores(prev => {
+        const newState = { ...prev };
+        delete newState[candidateId];
+        return newState;
+      });
+
+      // Refresh the page to show updated score
+      window.location.reload();
+    } catch (error) {
+      console.error('Error saving score:', error);
+      alert('Failed to save score: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  };
+
+  const handleCancelEdit = (candidateId: string) => {
+    setEditingScores(prev => {
+      const newState = { ...prev };
+      delete newState[candidateId];
+      return newState;
+    });
+  };
+
+  const handleBatchPushScores = async () => {
+    if (selectedCandidates.length === 0) {
+      alert('Please select candidates to push scores for');
+      return;
+    }
+
+    setPushingScores(true);
+    setPushResults({});
+
+    try {
+      // Get applicant IDs for the selected candidates
+      const candidatesWithApplicantIds = candidates.filter(c => 
+        selectedCandidates.includes(c.ashby_id) && c.unmask_applicant_id
+      );
+
+      if (candidatesWithApplicantIds.length === 0) {
+        alert('Selected candidates do not have analysis data to push');
+        return;
+      }
+
+      const applicantIds = candidatesWithApplicantIds.map(c => c.unmask_applicant_id);
+
+      const response = await fetch('/api/ashby/push-score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batchMode: true,
+          applicantIds
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setPushResults(result.results.reduce((acc: any, r: any) => {
+          acc[r.ashbyObjectId] = r;
+          return acc;
+        }, {}));
+        alert(`Batch push completed: ${result.summary.successful}/${result.summary.total} successful`);
+      } else {
+        throw new Error(result.error || 'Failed to push scores');
+      }
+
+    } catch (error) {
+      console.error('Error pushing scores:', error);
+      alert('Failed to push scores: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setPushingScores(false);
+    }
+  };
+
+  const selectAllCandidates = () => {
+    const candidatesWithScores = candidates.filter(c => c.analysis?.score !== undefined);
+    setSelectedCandidates(candidatesWithScores.map(c => c.ashby_id));
+  };
+
+  const clearSelection = () => {
+    setSelectedCandidates([]);
   };
 
   const toggleAll = () => {
@@ -202,16 +322,40 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Candidates ({candidates.length})</CardTitle>
-          {selectedCandidates.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {selectedCandidates.length} selected
-              </span>
-              <Button onClick={handleBulkVerification} size="sm">
-                Queue for Verification
+          <div className="flex items-center gap-2">
+            {selectedCandidates.length > 0 ? (
+              <>
+                <span className="text-sm text-gray-600">
+                  {selectedCandidates.length} selected
+                </span>
+                <Button 
+                  onClick={handleBatchPushScores} 
+                  size="sm"
+                  disabled={pushingScores}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {pushingScores ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Pushing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-1" />
+                      Push to Ashby
+                    </>
+                  )}
+                </Button>
+                <Button onClick={clearSelection} size="sm" variant="outline">
+                  Clear Selection
+                </Button>
+              </>
+            ) : (
+              <Button onClick={selectAllCandidates} size="sm" variant="outline">
+                Select All with Scores
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -316,7 +460,64 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
                   {/* Score */}
                   <td className="p-3">
-                    {getScoreBadge(candidate.analysis?.score)}
+                    {editingScores[candidate.ashby_id] !== undefined ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={editingScores[candidate.ashby_id]}
+                          onChange={(e) => handleScoreEdit(candidate.ashby_id, Number(e.target.value))}
+                          className="w-16 px-2 py-1 border rounded text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveScore(candidate.ashby_id);
+                          }}
+                          className="p-1 text-green-600 hover:bg-green-100 rounded"
+                          title="Save"
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancelEdit(candidate.ashby_id);
+                          }}
+                          className="p-1 text-red-600 hover:bg-red-100 rounded"
+                          title="Cancel"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {getScoreBadge(candidate.analysis?.score)}
+                        {candidate.analysis?.score !== undefined && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleScoreEdit(candidate.ashby_id, candidate.analysis.score);
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                            title="Edit score"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                        )}
+                        {pushResults[candidate.ashby_id] && (
+                          <span className="ml-1">
+                            {pushResults[candidate.ashby_id].success ? (
+                              <Check className="h-3 w-3 text-green-600" title="Successfully pushed" />
+                            ) : (
+                              <X className="h-3 w-3 text-red-600" title={`Failed: ${pushResults[candidate.ashby_id].error}`} />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
 
                   {/* Position */}
