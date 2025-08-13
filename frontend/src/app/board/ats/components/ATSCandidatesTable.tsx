@@ -35,7 +35,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   const [viewingCandidates, setViewingCandidates] = useState<Set<string>>(new Set());
   const [editingScores, setEditingScores] = useState<Record<string, number>>({});
   const [pushingScores, setPushingScores] = useState(false);
-  const [pushResults, setPushResults] = useState<Record<string, any>>({});
+  const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyObjectId?: string; applicantId?: string }>>({});
 
   const handleCvView = async (candidateId: string, cvFileId: string | null | undefined) => {
     if (!cvFileId || viewingCandidates.has(candidateId)) return;
@@ -189,8 +189,10 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
       const result = await response.json();
 
       if (result.success) {
-        setPushResults(result.results.reduce((acc: any, r: any) => {
-          acc[r.ashbyObjectId] = r;
+        setPushResults(result.results.reduce((acc: Record<string, { success: boolean; error?: string; score?: number; ashbyObjectId?: string; applicantId?: string }>, r: { success: boolean; error?: string; score?: number; ashbyObjectId?: string; applicantId?: string }) => {
+          if (r.ashbyObjectId) {
+            acc[r.ashbyObjectId] = r;
+          }
           return acc;
         }, {}));
         alert(`Batch push completed: ${result.summary.successful}/${result.summary.total} successful`);
@@ -499,7 +501,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleScoreEdit(candidate.ashby_id, candidate.analysis.score);
+                              handleScoreEdit(candidate.ashby_id, candidate.analysis?.score || 0);
                             }}
                             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                             title="Edit score"
@@ -510,9 +512,9 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                         {pushResults[candidate.ashby_id] && (
                           <span className="ml-1">
                             {pushResults[candidate.ashby_id].success ? (
-                              <Check className="h-3 w-3 text-green-600" title="Successfully pushed" />
+                              <Check className="h-3 w-3 text-green-600" />
                             ) : (
-                              <X className="h-3 w-3 text-red-600" title={`Failed: ${pushResults[candidate.ashby_id].error}`} />
+                              <X className="h-3 w-3 text-red-600" />
                             )}
                           </span>
                         )}

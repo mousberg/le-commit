@@ -8,7 +8,7 @@ import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiW
 import { getAshbyApiKey } from '@/lib/ashby/server';
 
 async function processBatchScores(
-  supabase: any,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   applicantIds: string[],
   customFieldId: string,
   userId: string
