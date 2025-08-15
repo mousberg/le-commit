@@ -257,6 +257,77 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                     </div>
                   </div>
                 </div>
+
+                {/* Debug Information */}
+                {candidate.unmask_applicant_id && (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <h3 className="text-sm font-medium text-gray-900 mb-3">Debug Information</h3>
+                    <div className="space-y-3">
+                      {/* Processing Status Details */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">AI Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.ai_status || 'null'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">CV Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.cv_status || 'null'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">LinkedIn Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.li_status || 'null'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">GitHub Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.gh_status || 'null'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Trigger Analysis */}
+                      <div className="pt-2 border-t border-red-200">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="text-gray-600 font-medium">Analysis Trigger</span>
+                          <span className={
+                            candidate.ai_status === 'pending' && 
+                            (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') &&
+                            candidate.cv_status !== 'processing' && candidate.li_status !== 'processing' && candidate.gh_status !== 'processing'
+                              ? 'text-green-600 font-medium' 
+                              : 'text-red-600 font-medium'
+                          }>
+                            {candidate.ai_status === 'pending' && 
+                            (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') &&
+                            candidate.cv_status !== 'processing' && candidate.li_status !== 'processing' && candidate.gh_status !== 'processing'
+                              ? '✅ Should Trigger' 
+                              : '❌ Won\'t Trigger'
+                            }
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <div>• AI Status must be &apos;pending&apos;</div>
+                          <div>• At least one data source must be &apos;ready&apos; (CV, LinkedIn, or GitHub)</div>
+                          <div>• No data sources should be &apos;processing&apos;</div>
+                          {candidate.ai_status !== 'pending' && (
+                            <div className="text-red-600">⚠ AI Status is &apos;{candidate.ai_status}&apos; (needs &apos;pending&apos;)</div>
+                          )}
+                          {!(candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') && (
+                            <div className="text-red-600">⚠ No data sources are ready</div>
+                          )}
+                          {(candidate.cv_status === 'processing' || candidate.li_status === 'processing' || candidate.gh_status === 'processing') && (
+                            <div className="text-red-600">⚠ Some data sources are still processing</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

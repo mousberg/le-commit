@@ -491,9 +491,6 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                 <th className="text-left p-3 font-medium text-gray-900">LinkedIn</th>
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
                 <th className="text-left p-3 font-medium text-gray-900">Score</th>
-                <th className="text-left p-3 font-medium text-gray-900">Debug Info</th>
-                <th className="text-left p-3 font-medium text-gray-900">Position</th>
-                <th className="text-left p-3 font-medium text-gray-900">Company</th>
                 <th className="text-left p-3 font-medium text-gray-900">Actions</th>
               </tr>
             </thead>
@@ -636,74 +633,6 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     )}
                   </td>
 
-                  {/* Debug Info */}
-                  <td className="p-3">
-                    {candidate.unmask_applicant_id ? (
-                      <div className="text-xs space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-6">AI:</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0">
-                            {candidate.ai_status || 'null'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-6">CV:</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0">
-                            {candidate.cv_status || 'null'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-6">LI:</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0">
-                            {candidate.li_status || 'null'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-6">GH:</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0">
-                            {candidate.gh_status || 'null'}
-                          </Badge>
-                        </div>
-                        <div className="text-xs">
-                          <span className="text-gray-500">Trigger: </span>
-                          <span className={
-                            candidate.ai_status === 'pending' && 
-                            (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') &&
-                            candidate.cv_status !== 'processing' && candidate.li_status !== 'processing' && candidate.gh_status !== 'processing'
-                              ? 'text-green-600 font-medium' 
-                              : 'text-red-600'
-                          }>
-                            {candidate.ai_status === 'pending' && 
-                            (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') &&
-                            candidate.cv_status !== 'processing' && candidate.li_status !== 'processing' && candidate.gh_status !== 'processing'
-                              ? '✅ Should trigger' 
-                              : '❌ Won\'t trigger'
-                            }
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">No applicant ID</span>
-                    )}
-                  </td>
-
-                  {/* Position */}
-                  <td className="p-3">
-                    <span className="text-sm text-gray-900">
-                      {candidate.position || (
-                        <span className="text-gray-400 italic">Not specified</span>
-                      )}
-                    </span>
-                  </td>
-
-                  {/* Company */}
-                  <td className="p-3">
-                    <span className="text-sm text-gray-900">
-                      {candidate.company || (
-                        <span className="text-gray-400 italic">Not specified</span>
-                      )}
-                    </span>
-                  </td>
 
                   {/* Actions */}
                   <td className="p-3">
