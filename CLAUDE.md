@@ -23,6 +23,12 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 
 - Prefer `@` filepaths over relative paths.
 
+## Environment Variables
+- Next.js automatically loads environment variables from `.env.local`, `.env.production`, `.env.development`, and `.env` files
+- Use `process.env.VARIABLE_NAME` directly in API routes and server-side code
+- **Do NOT install dotenv** - Next.js handles this natively
+- For client-side variables, prefix with `NEXT_PUBLIC_`
+
 ## Event-Driven Architecture & Database Patterns
 
 This application uses an event-driven architecture with database triggers and webhooks for asynchronous processing. Key patterns:
