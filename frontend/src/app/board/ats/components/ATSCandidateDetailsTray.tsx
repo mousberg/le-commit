@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, FileText, ExternalLink, Mail, Calendar, Tag } from 'lucide-react';
+import { X, FileText, ExternalLink, Mail, Calendar, Tag, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
+import { createClient } from '@/lib/supabase/client';
 
 interface ATSCandidateDetailsTrayProps {
   candidate: ATSCandidate | null;
@@ -14,6 +15,8 @@ interface ATSCandidateDetailsTrayProps {
 
 export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandidateDetailsTrayProps) {
   const [mounted, setMounted] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -42,7 +45,7 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
     
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-600">Verified</Badge>;
+        return <Badge variant="default" className="bg-green-600">Analyzed</Badge>;
       case 'processing':
       case 'analyzing':
         return <Badge variant="secondary">Processing</Badge>;
@@ -63,6 +66,41 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const startAnalysis = async () => {
+    if (!candidate?.unmask_applicant_id) return;
+    setAnalyzing(true);
+    
+    try {
+      const supabase = createClient();
+      
+      // Direct database update - triggers event-driven analysis
+      const { error } = await supabase
+        .from('applicants')
+        .update({ 
+          ai_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', candidate.unmask_applicant_id);
+
+      if (error) {
+        throw error;
+      }
+      
+      showNotification('success', 'Analysis started for ' + candidate.name);
+      setTimeout(() => onClose(), 1500); // Close the tray after showing notification
+    } catch (error) {
+      console.error('Failed to start analysis:', error);
+      showNotification('error', 'Failed to start analysis: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -236,17 +274,50 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                 {candidate.ready_for_processing && !candidate.unmask_applicant_id && (
                   <Button 
                     className="flex-1"
-                    onClick={() => {
-                      // Trigger verification
-                      alert('Starting verification for ' + candidate.name);
-                    }}
+                    disabled={analyzing}
+                    onClick={startAnalysis}
                   >
-                    Start Verification
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        Starting Analysis...
+                      </>
+                    ) : (
+                      'Start Analysis'
+                    )}
                   </Button>
                 )}
                 <Button variant="outline" onClick={onClose}>
                   Close
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Notification Toast */}
+        {notification && (
+          <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-right duration-300">
+            <div className={`
+              px-6 py-4 rounded-lg shadow-lg max-w-sm
+              ${notification.type === 'success' 
+                ? 'bg-green-600 text-white' 
+                : 'bg-red-600 text-white'
+              }
+            `}>
+              <div className="flex items-center gap-3">
+                {notification.type === 'success' ? (
+                  <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                )}
+                <p className="text-sm font-medium">{notification.message}</p>
+                <button
+                  onClick={() => setNotification(null)}
+                  className="ml-auto hover:bg-black/20 p-1 rounded"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>

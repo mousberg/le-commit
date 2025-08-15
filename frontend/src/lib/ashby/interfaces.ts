@@ -57,6 +57,12 @@ export interface ATSCandidate {
   unmask_status?: string;
   cv_file_id?: string | null;
   
+  // Processing status fields (from applicants table)
+  ai_status?: string;
+  cv_status?: string;
+  li_status?: string;
+  gh_status?: string;
+  
   // UI specific fields (not in DB)
   action?: 'existing' | 'created' | 'not_created' | 'error';
   ready_for_processing?: boolean;

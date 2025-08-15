@@ -345,7 +345,12 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         analysis: applicant.ai_data,
         cv_file_id: applicant.cv_file_id,
         action: 'existing',
-        ready_for_processing: !!(applicant.linkedin_url || applicant.cv_file_id || ashbyData?.resume_file_handle)
+        ready_for_processing: !!(applicant.linkedin_url || applicant.cv_file_id || ashbyData?.resume_file_handle),
+        // Include processing status fields from applicants table
+        ai_status: applicant.ai_status,
+        cv_status: applicant.cv_status,
+        li_status: applicant.li_status,
+        gh_status: applicant.gh_status
       };
 
       return frontendCandidate;
