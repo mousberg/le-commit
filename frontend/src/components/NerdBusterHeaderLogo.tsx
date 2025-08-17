@@ -165,21 +165,13 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                 </Button>
               </>
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="text-sm/6 font-semibold text-zinc-900 hover:text-pink-400 transition-colors"
-                >
-                  Sign In
-                </Link>
-                <button 
-                  onClick={handleWaitlistClick}
-                  className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
-                >
-                  Try Unmask
-                  <ArrowIcon />
-                </button>
-              </>
+              <button 
+                onClick={handleWaitlistClick}
+                className="flex px-3 py-1.5 gap-x-1 text-sm/6 font-semibold rounded-full text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+              >
+                Try Unmask
+                <ArrowIcon />
+              </button>
             )}
           </div>
         </nav>
@@ -239,25 +231,16 @@ export default function Navbar({ onDemoOpen, onWaitlistOpen }: HeaderProps = {})
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <Link
-                      href="/login"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="w-full flex items-center justify-center px-6 py-3 text-base font-semibold  border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300"
-                    >
-                      Sign In
-                    </Link>
-                    <button 
-                      onClick={() => {
-                        handleWaitlistClick();
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full flex items-center justify-center gap-x-1 px-6 py-3 text-base font-semibold  text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
-                    >
-                      Try Unmask
-                      <ArrowIcon />
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => {
+                      handleWaitlistClick();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-x-1 px-6 py-3 text-base font-semibold  text-white bg-black hover:bg-pink-500 hover:shadow-[0_0_20px_rgba(255,105,180,0.7)] transition-all duration-300"
+                  >
+                    Try Unmask
+                    <ArrowIcon />
+                  </button>
                 )}
               </div>
             </div>
