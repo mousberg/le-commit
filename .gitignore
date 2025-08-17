@@ -111,3 +111,5 @@ supabase/.temp/
 supabase/.branches/
 
 frontend/supabase/migrations/*temp*.sql
+trees/
+specs/
