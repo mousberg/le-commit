@@ -15,6 +15,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
+import { createClient } from '@/lib/supabase/client';
+
+interface EditHistoryEntry {
+  id: string;
+  type: 'score' | 'note';
+  value: number | string | null;
+  source: 'manual' | 'ai';
+  date: string;
+  user_id?: string;
+}
 
 interface ManualAssessmentSectionProps {
   candidate: ATSCandidate;
@@ -27,7 +37,7 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
   
   // Form state
   const [formData, setFormData] = useState({
-    manual_score: candidate.manual_score || '',
+    score: candidate.score || '',
     notes: candidate.notes || ''
   });
   
@@ -40,10 +50,10 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
   useEffect(() => {
     // Update form data when candidate changes
     setFormData({
-      manual_score: candidate.manual_score || '',
+      score: candidate.score || '',
       notes: candidate.notes || ''
     });
-  }, [candidate.manual_score, candidate.notes]);
+  }, [candidate.score, candidate.notes]);
 
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
     setNotification({ type, message });
@@ -56,20 +66,25 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
 
   const handleCancel = () => {
     setFormData({
-      manual_score: candidate.manual_score || '',
+      score: candidate.score || '',
       notes: candidate.notes || ''
     });
     setIsEditing(false);
   };
 
   const handleSave = async () => {
+    if (!candidate.unmask_applicant_id) {
+      showNotification('error', 'No applicant ID found');
+      return;
+    }
+
     setIsLoading(true);
     
     try {
       // Validate score
       let scoreValue: number | null = null;
-      if (formData.manual_score !== '') {
-        scoreValue = parseInt(formData.manual_score.toString());
+      if (formData.score !== '') {
+        scoreValue = parseInt(formData.score.toString());
         if (isNaN(scoreValue) || scoreValue < 0 || scoreValue > 100) {
           showNotification('error', 'Score must be a number between 0 and 100');
           setIsLoading(false);
@@ -84,27 +99,91 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
         return;
       }
 
-      // UI-only mode: Simulate save without database calls
-      console.log('UI-only mode: Manual assessment save simulated', {
-        scoreValue,
-        notes: formData.notes,
-        candidateId: candidate.unmask_applicant_id
-      });
+      const supabase = createClient();
 
-      // Update local state only
-      const updatedCandidate = {
-        ...candidate,
-        manual_score: scoreValue,
-        notes: formData.notes || null,
-        score: scoreValue || candidate.score
-      };
+      // Get current applicant data to check what needs updating
+      const { data: currentApplicant, error: fetchError } = await supabase
+        .from('applicants')
+        .select('score, notes, edit_history')
+        .eq('id', candidate.unmask_applicant_id)
+        .single();
 
-      if (onUpdate) {
-        onUpdate(updatedCandidate);
+      if (fetchError) {
+        throw new Error(`Failed to fetch current data: ${fetchError.message}`);
       }
 
-      setIsEditing(false);
-      showNotification('success', 'Assessment saved (UI-only mode)');
+      const updateData: {
+        score?: number | null;
+        notes?: string | null;
+        edit_history?: EditHistoryEntry[];
+        updated_at?: string;
+      } = {};
+      const newEditHistory = [...(currentApplicant.edit_history || [])];
+
+      // Check if score changed and update
+      if (scoreValue !== currentApplicant.score) {
+        updateData.score = scoreValue;
+        
+        // Add to edit history
+        newEditHistory.push({
+          id: crypto.randomUUID(),
+          type: 'score',
+          value: scoreValue,
+          source: 'manual',
+          date: new Date().toISOString(),
+          user_id: 'current-user' // TODO: Get actual user ID from auth context
+        });
+      }
+
+      // Check if notes changed and update
+      const notesValue = formData.notes || null;
+      if (notesValue !== currentApplicant.notes) {
+        updateData.notes = notesValue;
+        
+        // Add to edit history
+        if (notesValue) {
+          newEditHistory.push({
+            id: crypto.randomUUID(),
+            type: 'note',
+            value: notesValue,
+            source: 'manual',
+            date: new Date().toISOString(),
+            user_id: 'current-user' // TODO: Get actual user ID from auth context
+          });
+        }
+      }
+
+      // Only update if there are changes
+      if (Object.keys(updateData).length > 0) {
+        updateData.edit_history = newEditHistory;
+        updateData.updated_at = new Date().toISOString();
+
+        const { error: updateError } = await supabase
+          .from('applicants')
+          .update(updateData)
+          .eq('id', candidate.unmask_applicant_id);
+
+        if (updateError) {
+          throw new Error(`Failed to save assessment: ${updateError.message}`);
+        }
+
+        // Update local state
+        const updatedCandidate = {
+          ...candidate,
+          score: scoreValue,
+          notes: notesValue
+        };
+
+        if (onUpdate) {
+          onUpdate(updatedCandidate);
+        }
+
+        setIsEditing(false);
+        showNotification('success', 'Assessment saved and synced to Ashby');
+      } else {
+        setIsEditing(false);
+        showNotification('info', 'No changes to save');
+      }
 
     } catch (error) {
       console.error('Failed to save assessment:', error);
@@ -116,7 +195,7 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
 
 
 
-  const hasAssessment = candidate.manual_score !== null || (candidate.notes && candidate.notes.trim() !== '');
+  const hasAssessment = candidate.score !== null || (candidate.notes && candidate.notes.trim() !== '');
 
   return (
     <Card className="p-4 mb-6 border-l-4 border-l-blue-500">
@@ -127,7 +206,7 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
             <h3 className="text-lg font-semibold text-gray-900">Manual Assessment</h3>
             {hasAssessment && (
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                {candidate.manual_score !== null ? `Score: ${candidate.manual_score}` : 'Notes Added'}
+                {candidate.score !== null ? `Score: ${candidate.score}` : 'Notes Added'}
               </Badge>
             )}
           </div>
@@ -169,15 +248,15 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
                 type="number"
                 min="0"
                 max="100"
-                value={formData.manual_score}
-                onChange={(e) => setFormData({ ...formData, manual_score: e.target.value })}
+                value={formData.score}
+                onChange={(e) => setFormData({ ...formData, score: e.target.value })}
                 placeholder="Enter score..."
                 className="w-full"
               />
             ) : (
               <div className="p-2 bg-gray-50 rounded-md min-h-[40px] flex items-center">
-                {candidate.manual_score !== null ? (
-                  <span className="font-medium">{candidate.manual_score}</span>
+                {candidate.score !== null ? (
+                  <span className="font-medium">{candidate.score}</span>
                 ) : (
                   <span className="text-gray-500 italic">No score set</span>
                 )}

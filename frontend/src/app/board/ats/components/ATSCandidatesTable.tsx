@@ -26,17 +26,18 @@ import { ATSCandidate } from '@/lib/ashby/interfaces';
 
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
+  onCandidateUpdate?: (updatedCandidate: ATSCandidate) => void;
 }
 
-export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
+export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandidatesTableProps) {
   const router = useRouter();
-  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]); // applicant IDs
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const [viewingCandidates, setViewingCandidates] = useState<Set<string>>(new Set());
-  const [editingScores, setEditingScores] = useState<Record<string, number>>({});
+  const [editingScores, setEditingScores] = useState<Record<string, number>>({}); // applicant ID -> score
   const [pushingScores, setPushingScores] = useState(false);
-  const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyObjectId?: string; applicantId?: string }>>({});
+  const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyId?: string; applicantId?: string }>>({});  // applicant ID -> result
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -82,11 +83,11 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     }
   };
 
-  const toggleCandidate = (ashbyId: string) => {
+  const toggleCandidate = (applicantId: string) => {
     setSelectedCandidates(prev => 
-      prev.includes(ashbyId) 
-        ? prev.filter(id => id !== ashbyId)
-        : [...prev, ashbyId]
+      prev.includes(applicantId) 
+        ? prev.filter(id => id !== applicantId)
+        : [...prev, applicantId]
     );
   };
 
@@ -105,15 +106,25 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     setTimeout(() => setSelectedCandidate(null), 300);
   };
 
-  const handleScoreEdit = (candidateId: string, newScore: number) => {
+  const handleCandidateUpdate = (updatedCandidate: ATSCandidate) => {
+    // Update the selected candidate in local state
+    setSelectedCandidate(updatedCandidate);
+    
+    // Notify parent component if callback is provided
+    if (onCandidateUpdate) {
+      onCandidateUpdate(updatedCandidate);
+    }
+  };
+
+  const handleScoreEdit = (applicantId: string, newScore: number) => {
     setEditingScores(prev => ({
       ...prev,
-      [candidateId]: newScore
+      [applicantId]: newScore
     }));
   };
 
-  const handleSaveScore = async (candidateId: string) => {
-    const newScore = editingScores[candidateId];
+  const handleSaveScore = async (applicantId: string) => {
+    const newScore = editingScores[applicantId];
     if (newScore === undefined) return;
 
     try {
@@ -129,14 +140,14 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
             manually_edited: true
           }
         })
-        .eq('ashby_candidates.ashby_id', candidateId);
+        .eq('id', applicantId);
 
       if (error) throw error;
 
       // Remove from editing state
       setEditingScores(prev => {
         const newState = { ...prev };
-        delete newState[candidateId];
+        delete newState[applicantId];
         return newState;
       });
 
@@ -148,10 +159,10 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     }
   };
 
-  const handleCancelEdit = (candidateId: string) => {
+  const handleCancelEdit = (applicantId: string) => {
     setEditingScores(prev => {
       const newState = { ...prev };
-      delete newState[candidateId];
+      delete newState[applicantId];
       return newState;
     });
   };
@@ -182,12 +193,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
       const result = await response.json();
 
       if (result.success) {
-        setPushResults(result.results.reduce((acc: Record<string, { success: boolean; error?: string; score?: number; ashbyObjectId?: string; applicantId?: string }>, r: { success: boolean; error?: string; score?: number; ashbyObjectId?: string; applicantId?: string }) => {
-          if (r.ashbyObjectId) {
-            acc[r.ashbyObjectId] = r;
-          }
-          return acc;
-        }, {}));
+        setPushResults(result.results); // Results are now keyed by applicant ID
         alert(`Batch push completed: ${result.summary.successful}/${result.summary.total} successful`);
       } else {
         throw new Error(result.error || 'Failed to push scores');
@@ -203,7 +209,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
   const selectAllCandidates = () => {
     const candidatesWithScores = candidates.filter(c => c.score !== undefined || c.analysis?.score !== undefined);
-    setSelectedCandidates(candidatesWithScores.map(c => c.ashby_id));
+    setSelectedCandidates(candidatesWithScores.map(c => c.id));
   };
 
   const selectCandidatesForAnalysis = () => {
@@ -212,12 +218,12 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
       c.ready_for_processing && 
       !c.analysis
     );
-    setSelectedCandidates(candidatesForAnalysis.map(c => c.ashby_id));
+    setSelectedCandidates(candidatesForAnalysis.map(c => c.id));
   };
 
   // Get candidates that are ready for analysis
   const selectedCandidatesForAnalysis = candidates.filter(c => 
-    selectedCandidates.includes(c.ashby_id) && 
+    selectedCandidates.includes(c.id) && 
     c.unmask_applicant_id && 
     c.ready_for_processing && 
     !c.analysis
@@ -225,7 +231,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
   // Get candidates that have scores for pushing
   const selectedCandidatesForScoring = candidates.filter(c => 
-    selectedCandidates.includes(c.ashby_id) && 
+    selectedCandidates.includes(c.id) && 
     c.unmask_applicant_id && 
     (c.score !== undefined || c.analysis?.score !== undefined)
   );
@@ -236,7 +242,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
   const toggleAll = () => {
     setSelectedCandidates(prev => 
-      prev.length === candidates.length ? [] : candidates.map(c => c.ashby_id)
+      prev.length === candidates.length ? [] : candidates.map(c => c.id)
     );
   };
 
@@ -293,7 +299,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
   const handleBulkAnalysis = async () => {
     const candidatesWithApplicantIds = candidates.filter(c => 
-      selectedCandidates.includes(c.ashby_id) && c.unmask_applicant_id
+      selectedCandidates.includes(c.id) && c.unmask_applicant_id
     );
 
     if (candidatesWithApplicantIds.length === 0) {
@@ -304,13 +310,12 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     setBatchAnalyzing(true);
     try {
       const supabase = createClient();
-      const applicantIds = candidatesWithApplicantIds.map(c => c.unmask_applicant_id);
+      const applicantIds = selectedCandidates; // selectedCandidates already contains applicant IDs
       
       console.log('🔍 Starting bulk analysis for applicant IDs:', applicantIds);
       console.log('📋 Candidates being processed:', candidatesWithApplicantIds.map(c => ({
         name: c.name,
-        ashby_id: c.ashby_id,
-        unmask_applicant_id: c.unmask_applicant_id,
+        applicant_id: c.id,
         ready_for_processing: c.ready_for_processing
       })));
       
@@ -505,8 +510,8 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                   <td className="p-3">
                     <input
                       type="checkbox"
-                      checked={selectedCandidates.includes(candidate.ashby_id)}
-                      onChange={() => toggleCandidate(candidate.ashby_id)}
+                      checked={selectedCandidates.includes(candidate.id)}
+                      onChange={() => toggleCandidate(candidate.id)}
                       className="rounded"
                     />
                   </td>
@@ -531,13 +536,13 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent row click
-                            handleCvView(candidate.ashby_id, candidate.cv_file_id);
+                            handleCvView(candidate.id, candidate.cv_file_id);
                           }}
                           className="hover:bg-green-100 p-1 rounded disabled:opacity-50"
                           title="View CV"
-                          disabled={viewingCandidates.has(candidate.ashby_id)}
+                          disabled={viewingCandidates.has(candidate.id)}
                         >
-                          {viewingCandidates.has(candidate.ashby_id) ? (
+                          {viewingCandidates.has(candidate.id) ? (
                             <Loader2 className="h-5 w-5 text-green-600 animate-spin" />
                           ) : (
                             <Eye className="h-5 w-5 text-green-600" />
@@ -574,21 +579,21 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
                   {/* Score */}
                   <td className="p-3">
-                    {editingScores[candidate.ashby_id] !== undefined ? (
+                    {editingScores[candidate.id] !== undefined ? (
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
                           min="0"
                           max="100"
-                          value={editingScores[candidate.ashby_id]}
-                          onChange={(e) => handleScoreEdit(candidate.ashby_id, Number(e.target.value))}
+                          value={editingScores[candidate.id]}
+                          onChange={(e) => handleScoreEdit(candidate.id, Number(e.target.value))}
                           className="w-16 px-2 py-1 border rounded text-sm"
                           onClick={(e) => e.stopPropagation()}
                         />
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleSaveScore(candidate.ashby_id);
+                            handleSaveScore(candidate.id);
                           }}
                           className="p-1 text-green-600 hover:bg-green-100 rounded"
                           title="Save"
@@ -598,7 +603,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCancelEdit(candidate.ashby_id);
+                            handleCancelEdit(candidate.id);
                           }}
                           className="p-1 text-red-600 hover:bg-red-100 rounded"
                           title="Cancel"
@@ -613,7 +618,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleScoreEdit(candidate.ashby_id, candidate.score || candidate.analysis?.score || 0);
+                              handleScoreEdit(candidate.id, candidate.score || candidate.analysis?.score || 0);
                             }}
                             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                             title="Edit score"
@@ -621,9 +626,9 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                             <Edit2 className="h-3 w-3" />
                           </button>
                         )}
-                        {pushResults[candidate.ashby_id] && (
+                        {pushResults[candidate.id] && (
                           <span className="ml-1">
-                            {pushResults[candidate.ashby_id].success ? (
+                            {pushResults[candidate.id].success ? (
                               <Check className="h-3 w-3 text-green-600" />
                             ) : (
                               <X className="h-3 w-3 text-red-600" />
@@ -689,6 +694,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
         candidate={selectedCandidate}
         isOpen={isTrayOpen}
         onClose={closeTray}
+        onCandidateUpdate={handleCandidateUpdate}
       />
 
       {/* Notification Toast */}

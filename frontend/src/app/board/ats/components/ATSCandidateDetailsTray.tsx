@@ -12,9 +12,10 @@ interface ATSCandidateDetailsTrayProps {
   candidate: ATSCandidate | null;
   isOpen: boolean;
   onClose: () => void;
+  onCandidateUpdate?: (updatedCandidate: ATSCandidate) => void;
 }
 
-export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandidateDetailsTrayProps) {
+export function ATSCandidateDetailsTray({ candidate, isOpen, onClose, onCandidateUpdate }: ATSCandidateDetailsTrayProps) {
   const [mounted, setMounted] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -234,6 +235,17 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                   </div>
                 )}
 
+                {/* Manual Assessment Section */}
+                <ManualAssessmentSection 
+                  candidate={candidate}
+                  onUpdate={(updatedCandidate) => {
+                    // Update the parent component's state
+                    if (onCandidateUpdate) {
+                      onCandidateUpdate(updatedCandidate);
+                    }
+                  }}
+                />
+
                 {/* Processing Status */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-3">Processing Information</h3>
@@ -258,16 +270,6 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                     </div>
                   </div>
                 </div>
-
-                {/* Manual Assessment Section */}
-                <ManualAssessmentSection 
-                  candidate={candidate}
-                  onUpdate={(updatedCandidate) => {
-                    // In a real implementation, you might want to update the parent component's state
-                    // For now, we'll just log the update
-                    console.log('Candidate updated:', updatedCandidate);
-                  }}
-                />
 
                 {/* Debug Information */}
                 {candidate.unmask_applicant_id && (

@@ -350,7 +350,10 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         ai_status: applicant.ai_status,
         cv_status: applicant.cv_status,
         li_status: applicant.li_status,
-        gh_status: applicant.gh_status
+        gh_status: applicant.gh_status,
+        // Include score and notes from applicants table
+        score: applicant.score,
+        notes: applicant.notes
       };
 
       return frontendCandidate;

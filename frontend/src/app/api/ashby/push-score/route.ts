@@ -1,11 +1,12 @@
 // Ashby Push Score API - Send AI analysis score to Ashby custom field
 // POST: Push analysis score to Ashby using customField.setValue
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 import { getAshbyApiKey } from '@/lib/ashby/server';
+import { getAshbyIdFromApplicantId } from '@/lib/ashby/utils';
 
 async function processBatchScores(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -35,18 +36,16 @@ async function processBatchScores(
     // Process each applicant
     for (const applicantId of applicantIds) {
       try {
-        // Get applicant data and linked Ashby information
+        // Get applicant data
         const applicantResult = await supabase
           .from('applicants')
           .select(`
             id,
             ai_data,
-            source,
-            ashby_candidates!inner(
-              ashby_id
-            )
+            source
           `)
           .eq('id', applicantId)
+          .eq('user_id', userId)
           .single();
 
         if (applicantResult.error || !applicantResult.data) {
@@ -58,14 +57,25 @@ async function processBatchScores(
           continue;
         }
 
-        const { ai_data, source, ashby_candidates } = applicantResult.data;
+        const { ai_data, source } = applicantResult.data;
         
         // Check if this applicant came from Ashby
-        if (source !== 'ashby' || !ashby_candidates) {
+        if (source !== 'ashby') {
           results.push({
             applicantId,
             success: false,
             error: 'Not linked to Ashby candidate'
+          });
+          continue;
+        }
+
+        // Get ashby_id using utility function
+        const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId, userId);
+        if (!ashbyLookup.success) {
+          results.push({
+            applicantId,
+            success: false,
+            error: ashbyLookup.error
           });
           continue;
         }
@@ -81,7 +91,7 @@ async function processBatchScores(
         }
 
         const score = ai_data.score;
-        const ashbyObjectId = ashby_candidates[0].ashby_id;
+        const ashbyObjectId = ashbyLookup.ashbyId!;
 
         // Validate score is in expected range (0-100)
         if (score < 0 || score > 100) {
@@ -103,7 +113,7 @@ async function processBatchScores(
 
         results.push({
           applicantId,
-          ashbyObjectId,
+          ashbyId: ashbyObjectId,
           score,
           success: ashbyResponse.success,
           error: ashbyResponse.error?.message
@@ -120,10 +130,16 @@ async function processBatchScores(
 
     const successCount = results.filter(r => r.success).length;
     
+    // Transform results array to object keyed by applicant ID for frontend consistency
+    const resultsObject = results.reduce((acc, result) => {
+      acc[result.applicantId] = result;
+      return acc;
+    }, {} as Record<string, typeof results[0]>);
+    
     return NextResponse.json({
       success: true,
       message: `Batch processing completed: ${successCount}/${applicantIds.length} successful`,
-      results,
+      results: resultsObject,
       summary: {
         total: applicantIds.length,
         successful: successCount,
@@ -313,13 +329,161 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
   }
 }
 
-// POST - Push AI analysis score to Ashby
-export const POST = withApiMiddleware(pushScoreToAshby, {
-  requireAuth: true,
-  enableCors: true,
-  enableLogging: true,
-  rateLimit: { 
-    maxRequests: 20,
-    windowMs: 60000 // 1-minute window
+// Handle webhook calls from database triggers
+async function handleWebhookCall(request: NextRequest) {
+  const body = await request.json();
+  const { applicantId } = body;
+
+  if (!applicantId) {
+    return NextResponse.json(
+      { error: 'Applicant ID is required', success: false },
+      { status: 400 }
+    );
   }
-});
+
+  // Use service role client to bypass RLS (trigger already validated data)
+  const supabase = createServiceRoleClient();
+
+  // Get applicant data and user info
+  const { data: applicantData, error: applicantError } = await supabase
+    .from('applicants')
+    .select(`
+      id,
+      user_id,
+      score,
+      source
+    `)
+    .eq('id', applicantId)
+    .single();
+
+  if (applicantError || !applicantData) {
+    return NextResponse.json(
+      { error: 'Applicant not found', success: false },
+      { status: 404 }
+    );
+  }
+
+  const { user_id, score: applicantScore, source } = applicantData;
+
+  // Check if this applicant came from Ashby
+  if (source !== 'ashby') {
+    return NextResponse.json(
+      { error: 'Not an Ashby candidate', success: false },
+      { status: 400 }
+    );
+  }
+
+  // Get user's API key
+  const { data: userData } = await supabase
+    .from('users')
+    .select('ashby_api_key')
+    .eq('id', user_id)
+    .single();
+
+  const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'Ashby integration not configured for user', success: false },
+      { status: 400 }
+    );
+  }
+
+  // Get ashby_id using utility function
+  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId, user_id);
+  if (!ashbyLookup.success) {
+    return NextResponse.json(
+      { error: ashbyLookup.error, success: false },
+      { status: 404 }
+    );
+  }
+
+  // Extract and validate score
+  if (typeof applicantScore !== 'number' || applicantScore < 0 || applicantScore > 100) {
+    return NextResponse.json(
+      { error: 'Invalid or missing score', success: false },
+      { status: 400 }
+    );
+  }
+
+  // Initialize Ashby client and push score
+  const ashbyClient = new AshbyClient({ apiKey });
+  
+  // Use a default custom field ID or get from environment
+  const customFieldId = process.env.ASHBY_SCORE_FIELD_ID || '28f9840a-7e0e-4a0f-a3a6-d7c8d7e3f1a6';
+
+  const ashbyResponse = await ashbyClient.setCustomFieldValue({
+    objectType: 'Candidate',
+    objectId: ashbyLookup.ashbyId!,
+    fieldId: customFieldId,
+    fieldValue: applicantScore
+  });
+
+  if (!ashbyResponse.success) {
+    return NextResponse.json(
+      { 
+        error: ashbyResponse.error?.message || 'Failed to push score to Ashby', 
+        success: false 
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: 'Score successfully synced to Ashby',
+    data: {
+      applicantId,
+      ashbyId: ashbyLookup.ashbyId,
+      score: applicantScore,
+      customFieldId
+    }
+  });
+}
+
+// Handle user calls (existing middleware-wrapped logic)
+async function handleUserCall(request: NextRequest) {
+  // Create a mock context for the existing handler
+  const handlerContext: ApiHandlerContext = {
+    request,
+    user: { id: '', email: '' }, // Will be populated by middleware
+    dbService: null as any,
+    body: null
+  };
+
+  // Use the middleware to get proper auth context
+  const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
+    requireAuth: true,
+    enableCors: true,
+    enableLogging: true,
+    rateLimit: { 
+      maxRequests: 20,
+      windowMs: 60000
+    }
+  })(request, { params: Promise.resolve({}) });
+
+  return middlewareResponse;
+}
+
+// POST - Push AI analysis score to Ashby (handles both user calls and webhook calls)
+export async function POST(request: NextRequest) {
+  try {
+    // Check if this is a webhook call from database trigger
+    const isWebhookCall = request.headers.get('x-webhook-source') === 'database-trigger';
+    
+    if (isWebhookCall) {
+      return await handleWebhookCall(request);
+    } else {
+      return await handleUserCall(request);
+    }
+  } catch (error) {
+    console.error('Error in push-score API:', error);
+    return NextResponse.json(
+      { 
+        error: 'Internal server error', 
+        success: false,
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}

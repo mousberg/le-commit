@@ -29,9 +29,20 @@ Always use `pnpm` commands instead of `npm`. Everything except documentation liv
 - **Do NOT install dotenv** - Next.js handles this natively
 - For client-side variables, prefix with `NEXT_PUBLIC_`
 
+### Required Environment Variables
+- `WEBHOOK_SECRET` - Secret for authenticating internal database trigger webhooks (default: `webhook-secret-dev` in development)
+- `ASHBY_SCORE_FIELD_ID` - Ashby custom field ID for AI scores (has fallback default)
+
 ## Event-Driven Architecture & Database Patterns
 
 This application uses an event-driven architecture with database triggers and webhooks for asynchronous processing. Key patterns:
+
+## ATS Integration Patterns
+
+- **Frontend ID Strategy**: All frontend components use `applicant_id` as the primary identifier for consistency
+- **Backend ID Mapping**: APIs accept `applicant_id` and internally join to `ashby_candidates` table to get `ashby_id` when needed for external API calls
+- **Separation of Concerns**: Frontend handles business logic with applicant entities, backend handles integration-specific identifiers
+- **Reusable Utility**: Use `getAshbyIdFromApplicantId()` from `@/lib/ashby/utils` for consistent ashby_id lookups in APIs
 
 ## Response Style
 - Don't be a sycophant in your responses. Avoid initial responses like "You're  absolutely right!" or "That's a great idea!".

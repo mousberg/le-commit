@@ -3,8 +3,8 @@ import { AnalysisResult } from '@/lib/interfaces/analysis';
 
 export interface ATSCandidate {
   // Database primary fields
-  id?: string;
-  ashby_id: string;
+  id: string; // Primary identifier - applicant ID
+  ashby_id?: string; // Optional, for display/debug only
   name: string;
   email: string | null;
   phone?: string | null;

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle, Mail } from 'lucide-react';
 import { ATSCandidatesTable } from './components/ATSCandidatesTable';
-import { ATSPageData } from '@/lib/ashby/interfaces';
+import { ATSPageData, ATSCandidate } from '@/lib/ashby/interfaces';
 
 export default function ATSPage() {
   const router = useRouter();
@@ -93,6 +93,37 @@ export default function ATSPage() {
     }
   };
 
+  const handleCandidateUpdate = (updatedCandidate: ATSCandidate) => {
+    // Update the candidate in the local data state
+    if (data?.candidates) {
+      // Use applicant ID as the unique identifier
+      const candidateId = updatedCandidate.id;
+      
+      const updatedCandidates = data.candidates.map(candidate => {
+        // Match by applicant ID (primary unique identifier)
+        if (candidate.id === candidateId) {
+          return { ...candidate, ...updatedCandidate };
+        }
+        return candidate;
+      });
+
+      // Verify we actually found and updated a candidate
+      const wasUpdated = updatedCandidates.some(candidate => 
+        candidate.id === candidateId && 
+        (candidate.score === updatedCandidate.score || candidate.notes === updatedCandidate.notes)
+      );
+
+      if (wasUpdated) {
+        setData({
+          ...data,
+          candidates: updatedCandidates
+        });
+      } else {
+        console.warn('Candidate not found for update:', candidateId);
+      }
+    }
+  };
+
   const handleExportCSV = () => {
     if (!data?.candidates) return;
 
@@ -101,7 +132,7 @@ export default function ATSPage() {
       'Email', 
       'LinkedIn URL',
       'Has Resume',
-      'Ashby ID',
+      'Applicant ID',
       'Created Date',
       'Tags',
       'Unmask Status',
@@ -116,7 +147,7 @@ export default function ATSPage() {
         `"${candidate.email}"`,
         `"${candidate.linkedin_url || ''}"`,
         candidate.has_resume ? 'Yes' : 'No',
-        candidate.ashby_id,
+        candidate.id,
         candidate.created_at,
         `"${candidate.tags.join('; ')}"`,
         `"${candidate.unmask_status || 'Not processed'}"`,
@@ -326,7 +357,10 @@ export default function ATSPage() {
 
         {/* Candidates Table */}
         {data && !loading && (
-          <ATSCandidatesTable candidates={data.candidates} />
+          <ATSCandidatesTable 
+            candidates={data.candidates} 
+            onCandidateUpdate={handleCandidateUpdate}
+          />
         )}
 
       </div>
