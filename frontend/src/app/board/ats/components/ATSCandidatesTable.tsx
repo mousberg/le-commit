@@ -202,7 +202,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   };
 
   const selectAllCandidates = () => {
-    const candidatesWithScores = candidates.filter(c => c.analysis?.score !== undefined);
+    const candidatesWithScores = candidates.filter(c => c.score !== undefined || c.analysis?.score !== undefined);
     setSelectedCandidates(candidatesWithScores.map(c => c.ashby_id));
   };
 
@@ -227,7 +227,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   const selectedCandidatesForScoring = candidates.filter(c => 
     selectedCandidates.includes(c.ashby_id) && 
     c.unmask_applicant_id && 
-    c.analysis?.score !== undefined
+    (c.score !== undefined || c.analysis?.score !== undefined)
   );
 
   const clearSelection = () => {
@@ -491,6 +491,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                 <th className="text-left p-3 font-medium text-gray-900">LinkedIn</th>
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
                 <th className="text-left p-3 font-medium text-gray-900">Score</th>
+                <th className="text-left p-3 font-medium text-gray-900">Notes</th>
                 <th className="text-left p-3 font-medium text-gray-900">Actions</th>
               </tr>
             </thead>
@@ -607,12 +608,12 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1">
-                        {getScoreBadge(candidate.analysis?.score)}
-                        {candidate.analysis?.score !== undefined && (
+                        {getScoreBadge(candidate.score || candidate.analysis?.score)}
+                        {(candidate.score !== undefined || candidate.analysis?.score !== undefined) && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleScoreEdit(candidate.ashby_id, candidate.analysis?.score || 0);
+                              handleScoreEdit(candidate.ashby_id, candidate.score || candidate.analysis?.score || 0);
                             }}
                             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                             title="Edit score"
@@ -633,6 +634,16 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                     )}
                   </td>
 
+                  {/* Notes */}
+                  <td className="p-3">
+                    {candidate.notes ? (
+                      <div className="max-w-32 truncate text-sm text-gray-600" title={candidate.notes}>
+                        {candidate.notes}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm italic">No notes</span>
+                    )}
+                  </td>
 
                   {/* Actions */}
                   <td className="p-3">

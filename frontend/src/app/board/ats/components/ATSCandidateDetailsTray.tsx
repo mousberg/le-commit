@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
 import { createClient } from '@/lib/supabase/client';
+import { ManualAssessmentSection } from '@/components/ManualAssessmentSection';
 
 interface ATSCandidateDetailsTrayProps {
   candidate: ATSCandidate | null;
@@ -257,6 +258,16 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                     </div>
                   </div>
                 </div>
+
+                {/* Manual Assessment Section */}
+                <ManualAssessmentSection 
+                  candidate={candidate}
+                  onUpdate={(updatedCandidate) => {
+                    // In a real implementation, you might want to update the parent component's state
+                    // For now, we'll just log the update
+                    console.log('Candidate updated:', updatedCandidate);
+                  }}
+                />
 
                 {/* Debug Information */}
                 {candidate.unmask_applicant_id && (
