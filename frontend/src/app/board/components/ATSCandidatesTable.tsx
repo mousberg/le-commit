@@ -23,7 +23,6 @@ import {
 
 interface ATSCandidate {
   id: string; // Primary identifier - applicant ID
-  ashby_id?: string;
   name: string;
   email: string;
   linkedin_url?: string;
