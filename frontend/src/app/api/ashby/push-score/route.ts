@@ -109,11 +109,6 @@ async function processBatchScores(
           fieldValue: applicantScore
         };
 
-        console.log(`🚀 BATCH: Sending score for ${applicantId}:`, {
-          ...batchPayload,
-          environmentFieldId: process.env.ASHBY_SCORE_FIELD_ID || 'NOT_SET (using default)',
-          timestamp: new Date().toISOString()
-        });
 
         const ashbyResponse = await ashbyClient.setCustomFieldValue(batchPayload);
 

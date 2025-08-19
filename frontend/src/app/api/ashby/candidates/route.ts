@@ -237,7 +237,6 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
               ignoreDuplicates: false
             });
 
-          console.log('Upserted:', upsertError);
 
           if (!upsertError) {
             autoSynced = true;
