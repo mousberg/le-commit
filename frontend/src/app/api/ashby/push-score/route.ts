@@ -102,19 +102,33 @@ async function processBatchScores(
         }
 
         // Send score to Ashby
-        const ashbyResponse = await ashbyClient.setCustomFieldValue({
+        const batchPayload = {
           objectType: 'Candidate',
           objectId: ashbyObjectId,
           fieldId: customFieldId,
           fieldValue: applicantScore
+        };
+
+        console.log(`🚀 BATCH: Sending score for ${applicantId}:`, {
+          ...batchPayload,
+          environmentFieldId: process.env.ASHBY_SCORE_FIELD_ID || 'NOT_SET (using default)',
+          timestamp: new Date().toISOString()
         });
+
+        const ashbyResponse = await ashbyClient.setCustomFieldValue(batchPayload);
+
+        // Check both outer success and inner results.success
+        const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
+        const errorMessage = ashbyResponse.results?.errorInfo?.code || ashbyResponse.error?.message;
 
         results.push({
           applicantId,
           ashbyId: ashbyObjectId,
           score: applicantScore,
-          success: ashbyResponse.success,
-          error: ashbyResponse.error?.message
+          success: isActuallySuccessful,
+          error: isActuallySuccessful ? undefined : errorMessage,
+          errorCode: ashbyResponse.results?.errorInfo?.code,
+          ashbyResponse: ashbyResponse.results
         });
 
       } catch (error) {
@@ -169,7 +183,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       applicantIds, // For batch operations
       ashbyObjectType = 'Candidate', // Default to Candidate for authenticity analysis
       ashbyObjectId, // Optional: specific Ashby ID to override auto-detection
-      customFieldId = '1a3a3e4d-5455-437e-8f75-4aa547222814', // UnmaskScore field UUID
+      customFieldId = '1a3a3e4d-5455-437e-8f75-4aa547222814', // UnmaskScore field UUID (verified from debug endpoint)
       scoreOverride,
       batchMode = false // Flag to indicate batch processing
     } = body;
@@ -286,19 +300,59 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       fieldValue: scoreToSend
     };
 
-    console.log('🚀 Sending to Ashby:', requestPayload);
+    console.log('🚀 USER: Sending score to Ashby:', {
+      ...requestPayload,
+      environmentFieldId: process.env.ASHBY_SCORE_FIELD_ID || 'NOT_SET (using default)',
+      timestamp: new Date().toISOString(),
+      userTriggered: true
+    });
+    
     const ashbyResponse = await ashbyClient.setCustomFieldValue(requestPayload);
 
-    if (!ashbyResponse.success) {
+    console.log('📤 USER: Ashby API response:', {
+      success: ashbyResponse.success,
+      results: ashbyResponse.results,
+      error: ashbyResponse.error,
+      timestamp: new Date().toISOString()
+    });
+
+    // Check both outer success and inner results.success
+    const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
+    
+    if (!isActuallySuccessful) {
+      const errorMessage = ashbyResponse.results?.errorInfo?.code || ashbyResponse.error?.message || 'Failed to set custom field in Ashby';
+      const errorDetails = ashbyResponse.results?.errors || [];
+      
+      console.error('❌ USER: Failed to push score to Ashby:', {
+        applicantId,
+        outerSuccess: ashbyResponse.success,
+        innerSuccess: ashbyResponse.results?.success,
+        errorCode: ashbyResponse.results?.errorInfo?.code,
+        errorDetails,
+        error: ashbyResponse.error,
+        payload: requestPayload
+      });
+      
       return NextResponse.json(
         { 
-          error: ashbyResponse.error?.message || 'Failed to set custom field in Ashby', 
+          error: `Ashby API error: ${errorMessage}`,
+          errorCode: ashbyResponse.results?.errorInfo?.code,
+          errorDetails,
           success: false,
           ashbyError: ashbyResponse.error
         },
-        { status: 500 }
+        { status: 400 } // Use 400 for client errors like field not found
       );
     }
+
+    console.log('✅ USER: Successfully pushed score to Ashby:', {
+      applicantId,
+      ashbyObjectType,
+      ashbyObjectId: finalAshbyObjectId,
+      customFieldId,
+      score: scoreToSend,
+      ashbyResults: ashbyResponse.results
+    });
 
     return NextResponse.json({
       success: true,
@@ -406,25 +460,71 @@ async function handleWebhookCall(request: NextRequest) {
   // Initialize Ashby client and push score
   const ashbyClient = new AshbyClient({ apiKey });
   
-  // Use a default custom field ID or get from environment
-  const customFieldId = process.env.ASHBY_SCORE_FIELD_ID || '28f9840a-7e0e-4a0f-a3a6-d7c8d7e3f1a6';
+  // Use the correct UnmaskScore field ID (verified from debug endpoint)
+  const customFieldId = process.env.ASHBY_SCORE_FIELD_ID || '1a3a3e4d-5455-437e-8f75-4aa547222814';
 
-  const ashbyResponse = await ashbyClient.setCustomFieldValue({
+  const webhookPayload = {
     objectType: 'Candidate',
     objectId: ashbyLookup.ashbyId!,
     fieldId: customFieldId,
     fieldValue: applicantScore
+  };
+
+  console.log('🔧 WEBHOOK: Sending score to Ashby via database trigger:', {
+    applicantId,
+    ashbyId: ashbyLookup.ashbyId,
+    payload: webhookPayload,
+    customFieldId,
+    score: applicantScore,
+    environmentFieldId: process.env.ASHBY_SCORE_FIELD_ID || 'NOT_SET (using default)',
+    timestamp: new Date().toISOString()
   });
 
-  if (!ashbyResponse.success) {
+  const ashbyResponse = await ashbyClient.setCustomFieldValue(webhookPayload);
+
+  console.log('📤 WEBHOOK: Ashby API response:', {
+    success: ashbyResponse.success,
+    results: ashbyResponse.results,
+    error: ashbyResponse.error,
+    timestamp: new Date().toISOString()
+  });
+
+  // Check both outer success and inner results.success
+  const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
+  
+  if (!isActuallySuccessful) {
+    const errorMessage = ashbyResponse.results?.errorInfo?.code || ashbyResponse.error?.message || 'Failed to push score to Ashby';
+    const errorDetails = ashbyResponse.results?.errors || [];
+    
+    console.error('❌ WEBHOOK: Failed to push score to Ashby:', {
+      applicantId,
+      ashbyId: ashbyLookup.ashbyId,
+      outerSuccess: ashbyResponse.success,
+      innerSuccess: ashbyResponse.results?.success,
+      errorCode: ashbyResponse.results?.errorInfo?.code,
+      errorDetails,
+      error: ashbyResponse.error,
+      payload: webhookPayload
+    });
+    
     return NextResponse.json(
       { 
-        error: ashbyResponse.error?.message || 'Failed to push score to Ashby', 
+        error: `Ashby API error: ${errorMessage}`,
+        errorCode: ashbyResponse.results?.errorInfo?.code,
+        errorDetails,
         success: false 
       },
-      { status: 500 }
+      { status: 400 } // Use 400 for client errors like field not found
     );
   }
+
+  console.log('✅ WEBHOOK: Successfully pushed score to Ashby:', {
+    applicantId,
+    ashbyId: ashbyLookup.ashbyId,
+    score: applicantScore,
+    customFieldId,
+    ashbyResults: ashbyResponse.results
+  });
 
   return NextResponse.json({
     success: true,
@@ -433,7 +533,8 @@ async function handleWebhookCall(request: NextRequest) {
       applicantId,
       ashbyId: ashbyLookup.ashbyId,
       score: applicantScore,
-      customFieldId
+      customFieldId,
+      ashbyResults: ashbyResponse.results
     }
   });
 }
