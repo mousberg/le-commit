@@ -41,7 +41,7 @@ async function processBatchScores(
           .from('applicants')
           .select(`
             id,
-            ai_data,
+            score,
             source
           `)
           .eq('id', applicantId)
@@ -57,7 +57,7 @@ async function processBatchScores(
           continue;
         }
 
-        const { ai_data, source } = applicantResult.data;
+        const { score: applicantScore, source } = applicantResult.data;
         
         // Check if this applicant came from Ashby
         if (source !== 'ashby') {
@@ -80,21 +80,19 @@ async function processBatchScores(
           continue;
         }
 
-        // Extract AI analysis score
-        if (!ai_data || typeof ai_data.score !== 'number') {
+        // Extract and validate score
+        if (typeof applicantScore !== 'number') {
           results.push({
             applicantId,
             success: false,
-            error: 'No AI analysis score available'
+            error: 'No score available'
           });
           continue;
         }
-
-        const score = ai_data.score;
         const ashbyObjectId = ashbyLookup.ashbyId!;
 
         // Validate score is in expected range (0-100)
-        if (score < 0 || score > 100) {
+        if (applicantScore < 0 || applicantScore > 100) {
           results.push({
             applicantId,
             success: false,
@@ -108,13 +106,13 @@ async function processBatchScores(
           objectType: 'Candidate',
           objectId: ashbyObjectId,
           fieldId: customFieldId,
-          fieldValue: score
+          fieldValue: applicantScore
         });
 
         results.push({
           applicantId,
           ashbyId: ashbyObjectId,
-          score,
+          score: applicantScore,
           success: ashbyResponse.success,
           error: ashbyResponse.error?.message
         });
@@ -227,7 +225,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       const applicantResult = await supabase
         .from('applicants')
         .select(`
-          ai_data,
+          score,
           source,
           ashby_candidates!inner(
             ashby_id
@@ -243,7 +241,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
         );
       }
 
-      const { ai_data, source, ashby_candidates } = applicantResult.data;
+      const { score: applicantScore, source, ashby_candidates } = applicantResult.data;
       
       // Check if this applicant came from Ashby
       if (source !== 'ashby' || !ashby_candidates) {
@@ -253,14 +251,14 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
         );
       }
 
-      // Extract AI analysis score
-      if (!ai_data || typeof ai_data.score !== 'number') {
+      // Extract and validate score
+      if (typeof applicantScore !== 'number') {
         return NextResponse.json(
-          { error: 'No AI analysis score available for this applicant', success: false },
+          { error: 'No score available for this applicant', success: false },
           { status: 400 }
         );
       }
-      scoreToSend = ai_data.score;
+      scoreToSend = applicantScore;
 
       // Determine the Ashby Object ID (Candidate-level for authenticity)
       if (ashbyObjectId) {

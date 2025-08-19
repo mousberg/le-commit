@@ -15,7 +15,6 @@ import {
   Eye,
   Loader2,
   Send,
-  Edit2,
   Check,
   X,
   Brain
@@ -35,7 +34,6 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const [viewingCandidates, setViewingCandidates] = useState<Set<string>>(new Set());
-  const [editingScores, setEditingScores] = useState<Record<string, number>>({}); // applicant ID -> score
   const [pushingScores, setPushingScores] = useState(false);
   const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyId?: string; applicantId?: string }>>({});  // applicant ID -> result
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
@@ -116,56 +114,6 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     }
   };
 
-  const handleScoreEdit = (applicantId: string, newScore: number) => {
-    setEditingScores(prev => ({
-      ...prev,
-      [applicantId]: newScore
-    }));
-  };
-
-  const handleSaveScore = async (applicantId: string) => {
-    const newScore = editingScores[applicantId];
-    if (newScore === undefined) return;
-
-    try {
-      const supabase = createClient();
-      
-      // Update the score in the database
-      const { error } = await supabase
-        .from('applicants')
-        .update({
-          ai_data: {
-            score: newScore,
-            updated_at: new Date().toISOString(),
-            manually_edited: true
-          }
-        })
-        .eq('id', applicantId);
-
-      if (error) throw error;
-
-      // Remove from editing state
-      setEditingScores(prev => {
-        const newState = { ...prev };
-        delete newState[applicantId];
-        return newState;
-      });
-
-      // Refresh the page to show updated score
-      window.location.reload();
-    } catch (error) {
-      console.error('Error saving score:', error);
-      alert('Failed to save score: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    }
-  };
-
-  const handleCancelEdit = (applicantId: string) => {
-    setEditingScores(prev => {
-      const newState = { ...prev };
-      delete newState[applicantId];
-      return newState;
-    });
-  };
 
   const handleBatchPushScores = async () => {
     if (selectedCandidatesForScoring.length === 0) {
@@ -579,64 +527,18 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
 
                   {/* Score */}
                   <td className="p-3">
-                    {editingScores[candidate.id] !== undefined ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={editingScores[candidate.id]}
-                          onChange={(e) => handleScoreEdit(candidate.id, Number(e.target.value))}
-                          className="w-16 px-2 py-1 border rounded text-sm"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSaveScore(candidate.id);
-                          }}
-                          className="p-1 text-green-600 hover:bg-green-100 rounded"
-                          title="Save"
-                        >
-                          <Check className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCancelEdit(candidate.id);
-                          }}
-                          className="p-1 text-red-600 hover:bg-red-100 rounded"
-                          title="Cancel"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        {getScoreBadge(candidate.score || candidate.analysis?.score)}
-                        {(candidate.score !== undefined || candidate.analysis?.score !== undefined) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleScoreEdit(candidate.id, candidate.score || candidate.analysis?.score || 0);
-                            }}
-                            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                            title="Edit score"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </button>
-                        )}
-                        {pushResults[candidate.id] && (
-                          <span className="ml-1">
-                            {pushResults[candidate.id].success ? (
-                              <Check className="h-3 w-3 text-green-600" />
-                            ) : (
-                              <X className="h-3 w-3 text-red-600" />
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {getScoreBadge(candidate.score || candidate.analysis?.score)}
+                      {pushResults[candidate.id] && (
+                        <span className="ml-1">
+                          {pushResults[candidate.id].success ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <X className="h-3 w-3 text-red-600" />
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Notes */}
