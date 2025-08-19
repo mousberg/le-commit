@@ -541,14 +541,6 @@ async function handleWebhookCall(request: NextRequest) {
 
 // Handle user calls (existing middleware-wrapped logic)
 async function handleUserCall(request: NextRequest) {
-  // Create a mock context for the existing handler
-  const handlerContext: ApiHandlerContext = {
-    request,
-    user: { id: '', email: '' }, // Will be populated by middleware
-    dbService: null as any,
-    body: null
-  };
-
   // Use the middleware to get proper auth context
   const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
     requireAuth: true,
@@ -570,6 +562,11 @@ export async function POST(request: NextRequest) {
     const isWebhookCall = request.headers.get('x-webhook-source') === 'database-trigger';
     
     if (isWebhookCall) {
+      // Validate webhook secret for security
+      const webhookSecret = request.headers.get('x-webhook-secret');
+      if (webhookSecret !== process.env.WEBHOOK_SECRET) {
+        return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 403 });
+      }
       return await handleWebhookCall(request);
     } else {
       return await handleUserCall(request);

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface EditHistoryEntry {
   id: string;
@@ -32,6 +33,7 @@ interface ManualAssessmentSectionProps {
 }
 
 export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmentSectionProps) {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -75,6 +77,11 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
   const handleSave = async () => {
     if (!candidate.unmask_applicant_id) {
       showNotification('error', 'No applicant ID found');
+      return;
+    }
+
+    if (!user?.id) {
+      showNotification('error', 'User not authenticated');
       return;
     }
 
@@ -131,7 +138,7 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
           value: scoreValue,
           source: 'manual',
           date: new Date().toISOString(),
-          user_id: 'current-user' // TODO: Get actual user ID from auth context
+          user_id: user.id
         });
       }
 
@@ -148,7 +155,7 @@ export function ManualAssessmentSection({ candidate, onUpdate }: ManualAssessmen
             value: notesValue,
             source: 'manual',
             date: new Date().toISOString(),
-            user_id: 'current-user' // TODO: Get actual user ID from auth context
+            user_id: user.id
           });
         }
       }
