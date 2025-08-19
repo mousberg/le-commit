@@ -122,10 +122,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- CREATE TRIGGERS
 -- =============================================================================
 
--- Replace existing trigger with new sync trigger
-DROP TRIGGER IF EXISTS trigger_manual_assessment_update ON public.applicants;
-DROP TRIGGER IF EXISTS trigger_ashby_sync ON public.applicants;
-
 -- Create new trigger for automatic Ashby sync
 CREATE TRIGGER trigger_ashby_sync
   AFTER UPDATE ON public.applicants
@@ -154,11 +150,3 @@ UNIQUE (unmask_applicant_id);
 
 -- Add comment explaining the constraint
 COMMENT ON CONSTRAINT unique_unmask_applicant_id ON public.ashby_candidates IS 'Ensures one-to-one relationship between applicants and ashby_candidates';
-
--- =============================================================================
--- SET WEBHOOK SECRET FOR INTERNAL API CALLS
--- =============================================================================
-
--- Set webhook secret for database trigger authentication
--- This allows triggers to authenticate with internal API endpoints
-SELECT set_config('app.webhook_secret', 'webhook-secret-dev', false);

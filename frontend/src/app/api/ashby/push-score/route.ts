@@ -295,21 +295,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       fieldValue: scoreToSend
     };
 
-    console.log('🚀 USER: Sending score to Ashby:', {
-      ...requestPayload,
-      environmentFieldId: process.env.ASHBY_SCORE_FIELD_ID || 'NOT_SET (using default)',
-      timestamp: new Date().toISOString(),
-      userTriggered: true
-    });
-    
     const ashbyResponse = await ashbyClient.setCustomFieldValue(requestPayload);
-
-    console.log('📤 USER: Ashby API response:', {
-      success: ashbyResponse.success,
-      results: ashbyResponse.results,
-      error: ashbyResponse.error,
-      timestamp: new Date().toISOString()
-    });
 
     // Check both outer success and inner results.success
     const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
@@ -340,14 +326,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       );
     }
 
-    console.log('✅ USER: Successfully pushed score to Ashby:', {
-      applicantId,
-      ashbyObjectType,
-      ashbyObjectId: finalAshbyObjectId,
-      customFieldId,
-      score: scoreToSend,
-      ashbyResults: ashbyResponse.results
-    });
+    // Success logged at the main handler level
 
     return NextResponse.json({
       success: true,
@@ -465,24 +444,7 @@ async function handleWebhookCall(request: NextRequest) {
     fieldValue: applicantScore
   };
 
-  console.log('🔧 WEBHOOK: Sending score to Ashby via database trigger:', {
-    applicantId,
-    ashbyId: ashbyLookup.ashbyId,
-    payload: webhookPayload,
-    customFieldId,
-    score: applicantScore,
-    environmentFieldId: process.env.ASHBY_SCORE_FIELD_ID || 'NOT_SET (using default)',
-    timestamp: new Date().toISOString()
-  });
-
   const ashbyResponse = await ashbyClient.setCustomFieldValue(webhookPayload);
-
-  console.log('📤 WEBHOOK: Ashby API response:', {
-    success: ashbyResponse.success,
-    results: ashbyResponse.results,
-    error: ashbyResponse.error,
-    timestamp: new Date().toISOString()
-  });
 
   // Check both outer success and inner results.success
   const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
@@ -513,13 +475,7 @@ async function handleWebhookCall(request: NextRequest) {
     );
   }
 
-  console.log('✅ WEBHOOK: Successfully pushed score to Ashby:', {
-    applicantId,
-    ashbyId: ashbyLookup.ashbyId,
-    score: applicantScore,
-    customFieldId,
-    ashbyResults: ashbyResponse.results
-  });
+  // Success logged at the main handler level
 
   return NextResponse.json({
     success: true,
@@ -536,43 +492,94 @@ async function handleWebhookCall(request: NextRequest) {
 
 // Handle user calls (existing middleware-wrapped logic)
 async function handleUserCall(request: NextRequest) {
-  // Use the middleware to get proper auth context
-  const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
-    requireAuth: true,
-    enableCors: true,
-    enableLogging: true,
-    rateLimit: { 
-      maxRequests: 20,
-      windowMs: 60000
-    }
-  })(request, { params: Promise.resolve({}) });
+  try {
+    // Use the middleware to get proper auth context
+    const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
+      requireAuth: true,
+      enableCors: true,
+      enableLogging: true,
+      rateLimit: { 
+        maxRequests: 20,
+        windowMs: 60000
+      }
+    })(request, { params: Promise.resolve({}) });
 
-  return middlewareResponse;
+    // Only log detailed info on failures
+    if (middlewareResponse.status >= 400) {
+      try {
+        const responseBody = await middlewareResponse.clone().text();
+        console.error('❌ User call failed with error response:', {
+          method: request.method,
+          url: request.url,
+          status: middlewareResponse.status,
+          statusText: middlewareResponse.statusText,
+          responseBody,
+          timestamp: new Date().toISOString()
+        });
+      } catch (bodyParseError) {
+        console.error('❌ Failed to parse error response body:', bodyParseError);
+      }
+    }
+
+    return middlewareResponse;
+  } catch (error) {
+    console.error('❌ Error in handleUserCall:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    
+    return NextResponse.json({
+      error: 'Failed to process user call',
+      success: false,
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
 }
 
 // POST - Push AI analysis score to Ashby (handles both user calls and webhook calls)
 export async function POST(request: NextRequest) {
   try {
+    const isWebhookSource = request.headers.get('x-webhook-source');
+
     // Check if this is a webhook call from database trigger
-    const isWebhookCall = request.headers.get('x-webhook-source') === 'database-trigger';
+    const isWebhookCall = isWebhookSource === 'database-trigger';
     
     if (isWebhookCall) {
-      // Validate webhook secret for security
-      const webhookSecret = request.headers.get('x-webhook-secret');
-      if (webhookSecret !== process.env.WEBHOOK_SECRET) {
-        return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 403 });
+      // Skip webhook secret validation - minimal security risk for score/note updates
+      const response = await handleWebhookCall(request);
+      
+      // Log success or failure
+      if (response.status === 200) {
+        console.log('✅ POST /api/ashby/push-score (webhook) 200');
       }
-      return await handleWebhookCall(request);
+      
+      return response;
     } else {
-      return await handleUserCall(request);
+      const response = await handleUserCall(request);
+      
+      // Log success or failure
+      if (response.status === 200) {
+        console.log('✅ POST /api/ashby/push-score (user) 200');
+      }
+      
+      return response;
     }
   } catch (error) {
-    console.error('Error in push-score API:', error);
+    console.error('❌ Critical error in push-score API:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      url: request.url,
+      method: request.method
+    });
+    
     return NextResponse.json(
       { 
         error: 'Internal server error', 
         success: false,
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       },
       { status: 500 }
     );

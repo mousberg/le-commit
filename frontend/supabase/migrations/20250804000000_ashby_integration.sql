@@ -30,11 +30,6 @@ COMMENT ON COLUMN public.users.ashby_api_key IS 'Ashby API key for integration -
 ALTER TABLE public.applicants 
 ADD COLUMN IF NOT EXISTS source text DEFAULT 'manual' CHECK (source IN ('manual', 'ashby', 'greenhouse', 'lever', 'workday'));
 
--- Remove any existing Ashby integration columns from applicants table if they exist
-ALTER TABLE public.applicants DROP COLUMN IF EXISTS ashby_candidate_id;
-ALTER TABLE public.applicants DROP COLUMN IF EXISTS ashby_sync_status;
-ALTER TABLE public.applicants DROP COLUMN IF EXISTS ashby_last_synced_at;
-
 -- Add indexes for new fields
 CREATE INDEX IF NOT EXISTS idx_applicants_source ON public.applicants(source);
 
