@@ -308,14 +308,19 @@ $$;
 -- CV Processing Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_cv_processing()
 RETURNS TRIGGER AS $$
+DECLARE
+  webhook_base_url text;
 BEGIN
   -- Trigger if cv_file_id is set and not currently processing
   IF NEW.cv_file_id IS NOT NULL AND NEW.cv_status != 'processing' AND
      (TG_OP = 'INSERT' OR OLD.cv_file_id IS DISTINCT FROM NEW.cv_file_id) THEN
 
+    -- Get the webhook base URL from Supabase Vault
+    webhook_base_url := vault.get_secret('webhook_base_url');
+    
     -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
-      url => 'http://host.docker.internal:3000/api/cv-process',
+      url => webhook_base_url || '/api/cv-process',
       body => jsonb_build_object(
         'type', 'CV_PROCESSING',
         'applicant_id', NEW.id,
@@ -334,14 +339,19 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- LinkedIn Processing Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_linkedin_processing()
 RETURNS TRIGGER AS $$
+DECLARE
+  webhook_base_url text;
 BEGIN
   -- Trigger if linkedin_url is set and not currently processing
   IF NEW.linkedin_url IS NOT NULL AND NEW.li_status != 'processing' AND
      (TG_OP = 'INSERT' OR OLD.linkedin_url IS DISTINCT FROM NEW.linkedin_url) THEN
 
+    -- Get the webhook base URL from Supabase Vault
+    webhook_base_url := vault.get_secret('webhook_base_url');
+    
     -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
-      url => 'http://host.docker.internal:3000/api/linkedin-fetch',
+      url => webhook_base_url || '/api/linkedin-fetch',
       body => jsonb_build_object(
         'type', 'LINKEDIN_PROCESSING',
         'applicant_id', NEW.id,
@@ -360,14 +370,19 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- GitHub Processing Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_github_processing()
 RETURNS TRIGGER AS $$
+DECLARE
+  webhook_base_url text;
 BEGIN
   -- Trigger if github_url is set and not currently processing
   IF NEW.github_url IS NOT NULL AND NEW.gh_status != 'processing' AND
      (TG_OP = 'INSERT' OR OLD.github_url IS DISTINCT FROM NEW.github_url) THEN
 
+    -- Get the webhook base URL from Supabase Vault
+    webhook_base_url := vault.get_secret('webhook_base_url');
+    
     -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
-      url => 'http://host.docker.internal:3000/api/github-fetch',
+      url => webhook_base_url || '/api/github-fetch',
       body => jsonb_build_object(
         'type', 'GITHUB_PROCESSING',
         'applicant_id', NEW.id,
@@ -386,6 +401,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- AI Analysis Webhook (Fire-and-Forget)
 CREATE OR REPLACE FUNCTION public.webhook_ai_analysis()
 RETURNS TRIGGER AS $$
+DECLARE
+  webhook_base_url text;
 BEGIN
   -- Check if AI analysis should start
   -- Triggers when at least one source is ready and nothing is processing
@@ -396,9 +413,12 @@ BEGIN
      NEW.cv_status NOT IN ('processing') AND NEW.li_status NOT IN ('processing') AND NEW.gh_status NOT IN ('processing')
   THEN
 
+    -- Get the webhook base URL from Supabase Vault
+    webhook_base_url := vault.get_secret('webhook_base_url');
+    
     -- Fire webhook asynchronously (no timeout - fire and forget)
     PERFORM net.http_post(
-      url => 'http://host.docker.internal:3000/api/analysis',
+      url => webhook_base_url || '/api/analysis',
       body => jsonb_build_object(
         'type', 'AI_ANALYSIS',
         'applicant_id', NEW.id
