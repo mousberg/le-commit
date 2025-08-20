@@ -69,12 +69,17 @@ async function createNoteHandler(context: ApiHandlerContext) {
     });
 
     if (!noteResponse.success) {
+      const errorMessage = noteResponse.error?.message || 'Failed to create note';
+      const isRateLimit = noteResponse.error?.code === 'RATE_LIMIT_EXCEEDED';
+
       return NextResponse.json(
         { 
-          error: noteResponse.error?.message || 'Failed to create note', 
-          success: false
+          error: errorMessage,
+          success: false,
+          isRateLimit,
+          retryAfter: isRateLimit ? (noteResponse.error?.retryAfter || 60) : undefined
         },
-        { status: 500 }
+        { status: isRateLimit ? 503 : 500 }
       );
     }
 
@@ -182,12 +187,24 @@ async function handleWebhookCall(request: NextRequest) {
   });
 
   if (!noteResponse.success) {
+    const errorMessage = noteResponse.error?.message || 'Failed to create note in Ashby';
+    const isRateLimit = noteResponse.error?.code === 'RATE_LIMIT_EXCEEDED';
+
+    console.error('❌ WEBHOOK: Failed to create note in Ashby:', {
+      applicantId,
+      ashbyId: ashbyLookup.ashbyId,
+      error: noteResponse.error,
+      isRateLimit
+    });
+
     return NextResponse.json(
       { 
-        error: noteResponse.error?.message || 'Failed to create note in Ashby', 
-        success: false 
+        error: errorMessage,
+        success: false,
+        isRateLimit,
+        retryAfter: isRateLimit ? (noteResponse.error?.retryAfter || 60) : undefined
       },
-      { status: 500 }
+      { status: isRateLimit ? 503 : 500 }
     );
   }
 

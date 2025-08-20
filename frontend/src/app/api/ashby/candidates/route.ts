@@ -378,14 +378,22 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         candidate.score = calculatedScore;
       }
       
-      // Batch update scores in database
+      // Batch update scores in database with proper user context
       if (scoreUpdates.length > 0) {
-        const { error: updateError } = await supabase
-          .from('applicants')
-          .upsert(scoreUpdates, { onConflict: 'id' });
-          
-        if (updateError) {
-          console.error('Error updating scores:', updateError);
+        // Update each score individually to respect RLS policies
+        const updatePromises = scoreUpdates.map(update => 
+          supabase
+            .from('applicants')
+            .update({ score: update.score })
+            .eq('id', update.id)
+            .eq('user_id', user.id) // Ensure RLS compliance
+        );
+        
+        const results = await Promise.allSettled(updatePromises);
+        const failures = results.filter(r => r.status === 'rejected').length;
+        
+        if (failures > 0) {
+          console.error(`Error updating ${failures}/${scoreUpdates.length} scores`);
         } else {
           console.log(`✅ Updated scores for ${scoreUpdates.length} candidates`);
         }

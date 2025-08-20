@@ -445,6 +445,9 @@ async function handleWebhookCall(request: NextRequest) {
   
   if (!isActuallySuccessful) {
     const errorMessage = ashbyResponse.error?.message || 'Failed to push score to Ashby';
+    const isRateLimit = ashbyResponse.error?.code === 'RATE_LIMIT_EXCEEDED' || 
+                        errorMessage.toLowerCase().includes('rate limit') ||
+                        errorMessage.toLowerCase().includes('too many');
     
     console.error('❌ WEBHOOK: Failed to push score to Ashby:', {
       applicantId,
@@ -452,15 +455,22 @@ async function handleWebhookCall(request: NextRequest) {
       outerSuccess: ashbyResponse.success,
       innerSuccess: ashbyResponse.results?.success,
       error: ashbyResponse.error,
-      payload: webhookPayload
+      payload: webhookPayload,
+      isRateLimit
     });
+    
+    // For rate limit errors, return 503 (Service Unavailable) to indicate temporary issue
+    // For other errors, use 400 (Bad Request) 
+    const statusCode = isRateLimit ? 503 : 400;
     
     return NextResponse.json(
       { 
         error: `Ashby API error: ${errorMessage}`,
-        success: false 
+        success: false,
+        isRateLimit,
+        retryAfter: isRateLimit ? (ashbyResponse.error?.retryAfter || 60) : undefined
       },
-      { status: 400 } // Use 400 for client errors like field not found
+      { status: statusCode }
     );
   }
 

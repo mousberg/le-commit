@@ -28,7 +28,8 @@ export class AshbyClient {
   private async request<T>(
     endpoint: string,
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' = 'POST',
-    body?: unknown
+    body?: unknown,
+    retryCount = 0
   ): Promise<AshbyApiResponse<T>> {
     try {
       const headers: Record<string, string> = {
@@ -49,7 +50,46 @@ export class AshbyClient {
         body: requestBody
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        // Handle cases where Ashby returns HTML error pages instead of JSON
+        const text = await response.text();
+        
+        // Enhanced rate limit detection
+        const isRateLimit = text.toLowerCase().includes('too many') || 
+                           text.toLowerCase().includes('rate limit') ||
+                           text.toLowerCase().includes('throttle') ||
+                           response.status === 429;
+        
+        if (isRateLimit) {
+          // Rate limit detected - retry with exponential backoff
+          if (retryCount < 3) { // Increased retry attempts for rate limits
+            const delay = Math.pow(2, retryCount) * 2000; // Longer delays: 2s, 4s, 8s
+            console.warn(`[AshbyClient] Rate limit detected, retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return this.request(endpoint, method, body, retryCount + 1);
+          }
+          return {
+            success: false,
+            error: { 
+              message: 'Rate limit exceeded - Ashby API temporarily unavailable',
+              code: 'RATE_LIMIT_EXCEEDED',
+              retryAfter: 60 // Suggest waiting 60 seconds
+            }
+          };
+        }
+        
+        // Handle other non-JSON responses
+        return {
+          success: false,
+          error: { 
+            message: `Invalid JSON response from Ashby API: ${text.substring(0, 150)}...`,
+            code: 'INVALID_JSON_RESPONSE'
+          }
+        };
+      }
       
       // Only log failures, not successful requests
       if (!response.ok) {

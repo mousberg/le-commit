@@ -217,5 +217,6 @@ export interface AshbyApiResponse<T> {
   error?: {
     message: string;
     code?: string;
+    retryAfter?: number; // Seconds to wait before retrying (for rate limits)
   };
 }
