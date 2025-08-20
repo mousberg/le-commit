@@ -137,6 +137,98 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Create webhook queue table for reliable webhook processing
+CREATE TABLE IF NOT EXISTS public.webhook_queue (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  applicant_id uuid REFERENCES public.applicants(id) ON DELETE CASCADE NOT NULL,
+  webhook_type text NOT NULL DEFAULT 'score_push' CHECK (webhook_type IN ('score_push', 'note_push')),
+  payload jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  attempts integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 3,
+  scheduled_for timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  last_error text,
+  completed_at timestamp with time zone
+);
+
+-- Indexes for efficient webhook queue processing
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_status_scheduled ON public.webhook_queue(status, scheduled_for) 
+  WHERE status IN ('pending', 'failed');
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_user_id ON public.webhook_queue(user_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_applicant_id ON public.webhook_queue(applicant_id);
+
+-- Enable RLS for webhook queue
+ALTER TABLE public.webhook_queue ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own webhook queue" ON public.webhook_queue
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Updated trigger for queue-based webhook processing
+CREATE OR REPLACE FUNCTION trigger_ashby_webhook_on_score() 
+RETURNS TRIGGER AS $$
+DECLARE
+  recent_webhook_count INTEGER;
+  user_webhook_count INTEGER;
+  webhook_payload jsonb;
+BEGIN
+  -- Only trigger webhook for applicants with score >= 30 when crossing threshold OR significant change
+  IF NEW.score >= 30 AND (OLD IS NULL OR OLD.score IS NULL OR OLD.score < 30 OR ABS(NEW.score - COALESCE(OLD.score, 0)) >= 10) THEN
+    
+    -- Prepare webhook payload
+    webhook_payload := jsonb_build_object(
+      'type', 'SCORE_PUSH',
+      'applicant_id', NEW.id,
+      'applicantId', NEW.id,
+      'score', NEW.score,
+      'trigger_reason', 'auto_analysis_eligible'
+    );
+    
+    -- Rate limiting check: 3 per 10 seconds, 18 per minute (90% of discovered 20/min Ashby limit)
+    SELECT COUNT(*) INTO recent_webhook_count
+    FROM applicants 
+    WHERE user_id = NEW.user_id 
+    AND updated_at > (NOW() - INTERVAL '10 seconds')
+    AND score >= 30;
+    
+    SELECT COUNT(*) INTO user_webhook_count
+    FROM applicants 
+    WHERE user_id = NEW.user_id 
+    AND updated_at > (NOW() - INTERVAL '1 minute')
+    AND score >= 30;
+    
+    -- If within rate limits, fire webhook immediately
+    IF recent_webhook_count < 3 AND user_webhook_count < 18 THEN
+      -- Fire webhook immediately
+      PERFORM net.http_post(
+        url => 'http://host.docker.internal:3000/api/ashby/push-score',
+        body => webhook_payload,
+        headers => jsonb_build_object(
+          'Content-Type', 'application/json',
+          'x-webhook-source', 'database-trigger'
+        ),
+        timeout_milliseconds => 30000
+      );
+    ELSE
+      -- Rate limited: queue for later processing
+      INSERT INTO public.webhook_queue (
+        user_id, applicant_id, webhook_type, payload, scheduled_for
+      ) VALUES (
+        NEW.user_id, NEW.id, 'score_push', webhook_payload,
+        NOW() + INTERVAL '60 seconds'  -- Delay by 1 minute for rate limit recovery
+      );
+      
+      RAISE NOTICE 'Webhook queued for applicant % due to rate limiting (recent: %/3, user: %/18)', NEW.id, recent_webhook_count, user_webhook_count;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Add documentation
 COMMENT ON INDEX idx_applicants_score IS 'Index for efficient score-based filtering in ATS UI (data completeness + AI analysis)';
-COMMENT ON FUNCTION trigger_ashby_webhook_on_score() IS 'Triggers automatic Ashby webhook with rate limiting (skips when limits exceeded)';
+COMMENT ON FUNCTION trigger_ashby_webhook_on_score() IS 'Triggers automatic Ashby webhook with queue fallback when rate limited';
+COMMENT ON TABLE public.webhook_queue IS 'Queue for reliable webhook processing during rate limiting or API failures';

@@ -350,8 +350,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
 }
 
 // Handle webhook calls from database triggers
-async function handleWebhookCall(request: NextRequest) {
-  const body = await request.json();
+async function handleWebhookCall(body: Record<string, unknown>) {
   const { applicantId } = body;
 
   if (!applicantId) {
@@ -546,7 +545,8 @@ export async function POST(request: NextRequest) {
     
     if (isWebhookCall) {
       // Skip webhook secret validation - minimal security risk for score/note updates
-      const response = await handleWebhookCall(request);
+      const body = await request.json();
+      const response = await handleWebhookCall(body);
       
       // Log success or failure
       if (response.status === 200) {
