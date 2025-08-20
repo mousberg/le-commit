@@ -42,6 +42,13 @@ jobs:
           TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEBHOOK_BASE_URL=${{ secrets.WEBHOOK_BASE_URL }}
+          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+          BRIGHTDATA_API_KEY=${{ secrets.BRIGHTDATA_API_KEY }}
+          ASHBY_BASE_URL=${{ secrets.ASHBY_BASE_URL }}
 
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
