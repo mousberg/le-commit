@@ -7,9 +7,11 @@ import { useAshbyAccess } from '@/lib/ashby/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle, Mail } from 'lucide-react';
+import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle, Mail, Filter } from 'lucide-react';
 import { ATSCandidatesTable } from './components/ATSCandidatesTable';
 import { ATSPageData, ATSCandidate } from '@/lib/ashby/interfaces';
+import { CandidateFilter } from '@/lib/interfaces/applicant';
+import { SCORE_FILTER_OPTIONS, DEFAULT_SCORE_FILTER, getScoreTierDescription } from '@/lib/scoring';
 
 export default function ATSPage() {
   const router = useRouter();
@@ -19,6 +21,12 @@ export default function ATSPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<CandidateFilter>({
+    minScore: DEFAULT_SCORE_FILTER,
+    hasLinkedIn: undefined,
+    hasCV: undefined
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -124,14 +132,42 @@ export default function ATSPage() {
     }
   };
 
+  // Filter candidates based on score and data completeness
+  const getFilteredCandidates = () => {
+    if (!data?.candidates) return [];
+    
+    return data.candidates.filter(candidate => {
+      // Filter by score (data completeness or AI analysis score)
+      const score = candidate.score || 10; // Default to 10 if not provided
+      if (score < filter.minScore) return false;
+      
+      // Filter by LinkedIn data presence
+      if (filter.hasLinkedIn !== undefined) {
+        const hasLinkedIn = !!candidate.linkedin_url;
+        if (hasLinkedIn !== filter.hasLinkedIn) return false;
+      }
+      
+      // Filter by CV data presence
+      if (filter.hasCV !== undefined) {
+        const hasCV = !!candidate.has_resume;
+        if (hasCV !== filter.hasCV) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredCandidates = getFilteredCandidates();
+
   const handleExportCSV = () => {
-    if (!data?.candidates) return;
+    if (!filteredCandidates.length) return;
 
     const headers = [
       'Name',
       'Email', 
       'LinkedIn URL',
       'Has Resume',
+      'Base Score',
       'Applicant ID',
       'Created Date',
       'Tags',
@@ -142,11 +178,12 @@ export default function ATSPage() {
 
     const csvContent = [
       headers.join(','),
-      ...data.candidates.map(candidate => [
+      ...filteredCandidates.map(candidate => [
         `"${candidate.name}"`,
         `"${candidate.email}"`,
         `"${candidate.linkedin_url || ''}"`,
         candidate.has_resume ? 'Yes' : 'No',
+        candidate.score || 10,
         candidate.id,
         candidate.created_at,
         `"${candidate.tags.join('; ')}"`,
@@ -160,7 +197,7 @@ export default function ATSPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ats-candidates-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `ats-candidates-filtered-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -230,11 +267,23 @@ export default function ATSPage() {
             <div className="flex items-center gap-3 ml-4">
               <Button
                 variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                {filter.minScore > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {filter.minScore}+
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                variant="outline"
                 onClick={handleExportCSV}
-                disabled={!data?.candidates?.length}
+                disabled={!filteredCandidates.length}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                Export CSV ({filteredCandidates.length})
               </Button>
               <Button onClick={handleRefresh} disabled={loading || refreshing}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
@@ -244,9 +293,97 @@ export default function ATSPage() {
           </div>
         </div>
 
+        {/* Filter Controls */}
+        {showFilters && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Filter Candidates</CardTitle>
+              <CardDescription>
+                Filter by base score and data completeness
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Minimum Score
+                  </label>
+                  <select
+                    value={filter.minScore}
+                    onChange={(e) => setFilter({ ...filter, minScore: Number(e.target.value) })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    {SCORE_FILTER_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {getScoreTierDescription(filter.minScore)}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    LinkedIn Data
+                  </label>
+                  <select
+                    value={filter.hasLinkedIn === undefined ? 'all' : filter.hasLinkedIn.toString()}
+                    onChange={(e) => setFilter({ 
+                      ...filter, 
+                      hasLinkedIn: e.target.value === 'all' ? undefined : e.target.value === 'true' 
+                    })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    <option value="all">All candidates</option>
+                    <option value="true">With LinkedIn</option>
+                    <option value="false">Without LinkedIn</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Resume Data
+                  </label>
+                  <select
+                    value={filter.hasCV === undefined ? 'all' : filter.hasCV.toString()}
+                    onChange={(e) => setFilter({ 
+                      ...filter, 
+                      hasCV: e.target.value === 'all' ? undefined : e.target.value === 'true' 
+                    })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    <option value="all">All candidates</option>
+                    <option value="true">With Resume</option>
+                    <option value="false">Without Resume</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="mt-4 flex items-center gap-2">
+                <Badge variant="outline">
+                  Showing {filteredCandidates.length} of {data?.candidates?.length || 0} candidates
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilter({
+                    minScore: DEFAULT_SCORE_FILTER,
+                    hasLinkedIn: undefined,
+                    hasCV: undefined
+                  })}
+                >
+                  Reset Filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Summary Cards */}
         {data && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -254,8 +391,22 @@ export default function ATSPage() {
                     <ExternalLink className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Cached Candidates</p>
+                    <p className="text-sm text-gray-600">Total Cached</p>
                     <p className="text-2xl font-bold">{data.cached_count}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <Filter className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Filtered</p>
+                    <p className="text-2xl font-bold">{filteredCandidates.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -268,8 +419,10 @@ export default function ATSPage() {
                     <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">With LinkedIn</p>
-                    <p className="text-2xl font-bold">{data.candidates.filter(c => c.linkedin_url).length}</p>
+                    <p className="text-sm text-gray-600">Complete Data</p>
+                    <p className="text-2xl font-bold">
+                      {filteredCandidates.filter(c => (c.score || 10) >= 30).length}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -282,8 +435,10 @@ export default function ATSPage() {
                     <Clock className="h-4 w-4 text-yellow-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">With Resume</p>
-                    <p className="text-2xl font-bold">{data.candidates.filter(c => c.has_resume).length}</p>
+                    <p className="text-sm text-gray-600">AI Eligible</p>
+                    <p className="text-2xl font-bold">
+                      {filteredCandidates.filter(c => (c.score || 10) >= 30).length}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -298,7 +453,7 @@ export default function ATSPage() {
                   <div>
                     <p className="text-sm text-gray-600">Ready to Process</p>
                     <p className="text-2xl font-bold">
-                      {data.candidates.filter(c => c.ready_for_processing).length}
+                      {filteredCandidates.filter(c => c.ready_for_processing).length}
                     </p>
                   </div>
                 </div>
@@ -358,7 +513,7 @@ export default function ATSPage() {
         {/* Candidates Table */}
         {data && !loading && (
           <ATSCandidatesTable 
-            candidates={data.candidates} 
+            candidates={filteredCandidates} 
             onCandidateUpdate={handleCandidateUpdate}
           />
         )}

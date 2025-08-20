@@ -45,6 +45,7 @@ export interface AshbyLookupResult {
  * @returns Promise with ashby_id or error
  */
 export async function getAshbyIdFromApplicantId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any, // Using any to avoid circular imports with supabase types
   applicantId: string,
   userId: string

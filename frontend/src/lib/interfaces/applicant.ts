@@ -92,7 +92,7 @@ export interface Applicant {
 
   // Generated columns (automatically computed from sub-statuses and data)
   status: 'uploading' | 'processing' | 'analyzing' | 'completed' | 'failed'; // Generated from cv/li/gh/ai statuses
-  score: number | null; // Generated from ai_data.score
+  score: number | null; // Score from data completeness (10/15/20/30) or AI analysis result
 
   // Timestamps
   created_at: string;
@@ -103,4 +103,17 @@ export interface CreateApplicantRequest {
   cvFile?: File;
   linkedinUrl?: string;
   githubUrl?: string;
+}
+
+// Score calculation interfaces
+export interface CandidateDataStatus {
+  hasLinkedIn: boolean; // li_data is not null and contains meaningful profile data
+  hasCV: boolean;       // cv_data is not null and contains parsed CV content
+}
+
+export interface CandidateFilter {
+  minScore: number; // defaults to 30
+  maxScore?: number;
+  hasLinkedIn?: boolean;
+  hasCV?: boolean;
 }

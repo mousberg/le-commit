@@ -8,6 +8,7 @@ import { AshbyClient } from '@/lib/ashby/client';
 import { getAshbyApiKey, isAshbyConfigured } from '@/lib/ashby/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 import { ATSCandidate, ATSPageData } from '@/lib/ashby/interfaces';
+import { calculateApplicantScore } from '@/lib/scoring';
 
 interface DatabaseCandidate {
   user_id: string;
@@ -216,7 +217,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       // Perform auto-sync
       const ashbyClient = new AshbyClient({ apiKey });
       const response = await ashbyClient.listCandidates({
-        limit: 5, // TODO: increase later
+        limit: 30, // TODO: increase later
         includeArchived: false
       });
 
@@ -357,6 +358,39 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
 
       return frontendCandidate;
     });
+
+    // Auto-calculate and update scores for candidates without scores
+    const candidatesNeedingScores = transformedCandidates.filter(candidate => candidate.score === null);
+    
+    if (candidatesNeedingScores.length > 0) {
+      console.log(`🔢 Auto-calculating scores for ${candidatesNeedingScores.length} candidates`);
+      
+      const scoreUpdates = [];
+      for (const candidate of candidatesNeedingScores) {
+        const calculatedScore = calculateApplicantScore(candidate.linkedin_url || null, candidate.resume_file_handle);
+        
+        scoreUpdates.push({
+          id: candidate.id,
+          score: calculatedScore
+        });
+        
+        // Update the candidate object with the calculated score
+        candidate.score = calculatedScore;
+      }
+      
+      // Batch update scores in database
+      if (scoreUpdates.length > 0) {
+        const { error: updateError } = await supabase
+          .from('applicants')
+          .upsert(scoreUpdates, { onConflict: 'id' });
+          
+        if (updateError) {
+          console.error('Error updating scores:', updateError);
+        } else {
+          console.log(`✅ Updated scores for ${scoreUpdates.length} candidates`);
+        }
+      }
+    }
 
     const responseData: ATSPageData = {
       success: true,

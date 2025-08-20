@@ -103,7 +103,7 @@ async function processBatchScores(
 
         // Send score to Ashby
         const batchPayload = {
-          objectType: 'Candidate',
+          objectType: 'Candidate' as const,
           objectId: ashbyObjectId,
           fieldId: customFieldId,
           fieldValue: applicantScore
@@ -114,7 +114,7 @@ async function processBatchScores(
 
         // Check both outer success and inner results.success
         const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
-        const errorMessage = ashbyResponse.results?.errorInfo?.code || ashbyResponse.error?.message;
+        const errorMessage = ashbyResponse.error?.message || 'Unknown error';
 
         results.push({
           applicantId,
@@ -122,7 +122,6 @@ async function processBatchScores(
           score: applicantScore,
           success: isActuallySuccessful,
           error: isActuallySuccessful ? undefined : errorMessage,
-          errorCode: ashbyResponse.results?.errorInfo?.code,
           ashbyResponse: ashbyResponse.results
         });
 
@@ -301,15 +300,12 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
     const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
     
     if (!isActuallySuccessful) {
-      const errorMessage = ashbyResponse.results?.errorInfo?.code || ashbyResponse.error?.message || 'Failed to set custom field in Ashby';
-      const errorDetails = ashbyResponse.results?.errors || [];
+      const errorMessage = ashbyResponse.error?.message || 'Failed to set custom field in Ashby';
       
       console.error('❌ USER: Failed to push score to Ashby:', {
         applicantId,
         outerSuccess: ashbyResponse.success,
         innerSuccess: ashbyResponse.results?.success,
-        errorCode: ashbyResponse.results?.errorInfo?.code,
-        errorDetails,
         error: ashbyResponse.error,
         payload: requestPayload
       });
@@ -317,9 +313,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       return NextResponse.json(
         { 
           error: `Ashby API error: ${errorMessage}`,
-          errorCode: ashbyResponse.results?.errorInfo?.code,
-          errorDetails,
-          success: false,
+            success: false,
           ashbyError: ashbyResponse.error
         },
         { status: 400 } // Use 400 for client errors like field not found
@@ -438,7 +432,7 @@ async function handleWebhookCall(request: NextRequest) {
   const customFieldId = process.env.ASHBY_SCORE_FIELD_ID || '1a3a3e4d-5455-437e-8f75-4aa547222814';
 
   const webhookPayload = {
-    objectType: 'Candidate',
+    objectType: 'Candidate' as const,
     objectId: ashbyLookup.ashbyId!,
     fieldId: customFieldId,
     fieldValue: applicantScore
@@ -450,16 +444,13 @@ async function handleWebhookCall(request: NextRequest) {
   const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
   
   if (!isActuallySuccessful) {
-    const errorMessage = ashbyResponse.results?.errorInfo?.code || ashbyResponse.error?.message || 'Failed to push score to Ashby';
-    const errorDetails = ashbyResponse.results?.errors || [];
+    const errorMessage = ashbyResponse.error?.message || 'Failed to push score to Ashby';
     
     console.error('❌ WEBHOOK: Failed to push score to Ashby:', {
       applicantId,
       ashbyId: ashbyLookup.ashbyId,
       outerSuccess: ashbyResponse.success,
       innerSuccess: ashbyResponse.results?.success,
-      errorCode: ashbyResponse.results?.errorInfo?.code,
-      errorDetails,
       error: ashbyResponse.error,
       payload: webhookPayload
     });
@@ -467,8 +458,6 @@ async function handleWebhookCall(request: NextRequest) {
     return NextResponse.json(
       { 
         error: `Ashby API error: ${errorMessage}`,
-        errorCode: ashbyResponse.results?.errorInfo?.code,
-        errorDetails,
         success: false 
       },
       { status: 400 } // Use 400 for client errors like field not found

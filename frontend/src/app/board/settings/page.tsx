@@ -5,13 +5,30 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useSharedUserProfile } from '@/lib/contexts/UserProfileContext';
 
+interface CustomField {
+  id: string;
+  title: string;
+  fieldType: string;
+  objectType: string;
+  isArchived?: boolean;
+  isPrivate?: boolean;
+}
+
+interface ApiResult {
+  success?: boolean;
+  data?: {
+    customFields?: CustomField[];
+  };
+  status?: number;
+}
+
 // Temporary Debug Component
 function DebugCustomFieldsButton() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<ApiResult | null>(null);
 
   const handleDebugClick = async () => {
     setLoading(true);
@@ -121,12 +138,13 @@ function DebugCustomFieldsButton() {
           <p className="text-green-800 font-medium mb-2">✅ Success! Custom Fields Found:</p>
           
           {/* Show UnmaskScore field specifically */}
-          {result.data?.customFields?.find((f: any) => f.title === 'UnmaskScore') && (
+          {result.data?.customFields?.find((f: CustomField) => f.title === 'UnmaskScore') && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
               <p className="font-medium text-blue-800">🎯 UnmaskScore Field:</p>
               <div className="text-sm text-blue-700 mt-1">
                 {(() => {
-                  const field = result.data.customFields.find((f: any) => f.title === 'UnmaskScore');
+                  const field = result.data.customFields.find((f: CustomField) => f.title === 'UnmaskScore');
+                  if (!field) return <p>UnmaskScore field not found</p>;
                   return (
                     <>
                       <p><strong>ID:</strong> {field.id}</p>
@@ -143,9 +161,9 @@ function DebugCustomFieldsButton() {
 
           {/* Show all candidate fields */}
           <details className="mt-3">
-            <summary className="cursor-pointer text-green-700 font-medium">All Candidate Fields ({result.data?.customFields?.filter((f: any) => f.objectType === 'Candidate').length || 0})</summary>
+            <summary className="cursor-pointer text-green-700 font-medium">All Candidate Fields ({result.data?.customFields?.filter((f: CustomField) => f.objectType === 'Candidate').length || 0})</summary>
             <div className="mt-2 space-y-2">
-              {result.data?.customFields?.filter((f: any) => f.objectType === 'Candidate').map((field: any) => (
+              {result.data?.customFields?.filter((f: CustomField) => f.objectType === 'Candidate').map((field: CustomField) => (
                 <div key={field.id} className="text-sm p-2 bg-white border rounded">
                   <p><strong>{field.title}</strong> ({field.fieldType})</p>
                   <p className="text-xs text-gray-600">{field.id}</p>

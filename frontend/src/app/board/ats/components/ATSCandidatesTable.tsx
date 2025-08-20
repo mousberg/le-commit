@@ -22,6 +22,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
+import { isEligibleForAIAnalysis } from '@/lib/scoring';
 
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
@@ -164,17 +165,19 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     const candidatesForAnalysis = candidates.filter(c => 
       c.unmask_applicant_id && 
       c.ready_for_processing && 
-      !c.analysis
+      !c.analysis &&
+      isEligibleForAIAnalysis(c.score || 10)
     );
     setSelectedCandidates(candidatesForAnalysis.map(c => c.id));
   };
 
-  // Get candidates that are ready for analysis
+  // Get candidates that are ready for analysis (must have score >= 30)
   const selectedCandidatesForAnalysis = candidates.filter(c => 
     selectedCandidates.includes(c.id) && 
     c.unmask_applicant_id && 
     c.ready_for_processing && 
-    !c.analysis
+    !c.analysis &&
+    isEligibleForAIAnalysis(c.score || 10)
   );
 
   // Get candidates that have scores for pushing
@@ -313,6 +316,12 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
 
     if (!candidate.ready_for_processing) {
       showNotification('error', 'This candidate is not ready for analysis yet');
+      return;
+    }
+
+    // Check if candidate is eligible for AI analysis (score >= 30)
+    if (!isEligibleForAIAnalysis(candidate.score || 10)) {
+      showNotification('error', 'AI analysis is only available for candidates with complete data (both LinkedIn and CV)');
       return;
     }
 
