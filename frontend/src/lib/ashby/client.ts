@@ -43,30 +43,25 @@ export class AshbyClient {
       const url = `${this.baseUrl}${endpoint}`;
       const requestBody = body instanceof FormData ? body : body ? JSON.stringify(body) : undefined;
       
-      console.log(`[AshbyClient] Making request to ${url}`, {
-        method,
-        headers: { ...headers, Authorization: '[REDACTED]' },
-        bodyLength: typeof requestBody === 'string' ? requestBody.length : 0,
-        hasApiKey: !!this.apiKey,
-        apiKeyLength: this.apiKey?.length || 0
-      });
-
       const response = await fetch(url, {
         method,
         headers,
         body: requestBody
       });
 
-      console.log(`[AshbyClient] Response status: ${response.status} ${response.statusText}`);
-
       const data = await response.json();
       
-      console.log(`[AshbyClient] Response data:`, {
-        success: response.ok,
-        hasResults: !!data.results,
-        hasError: !!data.error,
-        candidateCount: data.results?.length || 0
-      });
+      // Only log failures, not successful requests
+      if (!response.ok) {
+        console.error(`[AshbyClient] Request failed to ${url}`, {
+          method,
+          status: response.status,
+          statusText: response.statusText,
+          headers: { ...headers, Authorization: '[REDACTED]' },
+          bodyLength: typeof requestBody === 'string' ? requestBody.length : 0,
+          responseData: data
+        });
+      }
 
       if (!response.ok) {
         return {

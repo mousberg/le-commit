@@ -3,8 +3,8 @@ import { AnalysisResult } from '@/lib/interfaces/analysis';
 
 export interface ATSCandidate {
   // Database primary fields
-  id?: string;
-  ashby_id: string;
+  id: string; // Primary identifier - applicant ID
+  ashby_id?: string; // Optional, for display/debug only
   name: string;
   email: string | null;
   phone?: string | null;
@@ -57,6 +57,18 @@ export interface ATSCandidate {
   unmask_status?: string;
   cv_file_id?: string | null;
   
+  // Processing status fields (from applicants table)
+  ai_status?: string;
+  cv_status?: string;
+  li_status?: string;
+  gh_status?: string;
+  
+  // Manual assessment fields (UI only - no backend changes)
+  manual_score?: number | null;
+  notes?: string | null;
+  edit_history?: string | null;
+  score?: number | null;
+  
   // UI specific fields (not in DB)
   action?: 'existing' | 'created' | 'not_created' | 'error';
   ready_for_processing?: boolean;
@@ -75,4 +87,25 @@ export interface ATSPageData {
   last_sync: number | null;
   availableForImport?: number;
   importedCount?: number;
+}
+
+// Manual Assessment interfaces
+export interface ManualAssessment {
+  manual_score?: number | null;
+  notes?: string | null;
+  ashby_note_id?: string | null;
+}
+
+export interface ManualAssessmentUpdate {
+  applicantId: string;
+  manual_score?: number | null;
+  notes?: string | null;
+}
+
+export interface AshbyPushResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  ashbyNoteId?: string;
+  ashbyScoreSet?: boolean;
 }

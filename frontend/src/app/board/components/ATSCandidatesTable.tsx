@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 interface ATSCandidate {
-  ashby_id: string;
+  id: string; // Primary identifier - applicant ID
   name: string;
   email: string;
   linkedin_url?: string;
@@ -36,6 +36,12 @@ interface ATSCandidate {
   ready_for_processing?: boolean;
   fraud_likelihood?: 'low' | 'medium' | 'high';
   fraud_reason?: string;
+  score?: number | null;
+  notes?: string | null;
+  analysis?: {
+    score?: number;
+    [key: string]: any;
+  };
 }
 
 interface ATSCandidatesTableProps {
@@ -43,7 +49,7 @@ interface ATSCandidatesTableProps {
 }
 
 export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
-  const [sortBy, setSortBy] = useState<'name' | 'fraud_likelihood'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'fraud_likelihood' | 'score'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const sortedCandidates = [...candidates].sort((a, b) => {
@@ -59,6 +65,10 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
         aValue = riskOrder[a.fraud_likelihood as keyof typeof riskOrder] || 0;
         bValue = riskOrder[b.fraud_likelihood as keyof typeof riskOrder] || 0;
         break;
+      case 'score':
+        aValue = a.score ?? a.analysis?.score ?? 0;
+        bValue = b.score ?? b.analysis?.score ?? 0;
+        break;
       default:
         return 0;
     }
@@ -68,13 +78,34 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     return 0;
   });
 
-  const handleSort = (column: 'name' | 'fraud_likelihood') => {
+  const handleSort = (column: 'name' | 'fraud_likelihood' | 'score') => {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(column);
       setSortOrder('asc');
     }
+  };
+
+  const getScoreBadge = (score?: number) => {
+    if (score === undefined || score === null) {
+      return <span className="text-gray-400 text-sm">-</span>;
+    }
+    
+    let colorClass = 'bg-gray-100 text-gray-700';
+    if (score >= 80) {
+      colorClass = 'bg-green-100 text-green-800';
+    } else if (score >= 60) {
+      colorClass = 'bg-yellow-100 text-yellow-800';
+    } else if (score < 60) {
+      colorClass = 'bg-red-100 text-red-800';
+    }
+    
+    return (
+      <Badge variant="outline" className={`${colorClass} border-0`}>
+        {score}
+      </Badge>
+    );
   };
 
   const getFraudLikelihoodBadge = (likelihood?: 'low' | 'medium' | 'high') => {
@@ -148,6 +179,17 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                 <TableHead>LinkedIn</TableHead>
                 <TableHead>Resume</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSort('score')}
+                >
+                  <div className="flex items-center gap-1">
+                    Score
+                    {sortBy === 'score' && (
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </TableHead>
                 <TableHead>Flagged Reason</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-gray-50"
@@ -164,7 +206,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
             </TableHeader>
             <TableBody>
               {sortedCandidates.map((candidate) => (
-                <TableRow key={candidate.ashby_id} className="hover:bg-gray-50">
+                <TableRow key={candidate.id} className="hover:bg-gray-50">
                   <TableCell>
                     {getStatusIcon(candidate)}
                   </TableCell>
@@ -239,6 +281,9 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                         Not Ready
                       </Badge>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    {getScoreBadge(candidate.score ?? candidate.analysis?.score)}
                   </TableCell>
                   <TableCell>
                     {candidate.fraud_reason ? (

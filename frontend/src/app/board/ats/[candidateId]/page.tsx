@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 
 interface CandidateDetail {
-  ashby_id: string;
   name: string;
   email: string;
   linkedin_url?: string;
@@ -67,7 +66,6 @@ export default function CandidateDetailPage() {
         // For now, we'll simulate fetching candidate details
         // In a real implementation, you'd fetch from your API
         const mockCandidate: CandidateDetail = {
-          ashby_id: candidateId,
           name: 'John Doe',
           email: 'john.doe@example.com',
           linkedin_url: 'https://linkedin.com/in/johndoe',
@@ -232,7 +230,7 @@ export default function CandidateDetailPage() {
                   </div>
                   <div>
                     <CardTitle className="text-2xl">{candidate.name}</CardTitle>
-                    <CardDescription>Ashby ID: {candidate.ashby_id}</CardDescription>
+                    <CardDescription>Applicant ID: {candidate.unmask_applicant_id}</CardDescription>
                   </div>
                 </div>
               </CardHeader>

@@ -1,6 +1,108 @@
 import { CvData, Experience, Language, ContractType, LanguageLevel } from './interfaces/cv';
 import { LinkedInData, LinkedInExperience, LinkedInEducation, LinkedInActivity } from './interfaces/applicant';
 
+/**
+ * Generate realistic dummy LinkedIn data for testing when scraping is disabled
+ * @param linkedinUrl - LinkedIn profile URL (used to generate realistic variations)
+ * @returns Dummy LinkedInData that looks and works like real data
+ */
+export function generateDummyLinkedInData(linkedinUrl: string): LinkedInData {
+  // Extract potential name from LinkedIn URL
+  const urlMatch = linkedinUrl.match(/linkedin\.com\/in\/([^/?]+)/);
+  const urlSlug = urlMatch?.[1] || 'john-doe';
+  
+  // Generate realistic name variations
+  const nameVariations = [
+    'John Smith',
+    'Sarah Johnson',
+    'Michael Chen',
+    'Emily Rodriguez', 
+    'David Kim',
+    'Jessica Williams',
+    'Robert Zhang',
+    'Amanda Thompson',
+    'James Anderson',
+    'Lisa Martinez'
+  ];
+  
+  // Use URL slug hash to consistently pick same dummy data for same URL
+  const hash = urlSlug.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+  const nameIndex = hash % nameVariations.length;
+  const name = nameVariations[nameIndex];
+  
+  // Generate realistic professional data
+  const companies = ['Google', 'Microsoft', 'Apple', 'Amazon', 'Meta', 'Netflix', 'Spotify', 'Uber', 'Airbnb', 'Stripe'];
+  const titles = ['Software Engineer', 'Product Manager', 'Data Scientist', 'UX Designer', 'DevOps Engineer', 'Technical Lead', 'Senior Developer', 'Engineering Manager'];
+  const skills = ['JavaScript', 'Python', 'React', 'Node.js', 'AWS', 'Docker', 'Kubernetes', 'TypeScript', 'SQL', 'Git', 'Agile', 'Scrum'];
+  const locations = ['San Francisco, CA', 'New York, NY', 'Seattle, WA', 'Austin, TX', 'Boston, MA', 'Los Angeles, CA', 'Chicago, IL', 'Remote'];
+  const schools = ['Stanford University', 'MIT', 'UC Berkeley', 'Harvard University', 'Carnegie Mellon', 'University of Washington', 'Georgia Tech', 'University of Texas'];
+  
+  // Generate consistent data based on hash
+  const companyIndex = hash % companies.length;
+  const titleIndex = (hash * 2) % titles.length;
+  const locationIndex = (hash * 3) % locations.length;
+  const schoolIndex = (hash * 4) % schools.length;
+  
+  // Generate experience
+  const experience: LinkedInExperience[] = [
+    {
+      company: companies[companyIndex],
+      title: titles[titleIndex],
+      duration: '2021 - Present',
+      location: locations[locationIndex],
+      description: `Leading development of innovative solutions and collaborating with cross-functional teams to deliver high-quality products.`,
+      companyExists: true
+    },
+    {
+      company: companies[(companyIndex + 1) % companies.length],
+      title: titles[(titleIndex + 1) % titles.length],
+      duration: '2019 - 2021',
+      location: locations[(locationIndex + 1) % locations.length],
+      description: `Developed and maintained scalable applications, improving system performance by 40%.`,
+      companyExists: true
+    }
+  ];
+  
+  // Generate education
+  const education: LinkedInEducation[] = [
+    {
+      school: schools[schoolIndex],
+      degree: 'Bachelor of Science in Computer Science',
+      years: '2015 - 2019',
+      location: locations[(locationIndex + 2) % locations.length],
+      schoolExists: true
+    }
+  ];
+  
+  // Generate skills (5-8 skills)
+  const numSkills = 5 + (hash % 4);
+  const selectedSkills = skills.slice(0, numSkills);
+  
+  // Generate realistic activity
+  const activity: LinkedInActivity = {
+    posts: 15 + (hash % 30),
+    likes: 250 + (hash % 500),
+    comments: 45 + (hash % 100),
+    shares: 12 + (hash % 25),
+    lastActivityDate: new Date(Date.now() - (hash % 30) * 24 * 60 * 60 * 1000).toISOString()
+  };
+  
+  return {
+    name,
+    headline: `${titles[titleIndex]} at ${companies[companyIndex]}`,
+    location: locations[locationIndex],
+    connections: 500 + (hash % 1000),
+    profileUrl: linkedinUrl,
+    accountCreationDate: '2015-05-15',
+    experience,
+    education,
+    skills: selectedSkills,
+    activity,
+    recommendations: [],
+    certifications: []
+  };
+}
+
 // LinkedIn API Response interfaces
 interface LinkedInApiExperience {
   company: string;
@@ -364,6 +466,33 @@ export async function processLinkedInUrl(
   linkedinUrl: string,
   onProgress?: (progress: LinkedInProgress) => void
 ): Promise<LinkedInData> {
+  // Check if LinkedIn scraping is disabled
+  const scrapingEnabled = process.env.LINKEDIN_SCRAPING_ENABLED !== 'false';
+  
+  if (!scrapingEnabled) {
+    // Use dummy data when scraping is disabled
+    onProgress?.({
+      attempt: 1,
+      maxAttempts: 1,
+      status: 'starting',
+      message: 'Using dummy LinkedIn data (scraping disabled)...',
+      percentage: 50
+    });
+    
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    onProgress?.({
+      attempt: 1,
+      maxAttempts: 1,
+      status: 'ready',
+      message: 'Dummy LinkedIn data ready!',
+      percentage: 100
+    });
+    
+    return generateDummyLinkedInData(linkedinUrl);
+  }
+  
   const apiKey = process.env.BRIGHTDATA_API_KEY;
   
   if (!apiKey) {

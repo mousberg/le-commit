@@ -1,19 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, FileText, ExternalLink, Mail, Calendar, Tag } from 'lucide-react';
+import { X, FileText, ExternalLink, Mail, Calendar, Tag, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
+import { createClient } from '@/lib/supabase/client';
+import { ManualAssessmentSection } from '@/components/ManualAssessmentSection';
 
 interface ATSCandidateDetailsTrayProps {
   candidate: ATSCandidate | null;
   isOpen: boolean;
   onClose: () => void;
+  onCandidateUpdate?: (updatedCandidate: ATSCandidate) => void;
 }
 
-export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandidateDetailsTrayProps) {
+export function ATSCandidateDetailsTray({ candidate, isOpen, onClose, onCandidateUpdate }: ATSCandidateDetailsTrayProps) {
   const [mounted, setMounted] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -42,7 +47,7 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
     
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-600">Verified</Badge>;
+        return <Badge variant="default" className="bg-green-600">Analyzed</Badge>;
       case 'processing':
       case 'analyzing':
         return <Badge variant="secondary">Processing</Badge>;
@@ -63,6 +68,41 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const startAnalysis = async () => {
+    if (!candidate?.unmask_applicant_id) return;
+    setAnalyzing(true);
+    
+    try {
+      const supabase = createClient();
+      
+      // Direct database update - triggers event-driven analysis
+      const { error } = await supabase
+        .from('applicants')
+        .update({ 
+          ai_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', candidate.unmask_applicant_id);
+
+      if (error) {
+        throw error;
+      }
+      
+      showNotification('success', 'Analysis started for ' + candidate.name);
+      setTimeout(() => onClose(), 1500); // Close the tray after showing notification
+    } catch (error) {
+      console.error('Failed to start analysis:', error);
+      showNotification('error', 'Failed to start analysis: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -195,6 +235,17 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                   </div>
                 )}
 
+                {/* Manual Assessment Section */}
+                <ManualAssessmentSection 
+                  candidate={candidate}
+                  onUpdate={(updatedCandidate) => {
+                    // Update the parent component's state
+                    if (onCandidateUpdate) {
+                      onCandidateUpdate(updatedCandidate);
+                    }
+                  }}
+                />
+
                 {/* Processing Status */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-3">Processing Information</h3>
@@ -219,6 +270,77 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                     </div>
                   </div>
                 </div>
+
+                {/* Debug Information */}
+                {candidate.unmask_applicant_id && (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <h3 className="text-sm font-medium text-gray-900 mb-3">Debug Information</h3>
+                    <div className="space-y-3">
+                      {/* Processing Status Details */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">AI Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.ai_status || 'null'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">CV Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.cv_status || 'null'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">LinkedIn Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.li_status || 'null'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">GitHub Status</span>
+                          <Badge variant="outline" className="text-xs">
+                            {candidate.gh_status || 'null'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Trigger Analysis */}
+                      <div className="pt-2 border-t border-red-200">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="text-gray-600 font-medium">Analysis Trigger</span>
+                          <span className={
+                            candidate.ai_status === 'pending' && 
+                            (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') &&
+                            candidate.cv_status !== 'processing' && candidate.li_status !== 'processing' && candidate.gh_status !== 'processing'
+                              ? 'text-green-600 font-medium' 
+                              : 'text-red-600 font-medium'
+                          }>
+                            {candidate.ai_status === 'pending' && 
+                            (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') &&
+                            candidate.cv_status !== 'processing' && candidate.li_status !== 'processing' && candidate.gh_status !== 'processing'
+                              ? '✅ Should Trigger' 
+                              : '❌ Won\'t Trigger'
+                            }
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <div>• AI Status must be &apos;pending&apos;</div>
+                          <div>• At least one data source must be &apos;ready&apos; (CV, LinkedIn, or GitHub)</div>
+                          <div>• No data sources should be &apos;processing&apos;</div>
+                          {candidate.ai_status !== 'pending' && (
+                            <div className="text-red-600">⚠ AI Status is &apos;{candidate.ai_status}&apos; (needs &apos;pending&apos;)</div>
+                          )}
+                          {!(candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready') && (
+                            <div className="text-red-600">⚠ No data sources are ready</div>
+                          )}
+                          {(candidate.cv_status === 'processing' || candidate.li_status === 'processing' || candidate.gh_status === 'processing') && (
+                            <div className="text-red-600">⚠ Some data sources are still processing</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -236,17 +358,50 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose }: ATSCandi
                 {candidate.ready_for_processing && !candidate.unmask_applicant_id && (
                   <Button 
                     className="flex-1"
-                    onClick={() => {
-                      // Trigger verification
-                      alert('Starting verification for ' + candidate.name);
-                    }}
+                    disabled={analyzing}
+                    onClick={startAnalysis}
                   >
-                    Start Verification
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        Starting Analysis...
+                      </>
+                    ) : (
+                      'Start Analysis'
+                    )}
                   </Button>
                 )}
                 <Button variant="outline" onClick={onClose}>
                   Close
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Notification Toast */}
+        {notification && (
+          <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-right duration-300">
+            <div className={`
+              px-6 py-4 rounded-lg shadow-lg max-w-sm
+              ${notification.type === 'success' 
+                ? 'bg-green-600 text-white' 
+                : 'bg-red-600 text-white'
+              }
+            `}>
+              <div className="flex items-center gap-3">
+                {notification.type === 'success' ? (
+                  <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                )}
+                <p className="text-sm font-medium">{notification.message}</p>
+                <button
+                  onClick={() => setNotification(null)}
+                  className="ml-auto hover:bg-black/20 p-1 rounded"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>

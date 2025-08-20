@@ -13,7 +13,11 @@ import {
   Clock,
   User,
   Eye,
-  Loader2
+  Loader2,
+  Send,
+  Check,
+  X,
+  Brain
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
@@ -21,14 +25,19 @@ import { ATSCandidate } from '@/lib/ashby/interfaces';
 
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
+  onCandidateUpdate?: (updatedCandidate: ATSCandidate) => void;
 }
 
-export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
+export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandidatesTableProps) {
   const router = useRouter();
-  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]); // applicant IDs
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
   const [isTrayOpen, setIsTrayOpen] = useState(false);
   const [viewingCandidates, setViewingCandidates] = useState<Set<string>>(new Set());
+  const [pushingScores, setPushingScores] = useState(false);
+  const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyId?: string; applicantId?: string }>>({});  // applicant ID -> result
+  const [batchAnalyzing, setBatchAnalyzing] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const handleCvView = async (candidateId: string, cvFileId: string | null | undefined) => {
     if (!cvFileId || viewingCandidates.has(candidateId)) return;
@@ -72,11 +81,11 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     }
   };
 
-  const toggleCandidate = (ashbyId: string) => {
+  const toggleCandidate = (applicantId: string) => {
     setSelectedCandidates(prev => 
-      prev.includes(ashbyId) 
-        ? prev.filter(id => id !== ashbyId)
-        : [...prev, ashbyId]
+      prev.includes(applicantId) 
+        ? prev.filter(id => id !== applicantId)
+        : [...prev, applicantId]
     );
   };
 
@@ -95,9 +104,93 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     setTimeout(() => setSelectedCandidate(null), 300);
   };
 
+  const handleCandidateUpdate = (updatedCandidate: ATSCandidate) => {
+    // Update the selected candidate in local state
+    setSelectedCandidate(updatedCandidate);
+    
+    // Notify parent component if callback is provided
+    if (onCandidateUpdate) {
+      onCandidateUpdate(updatedCandidate);
+    }
+  };
+
+
+  const handleBatchPushScores = async () => {
+    if (selectedCandidatesForScoring.length === 0) {
+      alert('No candidates with scores selected');
+      return;
+    }
+
+    setPushingScores(true);
+    setPushResults({});
+
+    try {
+      const applicantIds = selectedCandidatesForScoring.map(c => c.unmask_applicant_id);
+
+      const response = await fetch('/api/ashby/push-score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batchMode: true,
+          applicantIds
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setPushResults(result.results); // Results are now keyed by applicant ID
+        alert(`Batch push completed: ${result.summary.successful}/${result.summary.total} successful`);
+      } else {
+        throw new Error(result.error || 'Failed to push scores');
+      }
+
+    } catch (error) {
+      console.error('Error pushing scores:', error);
+      alert('Failed to push scores: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setPushingScores(false);
+    }
+  };
+
+  const selectAllCandidates = () => {
+    const candidatesWithScores = candidates.filter(c => c.score !== undefined || c.analysis?.score !== undefined);
+    setSelectedCandidates(candidatesWithScores.map(c => c.id));
+  };
+
+  const selectCandidatesForAnalysis = () => {
+    const candidatesForAnalysis = candidates.filter(c => 
+      c.unmask_applicant_id && 
+      c.ready_for_processing && 
+      !c.analysis
+    );
+    setSelectedCandidates(candidatesForAnalysis.map(c => c.id));
+  };
+
+  // Get candidates that are ready for analysis
+  const selectedCandidatesForAnalysis = candidates.filter(c => 
+    selectedCandidates.includes(c.id) && 
+    c.unmask_applicant_id && 
+    c.ready_for_processing && 
+    !c.analysis
+  );
+
+  // Get candidates that have scores for pushing
+  const selectedCandidatesForScoring = candidates.filter(c => 
+    selectedCandidates.includes(c.id) && 
+    c.unmask_applicant_id && 
+    (c.score !== undefined || c.analysis?.score !== undefined)
+  );
+
+  const clearSelection = () => {
+    setSelectedCandidates([]);
+  };
+
   const toggleAll = () => {
     setSelectedCandidates(prev => 
-      prev.length === candidates.length ? [] : candidates.map(c => c.ashby_id)
+      prev.length === candidates.length ? [] : candidates.map(c => c.id)
     );
   };
 
@@ -110,7 +203,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
     
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-600"><CheckCircle className="h-3 w-3 mr-1" />Verified</Badge>;
+        return <Badge variant="default" className="bg-green-600"><CheckCircle className="h-3 w-3 mr-1" />Analyzed</Badge>;
       case 'processing':
       case 'analyzing':
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Processing</Badge>;
@@ -152,34 +245,97 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
   //   });
   // };
 
-  const handleBulkVerification = async () => {
-    if (selectedCandidates.length === 0) return;
+  const handleBulkAnalysis = async () => {
+    const candidatesWithApplicantIds = candidates.filter(c => 
+      selectedCandidates.includes(c.id) && c.unmask_applicant_id
+    );
+
+    if (candidatesWithApplicantIds.length === 0) {
+      alert('No candidates with applicant IDs selected');
+      return;
+    }
+
+    setBatchAnalyzing(true);
+    try {
+      const supabase = createClient();
+      const applicantIds = selectedCandidates; // selectedCandidates already contains applicant IDs
+      
+      console.log('🔍 Starting bulk analysis for applicant IDs:', applicantIds);
+      console.log('📋 Candidates being processed:', candidatesWithApplicantIds.map(c => ({
+        name: c.name,
+        applicant_id: c.id,
+        ready_for_processing: c.ready_for_processing
+      })));
+      
+      // Direct database update - triggers event-driven analysis
+      const { data, error } = await supabase
+        .from('applicants')
+        .update({ 
+          ai_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .in('id', applicantIds)
+        .select();
+
+      console.log('📊 Supabase update result:', { data, error });
+
+      if (error) {
+        console.error('❌ Supabase error details:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        throw new Error(`No applicants were updated. This might mean the applicant IDs don't exist in the database: ${applicantIds.join(', ')}`);
+      }
+      
+      console.log('✅ Successfully updated applicants:', data);
+      showNotification('success', `Started analysis for ${data.length} candidates`);
+      setSelectedCandidates([]);
+    } catch (error) {
+      console.error('Failed to start batch analysis:', error);
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      showNotification('error', 'Failed to start batch analysis: ' + errorMessage);
+    } finally {
+      setBatchAnalyzing(false);
+    }
+  };
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleIndividualAnalysis = async (candidate: ATSCandidate) => {
+    if (!candidate.unmask_applicant_id) {
+      showNotification('error', 'This candidate is not yet linked to the analysis system');
+      return;
+    }
+
+    if (!candidate.ready_for_processing) {
+      showNotification('error', 'This candidate is not ready for analysis yet');
+      return;
+    }
 
     try {
-      const response = await fetch('/api/ashby/pull', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          applicant_ids: selectedCandidates.map(ashbyId => 
-            candidates.find(c => c.ashby_id === ashbyId)?.unmask_applicant_id
-          ).filter(Boolean),
-          priority: 'high'
-        }),
-      });
-
-      const result = await response.json();
+      const supabase = createClient();
       
-      if (result.success) {
-        // Refresh the table or show success message
-        alert(`Queued ${result.updated_count} candidates for verification`);
-        setSelectedCandidates([]);
-      } else {
-        throw new Error(result.error);
+      // Direct database update - triggers event-driven analysis
+      const { error } = await supabase
+        .from('applicants')
+        .update({ 
+          ai_status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', candidate.unmask_applicant_id);
+
+      if (error) {
+        throw error;
       }
+      
+      showNotification('success', 'Analysis started for ' + candidate.name);
     } catch (error) {
-      alert(`Failed to queue verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Failed to start individual analysis:', error);
+      showNotification('error', 'Failed to start analysis: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -202,16 +358,72 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Candidates ({candidates.length})</CardTitle>
-          {selectedCandidates.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {selectedCandidates.length} selected
-              </span>
-              <Button onClick={handleBulkVerification} size="sm">
-                Queue for Verification
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {selectedCandidates.length > 0 ? (
+              <>
+                <span className="text-sm text-gray-600">
+                  {selectedCandidates.length} selected
+                </span>
+                
+                {/* Bulk Analysis Button */}
+                {selectedCandidatesForAnalysis.length > 0 && (
+                  <Button 
+                    onClick={handleBulkAnalysis} 
+                    size="sm"
+                    disabled={batchAnalyzing}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {batchAnalyzing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="h-4 w-4 mr-1" />
+                        Start Analysis ({selectedCandidatesForAnalysis.length})
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {/* Batch Push Scores Button */}
+                {selectedCandidatesForScoring.length > 0 && (
+                  <Button 
+                    onClick={handleBatchPushScores} 
+                    size="sm"
+                    disabled={pushingScores}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {pushingScores ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        Pushing...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-1" />
+                        Push to Ashby ({selectedCandidatesForScoring.length})
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                <Button onClick={clearSelection} size="sm" variant="outline">
+                  Clear Selection
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={selectAllCandidates} size="sm" variant="outline">
+                  Select All with Scores
+                </Button>
+                <Button onClick={selectCandidatesForAnalysis} size="sm" variant="outline">
+                  Select Ready for Analysis
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -232,8 +444,7 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                 <th className="text-left p-3 font-medium text-gray-900">LinkedIn</th>
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
                 <th className="text-left p-3 font-medium text-gray-900">Score</th>
-                <th className="text-left p-3 font-medium text-gray-900">Position</th>
-                <th className="text-left p-3 font-medium text-gray-900">Company</th>
+                <th className="text-left p-3 font-medium text-gray-900">Notes</th>
                 <th className="text-left p-3 font-medium text-gray-900">Actions</th>
               </tr>
             </thead>
@@ -247,8 +458,8 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                   <td className="p-3">
                     <input
                       type="checkbox"
-                      checked={selectedCandidates.includes(candidate.ashby_id)}
-                      onChange={() => toggleCandidate(candidate.ashby_id)}
+                      checked={selectedCandidates.includes(candidate.id)}
+                      onChange={() => toggleCandidate(candidate.id)}
                       className="rounded"
                     />
                   </td>
@@ -273,13 +484,13 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent row click
-                            handleCvView(candidate.ashby_id, candidate.cv_file_id);
+                            handleCvView(candidate.id, candidate.cv_file_id);
                           }}
                           className="hover:bg-green-100 p-1 rounded disabled:opacity-50"
                           title="View CV"
-                          disabled={viewingCandidates.has(candidate.ashby_id)}
+                          disabled={viewingCandidates.has(candidate.id)}
                         >
-                          {viewingCandidates.has(candidate.ashby_id) ? (
+                          {viewingCandidates.has(candidate.id) ? (
                             <Loader2 className="h-5 w-5 text-green-600 animate-spin" />
                           ) : (
                             <Eye className="h-5 w-5 text-green-600" />
@@ -316,25 +527,29 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
 
                   {/* Score */}
                   <td className="p-3">
-                    {getScoreBadge(candidate.analysis?.score)}
+                    <div className="flex items-center gap-1">
+                      {getScoreBadge(candidate.score || candidate.analysis?.score)}
+                      {pushResults[candidate.id] && (
+                        <span className="ml-1">
+                          {pushResults[candidate.id].success ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <X className="h-3 w-3 text-red-600" />
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
-                  {/* Position */}
+                  {/* Notes */}
                   <td className="p-3">
-                    <span className="text-sm text-gray-900">
-                      {candidate.position || (
-                        <span className="text-gray-400 italic">Not specified</span>
-                      )}
-                    </span>
-                  </td>
-
-                  {/* Company */}
-                  <td className="p-3">
-                    <span className="text-sm text-gray-900">
-                      {candidate.company || (
-                        <span className="text-gray-400 italic">Not specified</span>
-                      )}
-                    </span>
+                    {candidate.notes ? (
+                      <div className="max-w-32 truncate text-sm text-gray-600" title={candidate.notes}>
+                        {candidate.notes}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm italic">No notes</span>
+                    )}
                   </td>
 
                   {/* Actions */}
@@ -359,11 +574,9 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation();
-                            // TODO: Implement start analysis flow
-                            alert('Analysis not yet implemented for this candidate');
+                            handleIndividualAnalysis(candidate);
                           }}
-                          className="h-8 px-2 text-gray-500"
-                          disabled
+                          className="h-8 px-2"
                         >
                           Start Analysis
                         </Button>
@@ -383,7 +596,36 @@ export function ATSCandidatesTable({ candidates }: ATSCandidatesTableProps) {
         candidate={selectedCandidate}
         isOpen={isTrayOpen}
         onClose={closeTray}
+        onCandidateUpdate={handleCandidateUpdate}
       />
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-right duration-300">
+          <div className={`
+            px-6 py-4 rounded-lg shadow-lg max-w-sm
+            ${notification.type === 'success' 
+              ? 'bg-green-600 text-white' 
+              : 'bg-red-600 text-white'
+            }
+          `}>
+            <div className="flex items-center gap-3">
+              {notification.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 flex-shrink-0" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              )}
+              <p className="text-sm font-medium">{notification.message}</p>
+              <button
+                onClick={() => setNotification(null)}
+                className="ml-auto hover:bg-black/20 p-1 rounded"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

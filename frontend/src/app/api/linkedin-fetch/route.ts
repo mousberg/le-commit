@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { startProcessing, validateRequestBody } from '@/lib/processing';
-import { startLinkedInJob, checkLinkedInJob, processLinkedInData } from '@/lib/linkedin-api';
+import { startLinkedInJob, checkLinkedInJob, processLinkedInData, generateDummyLinkedInData } from '@/lib/linkedin-api';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
@@ -24,6 +24,14 @@ export async function POST(request: Request) {
       applicant_id,
       'li_status',
       async () => {
+        // Check if LinkedIn scraping is disabled
+        const scrapingEnabled = process.env.LINKEDIN_SCRAPING_ENABLED !== 'false';
+        
+        if (!scrapingEnabled) {
+          console.log(`🎭 Using dummy LinkedIn data for ${applicant_id} (scraping disabled)`);
+          return generateDummyLinkedInData(linkedin_url);
+        }
+        
         console.log(`🚀 Starting LinkedIn job for ${applicant_id}`);
         const { jobId, isExisting } = await startLinkedInJob(linkedin_url);
 
