@@ -105,18 +105,11 @@ async function createNoteHandler(context: ApiHandlerContext) {
 
 // Handle webhook calls from database triggers
 async function handleWebhookCall(body: Record<string, unknown>) {
-  const { applicantId, note } = body;
+  const { applicantId } = body;
 
   if (!applicantId) {
     return NextResponse.json(
       { error: 'Applicant ID is required', success: false },
-      { status: 400 }
-    );
-  }
-
-  if (!note) {
-    return NextResponse.json(
-      { error: 'Note content is required', success: false },
       { status: 400 }
     );
   }
@@ -130,7 +123,8 @@ async function handleWebhookCall(body: Record<string, unknown>) {
     .select(`
       id,
       user_id,
-      source
+      source,
+      notes
     `)
     .eq('id', applicantId)
     .single();
@@ -142,12 +136,20 @@ async function handleWebhookCall(body: Record<string, unknown>) {
     );
   }
 
-  const { user_id, source } = applicantData;
+  const { user_id, source, notes } = applicantData;
 
   // Check if this applicant came from Ashby
   if (source !== 'ashby') {
     return NextResponse.json(
       { error: 'Not an Ashby candidate', success: false },
+      { status: 400 }
+    );
+  }
+
+  // Validate note content exists and is not empty
+  if (!notes || notes.trim() === '') {
+    return NextResponse.json(
+      { error: 'No note content available', success: false },
       { status: 400 }
     );
   }
@@ -168,7 +170,7 @@ async function handleWebhookCall(body: Record<string, unknown>) {
   }
 
   // Get ashby_id using utility function
-  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId, user_id);
+  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, user_id);
   if (!ashbyLookup.success) {
     return NextResponse.json(
       { error: ashbyLookup.error, success: false },
@@ -181,7 +183,7 @@ async function handleWebhookCall(body: Record<string, unknown>) {
 
   const noteResponse = await ashbyClient.createNote({
     candidateId: ashbyLookup.ashbyId!,
-    note: note,
+    note: notes,
     sendNotifications: false
   });
 
@@ -214,7 +216,7 @@ async function handleWebhookCall(body: Record<string, unknown>) {
       applicantId,
       ashbyId: ashbyLookup.ashbyId,
       noteId: noteResponse.results?.id,
-      note,
+      note: notes,
       createdAt: noteResponse.results?.createdAt || new Date().toISOString()
     }
   });

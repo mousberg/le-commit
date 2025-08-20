@@ -408,7 +408,7 @@ async function handleWebhookCall(body: Record<string, unknown>) {
   }
 
   // Get ashby_id using utility function
-  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId, user_id);
+  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, user_id);
   if (!ashbyLookup.success) {
     return NextResponse.json(
       { error: ashbyLookup.error, success: false },
