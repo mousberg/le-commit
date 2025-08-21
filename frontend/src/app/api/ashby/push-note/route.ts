@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 import { getAshbyApiKey } from '@/lib/ashby/server';
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { getAshbyIdFromApplicantId } from '@/lib/ashby/utils';
 
 async function createNoteHandler(context: ApiHandlerContext) {
@@ -104,152 +104,26 @@ async function createNoteHandler(context: ApiHandlerContext) {
 }
 
 // Handle webhook calls from database triggers
-async function handleWebhookCall(body: Record<string, unknown>) {
-  const { applicantId } = body;
+// Removed handleWebhookCall and handleUserCall functions
+// Now using simplified single-path architecture
 
-  if (!applicantId) {
-    return NextResponse.json(
-      { error: 'Applicant ID is required', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Use service role client to bypass RLS (trigger already validated data)
-  const supabase = createServiceRoleClient();
-
-  // Get applicant data and user info
-  const { data: applicantData, error: applicantError } = await supabase
-    .from('applicants')
-    .select(`
-      id,
-      user_id,
-      source,
-      notes
-    `)
-    .eq('id', applicantId)
-    .single();
-
-  if (applicantError || !applicantData) {
-    return NextResponse.json(
-      { error: 'Applicant not found', success: false },
-      { status: 404 }
-    );
-  }
-
-  const { user_id, source, notes } = applicantData;
-
-  // Check if this applicant came from Ashby
-  if (source !== 'ashby') {
-    return NextResponse.json(
-      { error: 'Not an Ashby candidate', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Validate note content exists and is not empty
-  if (!notes || notes.trim() === '') {
-    return NextResponse.json(
-      { error: 'No note content available', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Get user's API key
-  const { data: userData } = await supabase
-    .from('users')
-    .select('ashby_api_key')
-    .eq('id', user_id)
-    .single();
-
-  const apiKey = getAshbyApiKey(userData?.ashby_api_key);
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Ashby integration not configured for user', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Get ashby_id using utility function
-  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, user_id);
-  if (!ashbyLookup.success) {
-    return NextResponse.json(
-      { error: ashbyLookup.error, success: false },
-      { status: 404 }
-    );
-  }
-
-  // Initialize Ashby client and create note
-  const ashbyClient = new AshbyClient({ apiKey });
-
-  const noteResponse = await ashbyClient.createNote({
-    candidateId: ashbyLookup.ashbyId!,
-    note: notes,
-    sendNotifications: false
-  });
-
-  if (!noteResponse.success) {
-    const errorMessage = noteResponse.error?.message || 'Failed to create note in Ashby';
-    const isRateLimit = noteResponse.error?.code === 'RATE_LIMIT_EXCEEDED';
-
-    console.error('❌ WEBHOOK: Failed to create note in Ashby:', {
-      applicantId,
-      ashbyId: ashbyLookup.ashbyId,
-      error: noteResponse.error,
-      isRateLimit
-    });
-
-    return NextResponse.json(
-      { 
-        error: errorMessage,
-        success: false,
-        isRateLimit,
-        retryAfter: isRateLimit ? (noteResponse.error?.retryAfter || 60) : undefined
-      },
-      { status: isRateLimit ? 503 : 500 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: 'Note successfully synced to Ashby',
-    data: {
-      applicantId,
-      ashbyId: ashbyLookup.ashbyId,
-      noteId: noteResponse.results?.id,
-      note: notes,
-      createdAt: noteResponse.results?.createdAt || new Date().toISOString()
-    }
-  });
-}
-
-// Handle user calls (existing middleware-wrapped logic)
-async function handleUserCall(request: NextRequest) {
-  const middlewareResponse = await withApiMiddleware(createNoteHandler, {
-    requireAuth: true,
-    enableCors: true,
-    enableLogging: true,
-    rateLimit: { 
-      maxRequests: 30,
-      windowMs: 60000
-    }
-  })(request, { params: Promise.resolve({}) });
-
-  return middlewareResponse;
-}
-
-// POST - Create note for candidate (handles both user calls and webhook calls)
+// POST - Create note for candidate (simplified single-path architecture)
+// Both user calls and queue processor calls use the same middleware-wrapped path
 export async function POST(request: NextRequest) {
   try {
-    // Check if this is a webhook call from database trigger
-    const isWebhookCall = request.headers.get('x-webhook-source') === 'database-trigger';
-    
-    if (isWebhookCall) {
-      // Skip webhook secret validation - minimal security risk for score/note updates
-      const body = await request.json();
-      return await handleWebhookCall(body);
-    } else {
-      return await handleUserCall(request);
+    // Use the middleware to get proper auth context
+    // Works for both user calls and queue processor calls (with service role client)
+    const middlewareResponse = await withApiMiddleware(createNoteHandler, {
+      requireAuth: true,
+      enableCors: true
+    })(request, { params: Promise.resolve({}) });
+
+    // Log success
+    if (middlewareResponse.status === 200) {
+      console.log('✅ POST /api/ashby/push-note 200');
     }
+    
+    return middlewareResponse;
   } catch (error) {
     console.error('Error in notes API:', error);
     return NextResponse.json(

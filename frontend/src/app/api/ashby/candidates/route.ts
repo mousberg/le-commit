@@ -217,7 +217,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       // Perform auto-sync
       const ashbyClient = new AshbyClient({ apiKey });
       const response = await ashbyClient.listCandidates({
-        limit: 30, // TODO: increase later
+        limit: 10, // TODO: increase later
         includeArchived: false
       });
 

@@ -105,6 +105,7 @@ temp/
 .mcp.*json
 .claude
 .kiro/
+.playwright-mcp/
 
 # Supabase
 supabase/.temp/

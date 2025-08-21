@@ -13,6 +13,7 @@ interface WebhookQueueItem {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   attempts: number;
   max_attempts: number;
+  priority: number;
   scheduled_for: string;
   created_at: string;
   updated_at: string;
@@ -25,6 +26,7 @@ interface ProcessingResult {
   success: boolean;
   webhook_type: string;
   applicant_id: string;
+  priority?: number;
   error?: string;
   isRateLimit?: boolean;
   attempts?: number;
@@ -47,14 +49,15 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceRoleClient();
     
-    // Get pending webhooks that are scheduled to run
+    // Get pending webhooks that are scheduled to run, ordered by priority (higher first), then by schedule
     // Note: We filter attempts < max_attempts in app logic since Supabase client doesn't support column-to-column comparison
     const { data: allPendingWebhooks, error: fetchError } = await supabase
       .from('webhook_queue')
       .select('*')
       .in('status', ['pending', 'failed'])
       .lt('scheduled_for', new Date().toISOString())
-      .order('created_at', { ascending: true })
+      .order('priority', { ascending: false }) // Higher priority first
+      .order('scheduled_for', { ascending: true }) // Then by scheduled time
       .limit(20) // Get more to filter in app logic
       .returns<WebhookQueueItem[]>();
     
@@ -81,7 +84,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`📤 Processing ${pendingWebhooks.length} queued webhooks`);
+    if (pendingWebhooks.length > 0) {
+      console.log(`📤 Processing ${pendingWebhooks.length} queued webhooks (priority-ordered):`);
+      pendingWebhooks.forEach((webhook, index) => {
+        const payload = webhook.payload as { applicantId?: string; score?: number };
+        const applicantId = payload?.applicantId;
+        const score = payload?.score || 'unknown';
+        console.log(`   ${index + 1}. applicant ${applicantId} (priority: ${webhook.priority}, score: ${score}, type: ${webhook.webhook_type})`);
+      });
+    } else {
+      console.log(`📤 Processing ${pendingWebhooks.length} queued webhooks (priority-ordered)`);
+    }
     const results: ProcessingResult[] = [];
     
     // Process each webhook
@@ -102,14 +115,54 @@ export async function POST(request: NextRequest) {
           ? '/api/ashby/push-score'
           : '/api/ashby/push-note';
 
-        // Make webhook request
+        // Transform webhook payload to match user API format
+        let transformedPayload: Record<string, unknown>;
+        
+        if (webhook.webhook_type === 'score_push') {
+          // Extract applicantId from webhook payload and format for push-score endpoint
+          const { applicantId } = webhook.payload as { applicantId?: string };
+          if (!applicantId) {
+            throw new Error('Missing applicantId in score_push webhook payload');
+          }
+          // Include user_id for service role authentication
+          transformedPayload = { applicantId, userId: webhook.user_id };
+        } else if (webhook.webhook_type === 'note_push') {
+          // Extract fields needed for push-note endpoint
+          const { applicantId, note, sendNotifications = false } = webhook.payload as { 
+            applicantId?: string; 
+            note?: string; 
+            sendNotifications?: boolean 
+          };
+          if (!applicantId) {
+            throw new Error('Missing applicantId in note_push webhook payload');
+          }
+          transformedPayload = { applicantId, note, sendNotifications };
+        } else {
+          throw new Error(`Unsupported webhook type: ${webhook.webhook_type}`);
+        }
+
+        // Get service role token for queue processor authentication
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!serviceRoleKey) {
+          throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+        }
+
+        // Log the transformed payload for debugging
+        console.log(`🔄 Queue → ${endpoint}:`, {
+          webhookId: webhook.id,
+          originalPayload: webhook.payload,
+          transformedPayload,
+          type: webhook.webhook_type
+        });
+
+        // Make webhook request with service role authentication
         const webhookResponse = await fetch(`http://localhost:3000${endpoint}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-webhook-source': 'database-trigger' // Use same header as direct triggers
+            'Authorization': `Bearer ${serviceRoleKey}` // Service role auth for queue processor
           },
-          body: JSON.stringify(webhook.payload)
+          body: JSON.stringify(transformedPayload)
         });
 
         const responseData = await webhookResponse.json();
@@ -129,7 +182,8 @@ export async function POST(request: NextRequest) {
             id: webhook.id,
             success: true,
             webhook_type: webhook.webhook_type,
-            applicant_id: webhook.applicant_id
+            applicant_id: webhook.applicant_id,
+            priority: webhook.priority
           });
           
         } else {
@@ -156,6 +210,7 @@ export async function POST(request: NextRequest) {
             success: false,
             webhook_type: webhook.webhook_type,
             applicant_id: webhook.applicant_id,
+            priority: webhook.priority,
             error: responseData.error,
             isRateLimit,
             attempts: webhook.attempts + 1,
@@ -186,6 +241,7 @@ export async function POST(request: NextRequest) {
           success: false,
           webhook_type: webhook.webhook_type,
           applicant_id: webhook.applicant_id,
+          priority: webhook.priority,
           error: errorMessage,
           attempts: webhook.attempts + 1,
           finalFailure: webhook.attempts + 1 >= webhook.max_attempts

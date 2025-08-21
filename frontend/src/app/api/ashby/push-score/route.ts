@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 import { getAshbyApiKey } from '@/lib/ashby/server';
 import { getAshbyIdFromApplicantId } from '@/lib/ashby/utils';
@@ -349,223 +349,65 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
   }
 }
 
-// Handle webhook calls from database triggers
-async function handleWebhookCall(body: Record<string, unknown>) {
-  const { applicantId } = body;
+// Removed handleWebhookCall and handleUserCall functions
+// Now using simplified single-path architecture
 
-  if (!applicantId) {
-    return NextResponse.json(
-      { error: 'Applicant ID is required', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Use service role client to bypass RLS (trigger already validated data)
-  const supabase = createServiceRoleClient();
-
-  // Get applicant data and user info
-  const { data: applicantData, error: applicantError } = await supabase
-    .from('applicants')
-    .select(`
-      id,
-      user_id,
-      score,
-      source
-    `)
-    .eq('id', applicantId)
-    .single();
-
-  if (applicantError || !applicantData) {
-    return NextResponse.json(
-      { error: 'Applicant not found', success: false },
-      { status: 404 }
-    );
-  }
-
-  const { user_id, score: applicantScore, source } = applicantData;
-
-  // Check if this applicant came from Ashby
-  if (source !== 'ashby') {
-    return NextResponse.json(
-      { error: 'Not an Ashby candidate', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Get user's API key
-  const { data: userData } = await supabase
-    .from('users')
-    .select('ashby_api_key')
-    .eq('id', user_id)
-    .single();
-
-  const apiKey = getAshbyApiKey(userData?.ashby_api_key);
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Ashby integration not configured for user', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Get ashby_id using utility function
-  const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, user_id);
-  if (!ashbyLookup.success) {
-    return NextResponse.json(
-      { error: ashbyLookup.error, success: false },
-      { status: 404 }
-    );
-  }
-
-  // Extract and validate score
-  if (typeof applicantScore !== 'number' || applicantScore < 0 || applicantScore > 100) {
-    return NextResponse.json(
-      { error: 'Invalid or missing score', success: false },
-      { status: 400 }
-    );
-  }
-
-  // Initialize Ashby client and push score
-  const ashbyClient = new AshbyClient({ apiKey });
-  
-  // Use the correct UnmaskScore field ID (verified from debug endpoint)
-  const customFieldId = process.env.ASHBY_SCORE_FIELD_ID || '1a3a3e4d-5455-437e-8f75-4aa547222814';
-
-  const webhookPayload = {
-    objectType: 'Candidate' as const,
-    objectId: ashbyLookup.ashbyId!,
-    fieldId: customFieldId,
-    fieldValue: applicantScore
-  };
-
-  const ashbyResponse = await ashbyClient.setCustomFieldValue(webhookPayload);
-
-  // Check both outer success and inner results.success
-  const isActuallySuccessful = ashbyResponse.success && ashbyResponse.results?.success !== false;
-  
-  if (!isActuallySuccessful) {
-    const errorMessage = ashbyResponse.error?.message || 'Failed to push score to Ashby';
-    const isRateLimit = ashbyResponse.error?.code === 'RATE_LIMIT_EXCEEDED' || 
-                        errorMessage.toLowerCase().includes('rate limit') ||
-                        errorMessage.toLowerCase().includes('too many');
-    
-    console.error('❌ WEBHOOK: Failed to push score to Ashby:', {
-      applicantId,
-      ashbyId: ashbyLookup.ashbyId,
-      outerSuccess: ashbyResponse.success,
-      innerSuccess: ashbyResponse.results?.success,
-      error: ashbyResponse.error,
-      payload: webhookPayload,
-      isRateLimit
-    });
-    
-    // For rate limit errors, return 503 (Service Unavailable) to indicate temporary issue
-    // For other errors, use 400 (Bad Request) 
-    const statusCode = isRateLimit ? 503 : 400;
-    
-    return NextResponse.json(
-      { 
-        error: `Ashby API error: ${errorMessage}`,
-        success: false,
-        isRateLimit,
-        retryAfter: isRateLimit ? (ashbyResponse.error?.retryAfter || 60) : undefined
-      },
-      { status: statusCode }
-    );
-  }
-
-  // Success logged at the main handler level
-
-  return NextResponse.json({
-    success: true,
-    message: 'Score successfully synced to Ashby',
-    data: {
-      applicantId,
-      ashbyId: ashbyLookup.ashbyId,
-      score: applicantScore,
-      customFieldId,
-      ashbyResults: ashbyResponse.results
-    }
-  });
-}
-
-// Handle user calls (existing middleware-wrapped logic)
-async function handleUserCall(request: NextRequest) {
-  try {
-    // Use the middleware to get proper auth context
-    const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
-      requireAuth: true,
-      enableCors: true,
-      enableLogging: true,
-      rateLimit: { 
-        maxRequests: 20,
-        windowMs: 60000
-      }
-    })(request, { params: Promise.resolve({}) });
-
-    // Only log detailed info on failures
-    if (middlewareResponse.status >= 400) {
-      try {
-        const responseBody = await middlewareResponse.clone().text();
-        console.error('❌ User call failed with error response:', {
-          method: request.method,
-          url: request.url,
-          status: middlewareResponse.status,
-          statusText: middlewareResponse.statusText,
-          responseBody,
-          timestamp: new Date().toISOString()
-        });
-      } catch (bodyParseError) {
-        console.error('❌ Failed to parse error response body:', bodyParseError);
-      }
-    }
-
-    return middlewareResponse;
-  } catch (error) {
-    console.error('❌ Error in handleUserCall:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    });
-    
-    return NextResponse.json({
-      error: 'Failed to process user call',
-      success: false,
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
-  }
-}
-
-// POST - Push AI analysis score to Ashby (handles both user calls and webhook calls)
+// POST - Push AI analysis score to Ashby (simplified single-path architecture)
+// Both user calls and queue processor calls use the same middleware-wrapped path
 export async function POST(request: NextRequest) {
   try {
-    const isWebhookSource = request.headers.get('x-webhook-source');
-
-    // Check if this is a webhook call from database trigger
-    const isWebhookCall = isWebhookSource === 'database-trigger';
+    // Check if this is a service role call (webhook processor)
+    const authHeader = request.headers.get('authorization');
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
     
-    if (isWebhookCall) {
-      // Skip webhook secret validation - minimal security risk for score/note updates
+    if (isServiceRole) {
+      // Handle service role authentication (webhook processor)
       const body = await request.json();
-      const response = await handleWebhookCall(body);
+      const { userId } = body;
       
-      // Log success or failure
+      if (!userId) {
+        return NextResponse.json(
+          { error: 'userId required for service role authentication', success: false },
+          { status: 400 }
+        );
+      }
+      
+      // Create service role context
+      const { getServerDatabaseService } = await import('@/lib/services/database.server');
+      const dbService = await getServerDatabaseService();
+      
+      const serviceRoleContext = {
+        user: { id: userId, email: '' },
+        dbService,
+        request,
+        body,
+        params: {}
+      };
+      
+      const response = await pushScoreToAshby(serviceRoleContext);
+      
       if (response.status === 200) {
-        console.log('✅ POST /api/ashby/push-score (webhook) 200');
+        console.log('✅ POST /api/ashby/push-score 200 (service role)');
       }
       
       return response;
     } else {
-      const response = await handleUserCall(request);
-      
-      // Log success or failure
-      if (response.status === 200) {
-        console.log('✅ POST /api/ashby/push-score (user) 200');
+      // Use regular middleware for user authentication
+      const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
+        requireAuth: true,
+        enableCors: true
+      })(request, { params: Promise.resolve({}) });
+
+      // Log success
+      if (middlewareResponse.status === 200) {
+        console.log('✅ POST /api/ashby/push-score 200 (user auth)');
       }
       
-      return response;
+      return middlewareResponse;
     }
   } catch (error) {
-    console.error('❌ Critical error in push-score API:', {
+    console.error('❌ Error in push-score API:', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       timestamp: new Date().toISOString(),
