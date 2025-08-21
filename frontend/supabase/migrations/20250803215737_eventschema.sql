@@ -17,7 +17,7 @@
 -- CREATE ENUM TYPES FOR TYPE SAFETY
 -- =============================================================================
 
-CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'ready', 'error', 'not_provided');
+CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'ready', 'error', 'not_provided', 'skipped');
 CREATE TYPE overall_status AS ENUM ('uploading', 'processing', 'analyzing', 'completed', 'failed');
 
 -- =============================================================================
@@ -536,7 +536,7 @@ CREATE TRIGGER on_auth_user_created
 -- COMMENTS
 -- =============================================================================
 
-COMMENT ON TYPE processing_status IS 'Enum for individual processing step status';
+COMMENT ON TYPE processing_status IS 'Enum for individual processing step status: pending, processing, ready, error, not_provided, skipped';
 COMMENT ON TYPE overall_status IS 'Enum for overall applicant pipeline status';
 COMMENT ON COLUMN public.applicants.status IS 'Generated column: overall status derived from sub-statuses';
 COMMENT ON COLUMN public.applicants.score IS 'Generated column: AI analysis score from ai_data JSON';
