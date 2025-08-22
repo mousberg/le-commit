@@ -22,15 +22,22 @@ ALTER TABLE ashby_candidates ADD COLUMN IF NOT EXISTS base_score INTEGER;
 -- These functions only fire webhooks - no status logic (status already set)
 
 -- Helper function to get webhook base URL
+-- Production: Set via ALTER DATABASE your_db SET app.webhook_base_url = 'https://domain.com'
+-- Local: Falls back to Docker networking
 CREATE OR REPLACE FUNCTION get_webhook_url()
 RETURNS text AS $$
 DECLARE
   base_url text;
 BEGIN
+  -- Get configured webhook URL from database setting
   base_url := current_setting('app.webhook_base_url', true);
+  
+  -- Fallback for local development (Docker networking)
   IF base_url IS NULL OR base_url = '' THEN
-    base_url := 'http://localhost:3000';
+    base_url := 'http://host.docker.internal:3000';
+    RAISE NOTICE 'Using local development webhook URL: %', base_url;
   END IF;
+  
   RETURN base_url;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -332,19 +339,34 @@ BEGIN
     WHERE id = NEW.id;
     
     -- If there's a resume file handle but no cv_file_id yet, trigger download
-    -- Only for high-score candidates (low-score candidates are skipped)
-    IF NEW.resume_file_handle IS NOT NULL AND NEW.cv_file_id IS NULL AND NEW.base_score >= 30 THEN
-      PERFORM net.http_post(
-        url => get_webhook_url() || '/api/ashby/files',
-        body => jsonb_build_object(
-          'candidateId', NEW.ashby_id,
-          'fileHandle', NEW.resume_file_handle,
-          'applicantId', applicant_id,
-          'mode', 'shared_file'
-        ),
-        headers => '{"Content-Type": "application/json"}'::jsonb,
-        timeout_milliseconds => 10000
-      );
+    -- Download CV files regardless of score for future processing
+    IF NEW.resume_file_handle IS NOT NULL AND NEW.cv_file_id IS NULL THEN
+      RAISE NOTICE 'Triggering file download for candidate % with handle %', NEW.ashby_id, NEW.resume_file_handle;
+      
+      -- Store the HTTP result to check for errors
+      DECLARE 
+        http_result record;
+      BEGIN
+        SELECT * INTO http_result FROM net.http_post(
+          url => get_webhook_url() || '/api/ashby/files',
+          body => jsonb_build_object(
+            'candidateId', NEW.ashby_id,
+            'fileHandle', NEW.resume_file_handle,
+            'applicantId', applicant_id,
+            'mode', 'shared_file'
+          ),
+          headers => '{"Content-Type": "application/json"}'::jsonb,
+          timeout_milliseconds => 10000
+        );
+        
+        -- Check all available fields in the result
+        RAISE NOTICE 'File download webhook sent for candidate % - Result: %', NEW.ashby_id, http_result;
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE NOTICE 'File download webhook FAILED for candidate %: %', NEW.ashby_id, SQLERRM;
+      END;
+    ELSE
+      RAISE NOTICE 'File download skipped for candidate % (resume_handle: %, cv_file_id: %)', NEW.ashby_id, NEW.resume_file_handle IS NOT NULL, NEW.cv_file_id IS NOT NULL;
     END IF;
   END IF;
   
