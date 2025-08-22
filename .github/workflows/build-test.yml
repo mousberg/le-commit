@@ -14,17 +14,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+    
     - name: Set up Node.js  
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'pnpm'
         cache-dependency-path: frontend/pnpm-lock.yaml
-    
-    - name: Install pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
     
     - name: Install dependencies
       run: |
@@ -43,7 +43,7 @@ jobs:
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET || 'webhook-secret-dev' }}
+        WEBHOOK_SECRET: webhook-secret-dev
     
     - name: Test Docker build (without push)
       uses: docker/build-push-action@v5
