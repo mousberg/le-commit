@@ -1,24 +1,24 @@
-// Ashby Notes API - Create notes for candidates
-// POST: Create a note for a specific candidate
+// Webhook Push Note API - Internal service for webhook queue processor
+// POST: Create note for candidate (service role authentication only)
 
 import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
-import { type ApiHandlerContext, withApiMiddleware } from '@/lib/middleware/apiWrapper';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { withServiceRoleOnly, type ServiceRoleContext } from '@/lib/middleware/serviceRoleAuth';
 import { getAshbyApiKey } from '@/lib/ashby/server';
-import { createClient } from '@/lib/supabase/server';
 import { getAshbyIdFromApplicantId } from '@/lib/ashby/utils';
 
-async function createNoteHandler(context: ApiHandlerContext) {
+async function webhookPushNoteHandler(context: ServiceRoleContext) {
   const { body: requestBody } = context;
 
   try {
     const body = requestBody as Record<string, unknown>;
-    const { applicantId, note, sendNotifications = false } = body;
+    const { applicantId, userId, note, sendNotifications = false } = body;
 
     // Validate required parameters
-    if (!applicantId) {
+    if (!applicantId || !userId) {
       return NextResponse.json(
-        { error: 'Applicant ID is required', success: false },
+        { error: 'applicantId and userId are required', success: false },
         { status: 400 }
       );
     }
@@ -30,16 +30,25 @@ async function createNoteHandler(context: ApiHandlerContext) {
       );
     }
 
+    const supabase = createServiceRoleClient();
+
     // Get user's API key
-    const supabase = await createClient();
     const { data: userData } = await supabase
       .from('users')
       .select('ashby_api_key')
-      .eq('id', context.user.id)
+      .eq('id', userId)
       .single();
 
+    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'Ashby integration not configured for user', success: false },
+        { status: 500 }
+      );
+    }
+
     // Get ashby_id from applicant ID using utility function
-    const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, context.user.id);
+    const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, userId as string);
     if (!ashbyLookup.success) {
       return NextResponse.json(
         { error: ashbyLookup.error, success: false },
@@ -47,23 +56,11 @@ async function createNoteHandler(context: ApiHandlerContext) {
       );
     }
 
-    const ashbyId = ashbyLookup.ashbyId!;
-
-    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Ashby integration not configured', success: false },
-        { status: 500 }
-      );
-    }
-
-    const ashbyClient = new AshbyClient({
-      apiKey: apiKey
-    });
+    const ashbyClient = new AshbyClient({ apiKey });
 
     // Create note for the candidate using ashby_id
     const noteResponse = await ashbyClient.createNote({
-      candidateId: ashbyId,
+      candidateId: ashbyLookup.ashbyId!,
       note: note as string,
       sendNotifications: sendNotifications as boolean
     });
@@ -85,17 +82,17 @@ async function createNoteHandler(context: ApiHandlerContext) {
 
     return NextResponse.json({
       success: true,
-      message: 'Note created successfully',
+      message: 'Note created successfully via webhook',
       noteId: noteResponse.results?.id,
       applicantId,
-      ashbyId,
+      ashbyId: ashbyLookup.ashbyId!,
       note,
       sendNotifications,
       createdAt: noteResponse.results?.createdAt || new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Error creating note:', error);
+    console.error('Error in webhook push note:', error);
     return NextResponse.json(
       { error: 'Failed to create note', success: false },
       { status: 500 }
@@ -103,12 +100,5 @@ async function createNoteHandler(context: ApiHandlerContext) {
   }
 }
 
-// Handle webhook calls from database triggers
-// Removed handleWebhookCall and handleUserCall functions
-// Now using simplified single-path architecture
-
-// POST - Create note for candidate
-export const POST = withApiMiddleware(createNoteHandler, {
-  requireAuth: true,
-  enableCors: true
-});
+// POST - Create note for candidate (service role only - for webhook queue processor)
+export const POST = withServiceRoleOnly(webhookPushNoteHandler);

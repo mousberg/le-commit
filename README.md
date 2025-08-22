@@ -163,7 +163,13 @@ We provide automated deployment scripts for seamless production deployment:
    docker build -t unmask:latest .
    ```
 
-2. **Run the container**
+2. **Configure webhook base URL for production**
+   ```sql
+   -- Required: Set webhook base URL to your production domain
+   ALTER DATABASE your_production_db_name SET app.webhook_base_url = 'https://your-domain.com';
+   ```
+
+3. **Run the container**
    ```bash
    docker run -d \
      --name unmask-app \
@@ -180,7 +186,13 @@ We provide automated deployment scripts for seamless production deployment:
    npm run build
    ```
 
-2. **Start production server**
+2. **Configure webhook base URL for production**
+   ```sql
+   -- Required: Set webhook base URL to your production domain
+   ALTER DATABASE your_production_db_name SET app.webhook_base_url = 'https://your-domain.com';
+   ```
+
+3. **Start production server**
    ```bash
    npm start
    ```

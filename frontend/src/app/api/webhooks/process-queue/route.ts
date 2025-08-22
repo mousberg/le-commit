@@ -110,16 +110,16 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', webhook.id);
 
-        // Determine endpoint based on webhook type
+        // Determine endpoint based on webhook type (use webhook-specific endpoints for service role auth)
         const endpoint = webhook.webhook_type === 'score_push' 
-          ? '/api/ashby/push-score'
-          : '/api/ashby/push-note';
+          ? '/api/webhooks/push-score'
+          : '/api/webhooks/push-note';
 
         // Transform webhook payload to match user API format
         let transformedPayload: Record<string, unknown>;
         
         if (webhook.webhook_type === 'score_push') {
-          // Extract applicantId from webhook payload and format for push-score endpoint
+          // Extract applicantId from webhook payload and format for webhook push-score endpoint
           const { applicantId } = webhook.payload as { applicantId?: string };
           if (!applicantId) {
             throw new Error('Missing applicantId in score_push webhook payload');
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           // Include user_id for service role authentication
           transformedPayload = { applicantId, userId: webhook.user_id };
         } else if (webhook.webhook_type === 'note_push') {
-          // Extract fields needed for push-note endpoint
+          // Extract fields needed for webhook push-note endpoint
           const { applicantId, note, sendNotifications = false } = webhook.payload as { 
             applicantId?: string; 
             note?: string; 
@@ -136,7 +136,8 @@ export async function POST(request: NextRequest) {
           if (!applicantId) {
             throw new Error('Missing applicantId in note_push webhook payload');
           }
-          transformedPayload = { applicantId, note, sendNotifications };
+          // Include user_id for service role authentication
+          transformedPayload = { applicantId, note, sendNotifications, userId: webhook.user_id };
         } else {
           throw new Error(`Unsupported webhook type: ${webhook.webhook_type}`);
         }

@@ -1,10 +1,10 @@
 // Ashby Push Score API - Send AI analysis score to Ashby custom field
 // POST: Push analysis score to Ashby using customField.setValue
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { AshbyClient } from '@/lib/ashby/client';
 import { createClient } from '@/lib/supabase/server';
-import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
+import { type ApiHandlerContext, withApiMiddleware } from '@/lib/middleware/apiWrapper';
 import { getAshbyApiKey } from '@/lib/ashby/server';
 import { getAshbyIdFromApplicantId } from '@/lib/ashby/utils';
 
@@ -167,9 +167,9 @@ async function processBatchScores(
 }
 
 async function pushScoreToAshby(context: ApiHandlerContext) {
-  const { body: requestBody, dbService } = context;
-  // Use the database service from context (could be service role or user authenticated)
-  const supabase = dbService?.dbClient?.getClient() || (await createClient());
+  const { body: requestBody } = context;
+  // Use createClient for consistent database access
+  const supabase = await createClient();
 
   try {
     const body = requestBody as Record<string, unknown>;
@@ -263,7 +263,7 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
       }
 
       // Get ashby_id using utility function (handles the proper relationship)
-      const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId, context.user.id);
+      const ashbyLookup = await getAshbyIdFromApplicantId(supabase, applicantId as string, context.user.id);
       if (!ashbyLookup.success) {
         console.log('❌ No ashby_candidates found for applicant:', { applicantId, source, error: ashbyLookup.error });
         return NextResponse.json(
@@ -365,108 +365,8 @@ async function pushScoreToAshby(context: ApiHandlerContext) {
 // Removed handleWebhookCall and handleUserCall functions
 // Now using simplified single-path architecture
 
-// POST - Push AI analysis score to Ashby (simplified single-path architecture)
-// Both user calls and queue processor calls use the same middleware-wrapped path
-export async function POST(request: NextRequest) {
-  try {
-    // Enhanced logging for 401 debugging
-    const authHeader = request.headers.get('authorization');
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-    
-    console.log('🔍 POST /api/ashby/push-score - Auth Debug:', {
-      hasAuthHeader: !!authHeader,
-      authHeaderType: authHeader?.split(' ')[0] || 'none',
-      isServiceRole,
-      hasServiceRoleKey: !!serviceRoleKey,
-      url: request.url,
-      method: request.method,
-      timestamp: new Date().toISOString()
-    });
-    
-    if (isServiceRole) {
-      // Handle service role authentication (webhook processor)
-      const body = await request.json();
-      const { userId } = body;
-      
-      console.log('🔧 Service role auth detected:', { userId, bodyKeys: Object.keys(body) });
-      
-      if (!userId) {
-        console.log('❌ Service role auth failed: missing userId');
-        return NextResponse.json(
-          { error: 'userId required for service role authentication', success: false },
-          { status: 400 }
-        );
-      }
-      
-      // Create service role context with service role client
-      const { createServiceRoleClient } = await import('@/lib/supabase/server');
-      const { DatabaseClient } = await import('@/lib/supabase/database');
-      const { SupabaseDatabaseService } = await import('@/lib/services/database');
-      
-      const serviceRoleSupabase = createServiceRoleClient();
-      const dbClient = new DatabaseClient(serviceRoleSupabase);
-      const dbService = new SupabaseDatabaseService();
-      // Override the client with service role client
-      (dbService as any).dbClient = dbClient;
-      
-      const serviceRoleContext = {
-        user: { id: userId, email: '' },
-        dbService,
-        request,
-        body,
-        params: {}
-      };
-      
-      const response = await pushScoreToAshby(serviceRoleContext);
-      
-      if (response.status === 200) {
-        console.log('✅ POST /api/ashby/push-score 200 (service role)');
-      }
-      
-      return response;
-    } else {
-      // Use regular middleware for user authentication
-      console.log('🔧 User auth path detected, using middleware');
-      
-      const middlewareResponse = await withApiMiddleware(pushScoreToAshby, {
-        requireAuth: true,
-        enableCors: true
-      })(request, { params: Promise.resolve({}) });
-
-      // Enhanced logging
-      console.log(`${middlewareResponse.status === 200 ? '✅' : '❌'} POST /api/ashby/push-score ${middlewareResponse.status} (user auth)`, {
-        status: middlewareResponse.status,
-        hasAuthHeader: !!authHeader,
-        timestamp: new Date().toISOString()
-      });
-      
-      // If 401, log the response body for debugging
-      if (middlewareResponse.status === 401) {
-        const responseClone = middlewareResponse.clone();
-        const responseBody = await responseClone.json().catch(() => null);
-        console.log('❌ User auth 401 details:', responseBody);
-      }
-      
-      return middlewareResponse;
-    }
-  } catch (error) {
-    console.error('❌ Error in push-score API:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-      url: request.url,
-      method: request.method
-    });
-    
-    return NextResponse.json(
-      { 
-        error: 'Internal server error', 
-        success: false,
-        details: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
-  }
-}
+// POST - Push AI analysis score to Ashby
+export const POST = withApiMiddleware(pushScoreToAshby, {
+  requireAuth: true,
+  enableCors: true
+});
