@@ -271,9 +271,29 @@ COMMENT ON COLUMN ashby_candidates.base_score IS 'Pre-calculated base score: 30=
 -- Install pg_cron extension
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
+-- Configure webhook secret function for local development fallback
+CREATE OR REPLACE FUNCTION get_webhook_secret()
+RETURNS text AS $$
+DECLARE
+  secret text;
+BEGIN
+  -- Try to get configured webhook secret from database setting
+  secret := current_setting('app.webhook_secret', true);
+  
+  -- Fallback for local development
+  IF secret IS NULL OR secret = '' THEN
+    secret := 'webhook-secret-dev';
+    RAISE NOTICE 'Using fallback webhook secret for local development';
+  END IF;
+  
+  RETURN secret;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 DO $$
 BEGIN
   RAISE NOTICE '✅ pg_cron extension installed successfully';
+  RAISE NOTICE '✅ webhook secret function created with local development fallback';
   
   -- Schedule job to process webhook queue every 2 minutes
   PERFORM cron.schedule(
@@ -283,7 +303,7 @@ BEGIN
     SELECT net.http_post(
       url => get_webhook_url() || '/api/webhooks/process-queue',
       headers => jsonb_build_object(
-        'Authorization', 'Bearer ' || current_setting('app.webhook_secret', true),
+        'Authorization', 'Bearer ' || get_webhook_secret(),
         'Content-Type', 'application/json'
       )
     );
