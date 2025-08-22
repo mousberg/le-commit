@@ -72,7 +72,7 @@ flowchart TD
 
 ## Trigger System Detail
 
-### Data Processing Triggers (Score-Based Filtering)
+### Data Processing Triggers (Fixed - WHEN Conditions + Function Logic)
 
 ```mermaid
 flowchart TD
@@ -81,27 +81,34 @@ flowchart TD
     A --> D[webhook_github_trigger] 
     A --> E[webhook_ai_trigger]
     
-    B --> F{Source != 'ashby' OR Score >= 30?}
-    C --> G{Source != 'ashby' OR Score >= 30?}
-    D --> H{Source != 'ashby' OR Score >= 30?}
-    E --> I{Source != 'ashby' OR Score >= 30?}
+    B --> F[WHEN: cv_status='pending' AND cv_file_id EXISTS]
+    C --> G[WHEN: li_status='pending' AND linkedin_url EXISTS]
+    D --> H[WHEN: gh_status='pending' AND github_url EXISTS]
+    E --> I[WHEN: ai_status='pending' AND data collection complete]
     
-    F -->|Yes| J[Process CV]
-    F -->|No + Ashby + Score < 30| K[cv_status = 'skipped']
+    F --> J{Function Logic: cv_status != 'processing' AND file changed?}
+    G --> K{Function Logic: li_status != 'processing' AND URL changed?}
+    H --> L{Function Logic: gh_status != 'processing' AND URL changed?}
+    I --> M{Function Logic: All sources final?}
     
-    G -->|Yes| L[Process LinkedIn]
-    G -->|No + Ashby + Score < 30| M[li_status = 'skipped']
+    J -->|✅ Yes| N[🔥 Fire CV Webhook]
+    K -->|✅ Yes| O[🔥 Fire LinkedIn Webhook]
+    L -->|✅ Yes| P[🔥 Fire GitHub Webhook]
+    M -->|✅ Yes| Q[🔥 Fire AI Analysis Webhook]
     
-    H -->|Yes| N[Process GitHub]  
-    H -->|No + Ashby + Score < 30| O[gh_status = 'skipped']
+    J -->|❌ No| R[Skip - Already Processing/No Change]
+    K -->|❌ No| S[Skip - Already Processing/No Change]
+    L -->|❌ No| T[Skip - Already Processing/No Change]
+    M -->|❌ No| U[Skip - Not Ready Yet]
     
-    I -->|Yes| P[Process AI Analysis]
-    I -->|No + Ashby + Score < 30| Q[ai_status = 'skipped']
-    
-    style K fill:#ffcccc
-    style M fill:#ffcccc
-    style O fill:#ffcccc
-    style Q fill:#ffcccc
+    style N fill:#ccffcc
+    style O fill:#ccffcc
+    style P fill:#ccffcc
+    style Q fill:#ccffcc
+    style R fill:#f0f0f0
+    style S fill:#f0f0f0
+    style T fill:#f0f0f0
+    style U fill:#f0f0f0
 ```
 
 ### Ashby Integration Triggers (Webhook Queue)
@@ -131,37 +138,45 @@ flowchart TD
     style H fill:#cceeff
 ```
 
-## Current Issue Analysis
+## ✅ Issues Resolved (August 2025)
 
-### Expected Behavior:
-1. Ashby candidates with score < 30 should have statuses set to `'skipped'` by data processing triggers
-2. Only candidates with score >= 30 should have `'pending'` → `'processing'` → `'ready'` flow
+### **Problem: LinkedIn Processing Stuck at 'Pending'**
+**Root Cause**: Webhook functions had missing conditional logic after consolidation
+**Solution**: Restored essential conditions:
+- `NEW.li_status != 'processing'` - Prevents duplicate webhook calls
+- `(TG_OP = 'INSERT' OR OLD.linkedin_url IS DISTINCT FROM NEW.linkedin_url)` - Only fires on actual changes
 
-### Actual Behavior (Current):
-- All candidates stuck at `'pending'` regardless of score
-- No candidates showing `'skipped'` status
-- Score-based filtering not working
+### **Problem: pg_cron Queue System Not Working Locally**  
+**Root Cause**: pg_cron extension not installed in local development
+**Solution**: 
+- pg_cron **IS available** in local Supabase
+- Migration now auto-installs: `CREATE EXTENSION IF NOT EXISTS pg_cron;`
+- Automatic queue processing every 2 minutes in both dev and production
 
-### Potential Problems:
+### **Fixed Architecture**
 
 ```mermaid
 flowchart TD
-    A[Problem Root Causes] --> B[Score Not Set When Triggers Fire]
-    A --> C[Trigger Order Issues]
-    A --> D[Trigger Function Logic Bug]
-    A --> E[Migration Application Issues]
+    A[✅ FIXED: Webhook Functions] --> B[Proper Conditional Logic]
+    A --> C[Only Fire on Changes]
+    A --> D[Respect Processing Status]
     
-    B --> F[Score calculated after triggers fire]
-    C --> G[Multiple triggers conflicting]  
-    D --> H[Conditional logic not working]
-    E --> I[Old trigger functions not updated]
+    E[✅ FIXED: pg_cron System] --> F[Auto-Install Extension]
+    E --> G[Works in Local + Production]
+    E --> H[Queue Processes Every 2min]
     
-    style A fill:#ff9999
+    I[✅ FIXED: Score-Based Filtering] --> J[Pre-set Status Logic]
+    I --> K[base_score Column Added]
+    I --> L[Simplified Architecture]
+    
+    style A fill:#ccffcc
+    style E fill:#ccffcc
+    style I fill:#ccffcc
 ```
 
-## Debug Steps Needed:
+## Current Status: System Working ✅
 
-1. **Check trigger execution order**: Are scores available when data processing triggers fire?
-2. **Verify trigger function code**: Are the updated functions with score filtering actually deployed?
-3. **Test trigger logic**: Do the conditional statements work correctly?
-4. **Check migration status**: Were all function updates applied successfully?
+1. **Data Processing**: LinkedIn/CV/GitHub webhooks fire correctly
+2. **Queue System**: pg_cron processes Ashby score/note pushes automatically  
+3. **Score Filtering**: Low-score candidates get 'skipped' status as expected
+4. **Local Development**: Full feature parity with production

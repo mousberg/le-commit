@@ -138,6 +138,85 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 
 ---
 
+## 🔄 Webhook Queue Processing with pg_cron
+
+The application uses **pg_cron** for automated webhook queue processing in both local development and production environments.
+
+### **Automatic Processing Everywhere**
+
+✅ **Local Development**: pg_cron extension automatically installed  
+✅ **Production**: pg_cron pre-available in Supabase Cloud  
+✅ **Queue Processing**: Automatic every 2 minutes in both environments  
+
+### **Zero Configuration Required**
+
+```bash
+# Just start development - queue processing works automatically!
+pnpm dev
+```
+
+**How it works:**
+1. Database migrations auto-install `pg_cron` extension
+2. Cron job created automatically: processes queue every 2 minutes
+3. Local development uses `host.docker.internal:3000`
+4. Production uses configured webhook base URL
+
+### **Production Setup**
+
+**Optional**: Configure production webhook URL for external deployments:
+
+```sql
+-- Set production webhook base URL (optional)
+ALTER DATABASE your_production_db_name 
+SET app.webhook_base_url = 'https://your-domain.com';
+```
+
+### **Queue Monitoring**
+
+Monitor queue status and cron job health:
+
+```sql
+-- View pending webhooks
+SELECT webhook_type, status, priority, created_at, payload->'applicantId' as applicant_id 
+FROM webhook_queue 
+WHERE status IN ('pending', 'failed') 
+ORDER BY priority DESC, created_at ASC;
+
+-- Check pg_cron job status
+SELECT jobid, schedule, active, jobname FROM cron.job 
+WHERE jobname = 'process-webhook-queue';
+
+-- Use helper function for detailed status
+SELECT * FROM check_webhook_queue_cron_status();
+```
+
+### **Manual Processing (Optional)**
+
+For debugging or immediate processing:
+
+```bash
+# Local development
+curl -X POST "http://localhost:3000/api/webhooks/process-queue" \
+  -H "Authorization: Bearer webhook-secret-dev" \
+  -H "Content-Type: application/json"
+
+# Production  
+curl -X POST "https://your-domain.com/api/webhooks/process-queue" \
+  -H "Authorization: Bearer your-webhook-secret" \
+  -H "Content-Type: application/json"
+```
+
+### **Queue Types & Priority**
+
+| Webhook Type | Priority | Purpose |
+|--------------|----------|---------|
+| `score_push` | Based on AI score (1-100) | Push updated credibility scores to Ashby ATS |
+| `note_push` | 90 (high priority) | Push analysis notes and red flags to Ashby |
+
+**Priority Processing**: Higher scores processed first (score 85 = priority 85)
+
+---
+
 ## 🌐 Production Deployment
 
 ### **Vultr Deployment (Recommended)**
@@ -318,6 +397,21 @@ chmod +x deploy.sh rollback.sh check-status.sh
 - Verify ElevenLabs agent is configured
 - Check Twilio phone number permissions
 - Ensure all environment variables are set
+
+**Webhook queue not processing**
+```sql
+-- Check if pg_cron job exists
+SELECT * FROM cron.job WHERE jobname = 'process-webhook-queue';
+
+-- Check pending webhooks
+SELECT COUNT(*) as pending_count FROM webhook_queue WHERE status = 'pending';
+
+-- Manual queue processing
+SELECT net.http_post(
+  url => 'https://your-domain.com/api/webhooks/process-queue',
+  headers => '{"Authorization": "Bearer your-webhook-secret", "Content-Type": "application/json"}'::jsonb
+);
+```
 
 **Docker deployment issues**
 ```bash

@@ -42,62 +42,86 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- CV Processing Webhook (Simplified - Only Fires Webhook)
+-- CV Processing Webhook (Restored Essential Logic)
 CREATE OR REPLACE FUNCTION public.webhook_cv_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only job: Fire webhook (conditions already checked by WHEN clause)
-  PERFORM net.http_post(
-    url => get_webhook_url() || '/api/cv-process',
-    body => jsonb_build_object(
-      'type', 'CV_PROCESSING',
-      'applicant_id', NEW.id,
-      'file_id', NEW.cv_file_id
-    ),
-    headers => '{"Content-Type": "application/json"}'::jsonb
-  );
+  -- Essential conditions that WHEN clause cannot handle:
+  -- 1. Don't fire if already processing
+  -- 2. Only fire on INSERT or when file_id actually changes
+  IF NEW.cv_file_id IS NOT NULL AND 
+     NEW.cv_status != 'processing' AND
+     (TG_OP = 'INSERT' OR OLD.cv_file_id IS DISTINCT FROM NEW.cv_file_id) THEN
+    
+    PERFORM net.http_post(
+      url => get_webhook_url() || '/api/cv-process',
+      body => jsonb_build_object(
+        'type', 'CV_PROCESSING',
+        'applicant_id', NEW.id,
+        'file_id', NEW.cv_file_id
+      ),
+      headers => '{"Content-Type": "application/json"}'::jsonb
+    );
+    
+    RAISE NOTICE 'CV processing webhook fired for applicant % with file %', NEW.id, NEW.cv_file_id;
+  END IF;
   
-  RAISE NOTICE 'CV processing webhook fired for applicant % with file %', NEW.id, NEW.cv_file_id;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- LinkedIn Processing Webhook (Simplified - Only Fires Webhook)
+-- LinkedIn Processing Webhook (Restored Essential Logic)
 CREATE OR REPLACE FUNCTION public.webhook_linkedin_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only job: Fire webhook (conditions already checked by WHEN clause)
-  PERFORM net.http_post(
-    url => get_webhook_url() || '/api/linkedin-fetch',
-    body => jsonb_build_object(
-      'type', 'LINKEDIN_PROCESSING',
-      'applicant_id', NEW.id,
-      'linkedin_url', NEW.linkedin_url
-    ),
-    headers => '{"Content-Type": "application/json"}'::jsonb
-  );
+  -- Essential conditions that WHEN clause cannot handle:
+  -- 1. Don't fire if already processing
+  -- 2. Only fire on INSERT or when URL actually changes
+  IF NEW.linkedin_url IS NOT NULL AND 
+     NEW.li_status != 'processing' AND
+     (TG_OP = 'INSERT' OR OLD.linkedin_url IS DISTINCT FROM NEW.linkedin_url) THEN
+    
+    PERFORM net.http_post(
+      url => get_webhook_url() || '/api/linkedin-fetch',
+      body => jsonb_build_object(
+        'type', 'LINKEDIN_PROCESSING',
+        'applicant_id', NEW.id,
+        'linkedin_url', NEW.linkedin_url
+      ),
+      headers => '{"Content-Type": "application/json"}'::jsonb
+    );
+    
+    RAISE NOTICE 'LinkedIn processing webhook fired for applicant % with URL %', NEW.id, NEW.linkedin_url;
+  END IF;
   
-  RAISE NOTICE 'LinkedIn processing webhook fired for applicant % with URL %', NEW.id, NEW.linkedin_url;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- GitHub Processing Webhook (Simplified - Only Fires Webhook)
+-- GitHub Processing Webhook (Restored Essential Logic)
 CREATE OR REPLACE FUNCTION public.webhook_github_processing()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only job: Fire webhook (conditions already checked by WHEN clause)
-  PERFORM net.http_post(
-    url => get_webhook_url() || '/api/github-fetch',
-    body => jsonb_build_object(
-      'type', 'GITHUB_PROCESSING',
-      'applicant_id', NEW.id,
-      'github_url', NEW.github_url
-    ),
-    headers => '{"Content-Type": "application/json"}'::jsonb
-  );
+  -- Essential conditions that WHEN clause cannot handle:
+  -- 1. Don't fire if already processing
+  -- 2. Only fire on INSERT or when URL actually changes
+  IF NEW.github_url IS NOT NULL AND 
+     NEW.gh_status != 'processing' AND
+     (TG_OP = 'INSERT' OR OLD.github_url IS DISTINCT FROM NEW.github_url) THEN
+    
+    PERFORM net.http_post(
+      url => get_webhook_url() || '/api/github-fetch',
+      body => jsonb_build_object(
+        'type', 'GITHUB_PROCESSING',
+        'applicant_id', NEW.id,
+        'github_url', NEW.github_url
+      ),
+      headers => '{"Content-Type": "application/json"}'::jsonb
+    );
+    
+    RAISE NOTICE 'GitHub processing webhook fired for applicant % with URL %', NEW.id, NEW.github_url;
+  END IF;
   
-  RAISE NOTICE 'GitHub processing webhook fired for applicant % with URL %', NEW.id, NEW.github_url;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -240,7 +264,55 @@ COMMENT ON TRIGGER ashby_note_sync_trigger ON public.applicants IS 'Queues Ashby
 COMMENT ON COLUMN ashby_candidates.base_score IS 'Pre-calculated base score: 30=LinkedIn+CV, 20=LinkedIn only, 15=CV only, 10=neither - used for filtering during applicant creation';
 
 -- =============================================================================
--- 6. UPDATE ASHBY CANDIDATE TO APPLICANT SYNC FUNCTION
+-- 6. PG_CRON WEBHOOK QUEUE PROCESSING SETUP
+-- =============================================================================
+-- Install pg_cron extension and create automated queue processing job
+
+-- Install pg_cron extension
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+DO $$
+BEGIN
+  RAISE NOTICE '✅ pg_cron extension installed successfully';
+  
+  -- Schedule job to process webhook queue every 2 minutes
+  PERFORM cron.schedule(
+    'process-webhook-queue',
+    '*/2 * * * *',
+    $cron_body$
+    SELECT net.http_post(
+      url => get_webhook_url() || '/api/webhooks/process-queue',
+      headers => jsonb_build_object(
+        'Authorization', 'Bearer ' || current_setting('app.webhook_secret', true),
+        'Content-Type', 'application/json'
+      )
+    );
+    $cron_body$
+  );
+  
+  RAISE NOTICE '✅ pg_cron job "process-webhook-queue" created successfully';
+END $$;
+
+-- Create monitoring function for cron job status
+CREATE OR REPLACE FUNCTION public.check_webhook_queue_cron_status()
+RETURNS TABLE(
+  jobname text,
+  schedule text,
+  active boolean
+) AS $$
+BEGIN
+  RETURN QUERY 
+  SELECT 
+    j.jobname::text,
+    j.schedule::text,
+    j.active
+  FROM cron.job j 
+  WHERE j.jobname = 'process-webhook-queue';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================================================
+-- 7. UPDATE ASHBY CANDIDATE TO APPLICANT SYNC FUNCTION
 -- =============================================================================
 -- Replace existing sync function with simplified status logic
 
@@ -392,5 +464,7 @@ BEGIN
   RAISE NOTICE '✅ Updated sync_ashby_candidate_to_applicant() with getInitialStatus logic';
   RAISE NOTICE '✅ Applicants now created with pre-set statuses based on base_score';
   RAISE NOTICE '✅ Low-score candidates (< 30) automatically get skipped statuses';
-  RAISE NOTICE '🔍 Architecture: ashby_candidates → base_score → applicants → pre-set statuses → webhook triggers → queue system';
+  RAISE NOTICE '✅ pg_cron extension installed and automated queue processing enabled';
+  RAISE NOTICE '✅ Webhook queue processes automatically every 2 minutes';
+  RAISE NOTICE '🔍 Architecture: ashby_candidates → base_score → applicants → pre-set statuses → webhook triggers → pg_cron queue system';
 END $$;
