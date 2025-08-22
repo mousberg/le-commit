@@ -417,25 +417,37 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- CREATE WEBHOOK TRIGGERS
 -- =============================================================================
 
--- CV processing webhook trigger (AFTER to ensure record is committed)
+-- CV processing webhook trigger (only fires when pending + file exists)
 CREATE TRIGGER webhook_cv_trigger
   AFTER INSERT OR UPDATE ON public.applicants
-  FOR EACH ROW EXECUTE FUNCTION public.webhook_cv_processing();
+  FOR EACH ROW 
+  WHEN (NEW.cv_status = 'pending' AND NEW.cv_file_id IS NOT NULL)
+  EXECUTE FUNCTION public.webhook_cv_processing();
 
--- LinkedIn processing webhook trigger
+-- LinkedIn processing webhook trigger (only fires when pending + URL exists)
 CREATE TRIGGER webhook_linkedin_trigger
   AFTER INSERT OR UPDATE ON public.applicants
-  FOR EACH ROW EXECUTE FUNCTION public.webhook_linkedin_processing();
+  FOR EACH ROW 
+  WHEN (NEW.li_status = 'pending' AND NEW.linkedin_url IS NOT NULL)
+  EXECUTE FUNCTION public.webhook_linkedin_processing();
 
--- GitHub processing webhook trigger
+-- GitHub processing webhook trigger (only fires when pending + URL exists)
 CREATE TRIGGER webhook_github_trigger
   AFTER INSERT OR UPDATE ON public.applicants
-  FOR EACH ROW EXECUTE FUNCTION public.webhook_github_processing();
+  FOR EACH ROW 
+  WHEN (NEW.gh_status = 'pending' AND NEW.github_url IS NOT NULL)
+  EXECUTE FUNCTION public.webhook_github_processing();
 
--- AI analysis webhook trigger (AFTER to see final state)
+-- AI analysis webhook trigger (only fires when ready for analysis)
 CREATE TRIGGER webhook_ai_trigger
   AFTER UPDATE ON public.applicants
-  FOR EACH ROW EXECUTE FUNCTION public.webhook_ai_analysis();
+  FOR EACH ROW 
+  WHEN (NEW.ai_status = 'pending' AND 
+        NEW.cv_status NOT IN ('pending', 'processing') AND 
+        NEW.li_status NOT IN ('pending', 'processing') AND 
+        NEW.gh_status NOT IN ('pending', 'processing') AND
+        (NEW.cv_status = 'ready' OR NEW.li_status = 'ready' OR NEW.gh_status = 'ready'))
+  EXECUTE FUNCTION public.webhook_ai_analysis();
 
 -- =============================================================================
 -- UTILITY FUNCTIONS

@@ -9,6 +9,7 @@ import { getAshbyApiKey, isAshbyConfigured } from '@/lib/ashby/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 import { ATSCandidate, ATSPageData } from '@/lib/ashby/interfaces';
 import { calculateApplicantScore } from '@/lib/scoring';
+import { calculateBaseScore } from '@/lib/ashby/applicant-creation';
 
 interface DatabaseCandidate {
   user_id: string;
@@ -40,6 +41,7 @@ interface DatabaseCandidate {
   profile_url: string | null;
   location_details: Record<string, unknown> | null;
   last_synced_at: string;
+  base_score: number;
 }
 
 interface SocialLink {
@@ -123,6 +125,12 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
   const position = candidate.position || extractPositionFromTags() || null;
   const company = candidate.company || extractCompanyFromSource() || null;
 
+  // Calculate base score for this candidate
+  const baseScore = calculateBaseScore(
+    getLinkedInUrl(),
+    candidate.resumeFileHandle || null
+  );
+
   return {
     user_id: userId,
     ashby_id: candidate.id,
@@ -153,7 +161,8 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
     timezone: candidate.timezone || null,
     profile_url: candidate.profileUrl || null,
     location_details: candidate.location || null,
-    last_synced_at: new Date().toISOString()
+    last_synced_at: new Date().toISOString(),
+    base_score: baseScore
   };
 }
 

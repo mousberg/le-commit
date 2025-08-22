@@ -3,14 +3,49 @@
 -- Combines: priority queue enhancement + always-queue simplification + removed HTTP logging calls
 -- Removed external HTTP logging dependencies for better performance and reliability
 
+-- Create webhook_queue table if it doesn't exist
+CREATE TABLE IF NOT EXISTS public.webhook_queue (
+  id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  applicant_id uuid REFERENCES public.applicants(id) ON DELETE CASCADE NOT NULL,
+  webhook_type text NOT NULL CHECK (webhook_type IN ('score_push', 'note_push', 'analysis_complete')),
+  payload jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  attempts integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 3,
+  scheduled_for timestamp with time zone NOT NULL DEFAULT NOW(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  processed_at timestamp with time zone,
+  error_message text
+);
+
 -- Add priority field to webhook queue for score-based prioritization
 ALTER TABLE public.webhook_queue 
 ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0;
+
+-- Add basic indexes for webhook_queue
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_user_id ON public.webhook_queue(user_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_applicant_id ON public.webhook_queue(applicant_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_status ON public.webhook_queue(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_scheduled_for ON public.webhook_queue(scheduled_for);
 
 -- Add index for priority-based processing (higher priority first)
 CREATE INDEX IF NOT EXISTS idx_webhook_queue_priority_scheduled 
 ON public.webhook_queue(priority DESC, scheduled_for ASC) 
 WHERE status IN ('pending', 'failed');
+
+-- Enable RLS on webhook_queue table
+ALTER TABLE public.webhook_queue ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies for webhook_queue
+CREATE POLICY "Users can manage own webhook queue items" ON public.webhook_queue
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Apply updated_at trigger to webhook_queue
+CREATE TRIGGER handle_webhook_queue_updated_at BEFORE UPDATE ON public.webhook_queue
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
 -- Simplified webhook trigger that ALWAYS queues webhooks (no direct HTTP calls)
 -- This removes dual execution paths and ensures consistent processing
