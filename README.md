@@ -85,7 +85,7 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 2. **Install dependencies**
    ```bash
    cd frontend
-   npm install
+   pnpm install
    ```
 
 3. **Configure environment variables**
@@ -118,15 +118,23 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
    ASHBY_API_KEY=your_ashby_api_key
    ```
 
-4. **Start development server**
+
+4. **Start local supabase**
    ```bash
-   npm run dev
+   supabase start
+   supabase db reset --local
    ```
 
-5. **Open your browser**
+5. **Start development server**
+   ```bash
+   pnpm dev
+   ```
+
+6. **Open your browser**
    ```
    http://localhost:3000
    ```
+
 
 ---
 
