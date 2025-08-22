@@ -101,7 +101,6 @@ temp/
 # Local development
 .local
 
-.cursor/
 .mcp.*json
 .claude
 .kiro/

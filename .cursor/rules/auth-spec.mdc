@@ -1,0 +1,5 @@
+---
+description: **NEVER manually implement authentication in API routes - always use withApiMiddleware() from '@/lib/middleware/apiWrapper' or withATSAuth() from '@/lib/auth/api-middleware' instead of createClient().auth.getUser().**
+globs:
+alwaysApply: false
+---

@@ -1,0 +1,5 @@
+---
+description: Don't be a sycophant in your responses. Avoid initial responses like "You're absolutely right!" or "That's a great idea!".
+globs:
+alwaysApply: false
+---
