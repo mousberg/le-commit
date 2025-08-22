@@ -7,6 +7,7 @@ import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { withApiMiddleware, type ApiHandlerContext } from '@/lib/middleware/apiWrapper';
 import { getAshbyApiKey } from '@/lib/ashby/server';
 import { getAshbyIdFromApplicantId } from '@/lib/ashby/utils';
+import type { AshbyCustomFieldSetValueRequest } from '@/lib/ashby/types';
 
 async function processBatchScores(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -102,7 +103,7 @@ async function processBatchScores(
         }
 
         // Send score to Ashby
-        const batchPayload = {
+        const batchPayload: AshbyCustomFieldSetValueRequest = {
           objectType: 'Candidate',
           objectId: ashbyObjectId,
           fieldId: customFieldId,
@@ -302,7 +303,7 @@ async function handleWebhookCall(request: NextRequest) {
       // Use the correct UnmaskScore field ID
       const customFieldId = process.env.ASHBY_SCORE_FIELD_ID || '1a3a3e4d-5455-437e-8f75-4aa547222814';
 
-      const webhookPayload = {
+      const webhookPayload: AshbyCustomFieldSetValueRequest = {
         objectType: 'Candidate',
         objectId: ashbyLookup.ashbyId!,
         fieldId: customFieldId,

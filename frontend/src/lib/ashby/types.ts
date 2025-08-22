@@ -193,6 +193,14 @@ export interface AshbyCustomFieldSetValueRequest {
 
 export interface AshbyCustomFieldSetValueResponse {
   success: boolean;
+  errorInfo?: {
+    code: string;
+    message?: string;
+  };
+  errors?: Array<{
+    code: string;
+    message: string;
+  }>;
 }
 
 // Note Types
@@ -208,6 +216,28 @@ export interface AshbyCreateNoteResponse {
   note: string;
   createdAt: string;
   sendNotifications: boolean;
+}
+
+// Custom Field Debug Types
+export interface AshbyCustomField {
+  id: string;
+  title: string;
+  fieldType: string;
+  objectType: 'Candidate' | 'Application' | string;
+  isArchived: boolean;
+  isPrivate: boolean;
+}
+
+export interface AshbyDebugResponse {
+  success: boolean;
+  data?: {
+    customFields?: AshbyCustomField[];
+  };
+  status?: number;
+  error?: {
+    message: string;
+    code?: string;
+  };
 }
 
 // API Response Types

@@ -2,6 +2,8 @@
  * Shared Ashby utilities (no React hooks)
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * Get Ashby API key, prioritizing environment variable in development mode
  * @param userApiKey - API key from user's database record
@@ -45,7 +47,7 @@ export interface AshbyLookupResult {
  * @returns Promise with ashby_id or error
  */
 export async function getAshbyIdFromApplicantId(
-  supabase: any, // Using any to avoid circular imports with supabase types
+  supabase: SupabaseClient,
   applicantId: string,
   userId: string
 ): Promise<AshbyLookupResult> {
@@ -78,7 +80,7 @@ export async function getAshbyIdFromApplicantId(
       };
     }
 
-    if (!applicantData?.ashby_candidates?.ashby_id) {
+    if (!applicantData?.ashby_candidates?.[0]?.ashby_id) {
       return {
         success: false,
         error: 'Applicant not found or not linked to Ashby candidate'
@@ -87,7 +89,7 @@ export async function getAshbyIdFromApplicantId(
 
     return {
       success: true,
-      ashbyId: applicantData.ashby_candidates.ashby_id
+      ashbyId: applicantData.ashby_candidates[0].ashby_id
     };
 
   } catch (error) {

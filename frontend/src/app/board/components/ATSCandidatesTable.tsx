@@ -40,7 +40,7 @@ interface ATSCandidate {
   notes?: string | null;
   analysis?: {
     score?: number;
-    [key: string]: any;
+    [key: string]: string | number | boolean | null | undefined;
   };
 }
 
