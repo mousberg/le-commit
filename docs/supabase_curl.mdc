@@ -9,10 +9,10 @@ First, ensure these are set in your environment:
 # Import environment variables from frontend/.env
 export $(grep -v '^#' frontend/.env | grep -v '^$' | xargs)
 
-# Use the imported variables:
-# NEXT_PUBLIC_SUPABASE_URL
-# NEXT_PUBLIC_SUPABASE_ANON_KEY
-# SUPABASE_SERVICE_ROLE_KEY (if defined in .env)
+# Required variables (replace with your actual values):
+export SUPABASE_URL="YOUR_SUPABASE_URL"
+export SUPABASE_ANON_KEY="YOUR_ANON_KEY" 
+export SUPABASE_SERVICE_ROLE_KEY="YOUR_SERVICE_ROLE_KEY"
 ```
 
 ## Basic cURL Commands
