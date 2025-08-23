@@ -16,7 +16,6 @@ import {
   Loader2,
   Check,
   X,
-  Brain,
   PlayCircle,
   RefreshCw,
   Upload
@@ -280,14 +279,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     setSelectedCandidates(candidatesForAnalysis.map(c => c.id));
   };
 
-  // Get candidates that are ready for analysis (must have score >= 30)
-  const selectedCandidatesForAnalysis = candidates.filter(c => 
-    selectedCandidates.includes(c.id) && 
-    c.unmask_applicant_id && 
-    c.ready_for_processing && 
-    !c.analysis &&
-    isEligibleForAIAnalysis(c.score || 10)
-  );
+  // Note: AI analysis is now handled by Process Selected button
 
   // Get candidates that have scores AND are fully processed for pushing to Ashby
   const selectedCandidatesForScoring = candidates.filter(c => 
@@ -359,60 +351,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
   //   });
   // };
 
-  const handleBulkAnalysis = async () => {
-    const candidatesWithApplicantIds = candidates.filter(c => 
-      selectedCandidates.includes(c.id) && c.unmask_applicant_id
-    );
-
-    if (candidatesWithApplicantIds.length === 0) {
-      alert('No candidates with applicant IDs selected');
-      return;
-    }
-
-    setBatchAnalyzing(true);
-    try {
-      const supabase = createClient();
-      const applicantIds = selectedCandidates; // selectedCandidates already contains applicant IDs
-      
-      console.log('🔍 Starting bulk analysis for applicant IDs:', applicantIds);
-      console.log('📋 Candidates being processed:', candidatesWithApplicantIds.map(c => ({
-        name: c.name,
-        applicant_id: c.id,
-        ready_for_processing: c.ready_for_processing
-      })));
-      
-      // Direct database update - triggers event-driven analysis
-      const { data, error } = await supabase
-        .from('applicants')
-        .update({ 
-          ai_status: 'pending',
-          updated_at: new Date().toISOString()
-        })
-        .in('id', applicantIds)
-        .select();
-
-      console.log('📊 Supabase update result:', { data, error });
-
-      if (error) {
-        console.error('❌ Supabase error details:', error);
-        throw error;
-      }
-      
-      if (!data || data.length === 0) {
-        throw new Error(`No applicants were updated. This might mean the applicant IDs don't exist in the database: ${applicantIds.join(', ')}`);
-      }
-      
-      console.log('✅ Successfully updated applicants:', data);
-      showNotification('success', `Started analysis for ${data.length} candidates`);
-      setSelectedCandidates([]);
-    } catch (error) {
-      console.error('Failed to start batch analysis:', error);
-      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-      showNotification('error', 'Failed to start batch analysis: ' + errorMessage);
-    } finally {
-      setBatchAnalyzing(false);
-    }
-  };
+  // handleBulkAnalysis removed - functionality moved to handleManualProcessing
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -485,12 +424,12 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                   {selectedCandidates.length} selected
                 </span>
                 
-                {/* Manual Processing Button */}
+                {/* Process Selected Button */}
                 <Button 
                   onClick={handleManualProcessing}
                   size="sm"
                   disabled={selectedCandidates.length === 0 || batchAnalyzing}
-                  className="bg-green-600 hover:bg-green-700"
+                  variant="default"
                 >
                   {batchAnalyzing ? (
                     <>
@@ -505,39 +444,17 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                   )}
                 </Button>
                 
-                {/* Bulk Analysis Button */}
-                {selectedCandidatesForAnalysis.length > 0 && (
-                  <Button 
-                    onClick={handleBulkAnalysis} 
-                    size="sm"
-                    disabled={batchAnalyzing}
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    {batchAnalyzing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        Starting...
-                      </>
-                    ) : (
-                      <>
-                        <Brain className="h-4 w-4 mr-1" />
-                        Start Analysis ({selectedCandidatesForAnalysis.length})
-                      </>
-                    )}
-                  </Button>
-                )}
-                
-                {/* Batch Push Scores Button */}
+                {/* Push to Ashby Button */}
                 {selectedCandidatesForScoring.length > 0 && (
                   <Button 
                     onClick={handleBatchPushScores} 
                     size="sm"
                     disabled={pushingScores}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    variant="secondary"
                   >
                     {pushingScores ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
                         Pushing...
                       </>
                     ) : (
