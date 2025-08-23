@@ -1,6 +1,6 @@
 # Manual Upload Flow
 
-**Added:** January 26, 2025  
+**Added:** August 23, 2025 - Henry Allen  
 **Purpose:** Documents the manual CV upload and processing flow after removing database triggers
 
 ## Flow Diagram

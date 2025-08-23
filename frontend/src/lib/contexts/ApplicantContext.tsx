@@ -1,7 +1,7 @@
 /**
  * ApplicantContext - Manages manual applicant uploads and processing
  * 
- * Updated: January 26, 2025
+ * Updated: August 23, 2025 - Henry Allen
  * - Added automatic processing for manual uploads (replaces database triggers)
  * - Manual uploads now trigger CV/LinkedIn/GitHub/AI processing directly
  * - Separated from ATS candidate processing flow

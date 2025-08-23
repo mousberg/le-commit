@@ -118,7 +118,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
   };
 
   // Manual processing for ATS candidates
-  // Updated: January 26, 2025 - Replaced database triggers with direct API calls
+  // Updated: August 23, 2025 - Henry Allen - Replaced database triggers with direct API calls
   // This allows user control over when ATS candidates are processed
   const handleManualProcessing = async () => {
     if (selectedCandidates.length === 0) {
