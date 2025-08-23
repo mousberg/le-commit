@@ -58,3 +58,20 @@ DO $$
 BEGIN
   RAISE NOTICE 'Webhook queue system cleanup completed. Manual push system remains active.';
 END $$;
+
+-- =============================================================================
+-- 6. REMOVE PG_CRON JOB
+-- =============================================================================
+
+-- Remove the scheduled cron job that calls the deleted endpoint
+SELECT cron.unschedule('process-webhook-queue');
+
+-- Remove the monitoring function for the cron job
+DROP FUNCTION IF EXISTS public.check_webhook_queue_cron_status();
+
+-- Update final notice
+DO $$
+BEGIN
+  RAISE NOTICE '🗑️ pg_cron job "process-webhook-queue" removed successfully';
+  RAISE NOTICE '✅ All webhook queue automation removed - manual push only';
+END $$;
