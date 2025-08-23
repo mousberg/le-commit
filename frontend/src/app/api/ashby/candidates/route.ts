@@ -360,6 +360,10 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         cv_status: applicant.cv_status,
         li_status: applicant.li_status,
         gh_status: applicant.gh_status,
+        // Include processed data for dummy data detection
+        li_data: applicant.li_data,
+        cv_data: applicant.cv_data,
+        gh_data: applicant.gh_data,
         // Include score and notes from applicants table
         score: applicant.score,
         notes: applicant.notes

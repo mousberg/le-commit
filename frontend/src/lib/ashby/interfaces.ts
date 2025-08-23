@@ -63,6 +63,11 @@ export interface ATSCandidate {
   li_status?: string;
   gh_status?: string;
   
+  // Processed data fields (for checking dummy data)
+  li_data?: import('@/lib/interfaces/applicant').LinkedInData;
+  cv_data?: import('@/lib/interfaces/cv').CvData;
+  gh_data?: import('@/lib/interfaces/github').GitHubData;
+  
   // Manual assessment fields (UI only - no backend changes)
   manual_score?: number | null;
   notes?: string | null;

@@ -141,8 +141,10 @@ Your job is to review structured data about a candidate and assess the overall *
 
 **Available Data Sources:**
 - CV: ${cvData ? 'Available' : 'Not available'}
-- LinkedIn: ${linkedinData ? 'Available' : 'Not available'}
+- LinkedIn: ${linkedinData ? (linkedinData.isDummyData ? 'Available (SIMULATED DATA FOR TESTING)' : 'Available') : 'Not available'}
 - GitHub: ${githubData ? 'Available' : 'Not available'}
+
+${linkedinData?.isDummyData ? '⚠️ **IMPORTANT**: LinkedIn data is simulated for testing purposes. Do not treat name mismatches as red flags.' : ''}
 
 **Data:**
 CV Data: ${cvData ? JSON.stringify(cvData, null, 2) : 'Not provided'}

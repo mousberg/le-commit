@@ -2,6 +2,41 @@ import { CvData, Experience, Language, ContractType, LanguageLevel } from './int
 import { LinkedInData, LinkedInExperience, LinkedInEducation, LinkedInActivity } from './interfaces/applicant';
 
 /**
+ * Generate a realistic name from a LinkedIn URL slug
+ * @param urlSlug - The slug from LinkedIn URL (e.g., 'john-smith-123')
+ * @returns A realistic name based on the slug
+ */
+function generateNameFromUrlSlug(urlSlug: string): string {
+  // Remove numbers and common suffixes
+  const cleanSlug = urlSlug
+    .replace(/\d+/g, '') // Remove numbers
+    .replace(/[_-]+/g, '-') // Normalize separators
+    .replace(/^-|-$/g, ''); // Remove leading/trailing dashes
+  
+  // Split by hyphens and capitalize each part
+  const parts = cleanSlug.split('-').filter(part => part.length > 0);
+  
+  if (parts.length === 0) {
+    return 'John Doe'; // Fallback
+  }
+  
+  // Convert parts to proper case names
+  const nameWords = parts.map(part => {
+    // Handle common name patterns
+    const word = part.toLowerCase();
+    
+    // Capitalize first letter
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  });
+  
+  // Join first name and last name (take max 2 parts for realistic names)
+  const firstName = nameWords[0];
+  const lastName = nameWords.length > 1 ? nameWords[1] : 'Smith';
+  
+  return `${firstName} ${lastName}`;
+}
+
+/**
  * Generate realistic dummy LinkedIn data for testing when scraping is disabled
  * @param linkedinUrl - LinkedIn profile URL (used to generate realistic variations)
  * @returns Dummy LinkedInData that looks and works like real data
@@ -11,24 +46,11 @@ export function generateDummyLinkedInData(linkedinUrl: string): LinkedInData {
   const urlMatch = linkedinUrl.match(/linkedin\.com\/in\/([^/?]+)/);
   const urlSlug = urlMatch?.[1] || 'john-doe';
   
-  // Generate realistic name variations
-  const nameVariations = [
-    'John Smith',
-    'Sarah Johnson',
-    'Michael Chen',
-    'Emily Rodriguez', 
-    'David Kim',
-    'Jessica Williams',
-    'Robert Zhang',
-    'Amanda Thompson',
-    'James Anderson',
-    'Lisa Martinez'
-  ];
+  // Generate realistic name from URL slug
+  const name = generateNameFromUrlSlug(urlSlug);
   
-  // Use URL slug hash to consistently pick same dummy data for same URL
+  // Use URL slug hash to consistently generate data for same URL
   const hash = urlSlug.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-  const nameIndex = hash % nameVariations.length;
-  const name = nameVariations[nameIndex];
   
   // Generate realistic professional data
   const companies = ['Google', 'Microsoft', 'Apple', 'Amazon', 'Meta', 'Netflix', 'Spotify', 'Uber', 'Airbnb', 'Stripe'];
@@ -89,7 +111,7 @@ export function generateDummyLinkedInData(linkedinUrl: string): LinkedInData {
   
   return {
     name,
-    headline: `${titles[titleIndex]} at ${companies[companyIndex]}`,
+    headline: `${titles[titleIndex]} at ${companies[companyIndex]} • ⚠️ DEMO DATA`,
     location: locations[locationIndex],
     connections: 500 + (hash % 1000),
     profileUrl: linkedinUrl,
@@ -99,7 +121,10 @@ export function generateDummyLinkedInData(linkedinUrl: string): LinkedInData {
     skills: selectedSkills,
     activity,
     recommendations: [],
-    certifications: []
+    certifications: [],
+    // Add flag to indicate this is dummy data
+    isDummyData: true,
+    dummyDataNotice: '⚠️ This is simulated LinkedIn data for testing purposes'
   };
 }
 

@@ -16,6 +16,9 @@ export interface LinkedInData {
   activity: LinkedInActivity;
   recommendations?: LinkedInRecommendation[];
   certifications?: LinkedInCertification[];
+  // Dummy data indicators
+  isDummyData?: boolean;
+  dummyDataNotice?: string;
 }
 
 export interface LinkedInExperience {

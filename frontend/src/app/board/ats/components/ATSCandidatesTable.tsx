@@ -592,20 +592,28 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
 
                   {/* LinkedIn */}
                   <td className="p-3">
-                    {candidate.linkedin_url ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent row click
-                          if (candidate.linkedin_url) window.open(candidate.linkedin_url, '_blank');
-                        }}
-                        className="hover:bg-blue-100 p-1 rounded"
-                        title="Open LinkedIn Profile"
-                      >
-                        <ExternalLink className="h-5 w-5 text-blue-600" />
-                      </button>
-                    ) : (
-                      <ExternalLink className="h-5 w-5 text-gray-300" />
-                    )}
+                    <div className="flex items-center gap-1">
+                      {candidate.linkedin_url ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent row click
+                            if (candidate.linkedin_url) window.open(candidate.linkedin_url, '_blank');
+                          }}
+                          className="hover:bg-blue-100 p-1 rounded"
+                          title="Open LinkedIn Profile"
+                        >
+                          <ExternalLink className="h-5 w-5 text-blue-600" />
+                        </button>
+                      ) : (
+                        <ExternalLink className="h-5 w-5 text-gray-300" />
+                      )}
+                      {/* Show dummy data warning if LinkedIn data is dummy */}
+                      {candidate.li_data?.isDummyData && (
+                        <div title="⚠️ Using simulated LinkedIn data for testing">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   {/* Status */}
