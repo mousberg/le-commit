@@ -40,6 +40,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
   const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyId?: string; applicantId?: string }>>({});  // applicant ID -> result
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'processable' | 'ready'>('all');
 
   const handleCvView = async (candidateId: string, cvFileId: string | null | undefined) => {
     if (!cvFileId || viewingCandidates.has(candidateId)) return;
@@ -223,6 +224,21 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     }
   };
 
+  // Filter candidates based on current filter
+  const filteredCandidates = candidates.filter(candidate => {
+    switch (filter) {
+      case 'processable':
+        return candidate.cv_status === 'pending' || 
+               candidate.li_status === 'pending' || 
+               candidate.gh_status === 'pending' || 
+               candidate.ai_status === 'pending';
+      case 'ready':
+        return candidate.ai_status === 'ready' && 
+               (candidate.score !== undefined || candidate.analysis?.score !== undefined);
+      default:
+        return true; // 'all'
+    }
+  });
 
   const handleBatchPushScores = async () => {
     if (selectedCandidatesForScoring.length === 0) {
@@ -264,25 +280,12 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     }
   };
 
-  const selectAllCandidates = () => {
-    const candidatesWithScores = candidates.filter(c => c.score !== undefined || c.analysis?.score !== undefined);
-    setSelectedCandidates(candidatesWithScores.map(c => c.id));
-  };
-
-  const selectCandidatesForAnalysis = () => {
-    const candidatesForAnalysis = candidates.filter(c => 
-      c.unmask_applicant_id && 
-      c.ready_for_processing && 
-      !c.analysis &&
-      isEligibleForAIAnalysis(c.score || 10)
-    );
-    setSelectedCandidates(candidatesForAnalysis.map(c => c.id));
-  };
+  // Removed unused selectAllCandidates and selectCandidatesForAnalysis - replaced with filter system
 
   // Note: AI analysis is now handled by Process Selected button
 
   // Get candidates that have scores AND are fully processed for pushing to Ashby
-  const selectedCandidatesForScoring = candidates.filter(c => 
+  const selectedCandidatesForScoring = filteredCandidates.filter(c => 
     selectedCandidates.includes(c.id) && 
     c.unmask_applicant_id && 
     (c.score !== undefined || c.analysis?.score !== undefined) &&
@@ -296,7 +299,9 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
 
   const toggleAll = () => {
     setSelectedCandidates(prev => 
-      prev.length === candidates.length ? [] : candidates.map(c => c.id)
+      prev.length === filteredCandidates.length && filteredCandidates.length > 0
+        ? [] 
+        : filteredCandidates.map(c => c.id)
     );
   };
 
@@ -471,14 +476,30 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                 </Button>
               </>
             ) : (
-              <>
-                <Button onClick={selectAllCandidates} size="sm" variant="outline">
-                  Select All with Scores
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-gray-600">Filter:</span>
+                <Button 
+                  onClick={() => setFilter('all')} 
+                  size="sm" 
+                  variant={filter === 'all' ? 'default' : 'outline'}
+                >
+                  All ({candidates.length})
                 </Button>
-                <Button onClick={selectCandidatesForAnalysis} size="sm" variant="outline">
-                  Select Ready for Analysis
+                <Button 
+                  onClick={() => setFilter('processable')} 
+                  size="sm" 
+                  variant={filter === 'processable' ? 'default' : 'outline'}
+                >
+                  Processable ({candidates.filter(c => c.cv_status === 'pending' || c.li_status === 'pending' || c.gh_status === 'pending' || c.ai_status === 'pending').length})
                 </Button>
-              </>
+                <Button 
+                  onClick={() => setFilter('ready')} 
+                  size="sm" 
+                  variant={filter === 'ready' ? 'default' : 'outline'}
+                >
+                  Ready to Push ({candidates.filter(c => c.ai_status === 'ready' && (c.score !== undefined || c.analysis?.score !== undefined)).length})
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -491,7 +512,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                 <th className="text-left p-3">
                   <input
                     type="checkbox"
-                    checked={selectedCandidates.length === candidates.length}
+                    checked={selectedCandidates.length === filteredCandidates.length && filteredCandidates.length > 0}
                     onChange={toggleAll}
                     className="rounded"
                   />
@@ -506,7 +527,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
               </tr>
             </thead>
             <tbody>
-              {candidates.map((candidate) => (
+              {filteredCandidates.map((candidate) => (
                 <tr 
                   key={candidate.id} 
                   className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
