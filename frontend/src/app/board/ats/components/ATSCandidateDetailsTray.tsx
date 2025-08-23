@@ -5,7 +5,7 @@ import { X, FileText, ExternalLink, Mail, Calendar, Tag, Loader2, CheckCircle, A
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ATSCandidate } from '@/lib/ashby/interfaces';
-import { createClient } from '@/lib/supabase/client';
+// Removed createClient import - using direct API calls instead
 import { ManualAssessmentSection } from '@/components/ManualAssessmentSection';
 
 interface ATSCandidateDetailsTrayProps {
@@ -80,23 +80,32 @@ export function ATSCandidateDetailsTray({ candidate, isOpen, onClose, onCandidat
     setAnalyzing(true);
     
     try {
-      const supabase = createClient();
-      
-      // Direct database update - triggers event-driven analysis
-      const { error } = await supabase
-        .from('applicants')
-        .update({ 
-          ai_status: 'pending',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', candidate.unmask_applicant_id);
+      // Call the analysis API directly (no more database triggers)
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          applicant_id: candidate.unmask_applicant_id
+        }),
+      });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Analysis completed:', result);
+      showNotification('success', 'Analysis completed for ' + candidate.name);
+      
+      // Trigger UI refresh
+      if (onCandidateUpdate) {
+        onCandidateUpdate(candidate);
       }
       
-      showNotification('success', 'Analysis started for ' + candidate.name);
-      setTimeout(() => onClose(), 1500); // Close the tray after showing notification
+      setTimeout(() => onClose(), 2000); // Close the tray after showing notification
     } catch (error) {
       console.error('Failed to start analysis:', error);
       showNotification('error', 'Failed to start analysis: ' + (error instanceof Error ? error.message : 'Unknown error'));

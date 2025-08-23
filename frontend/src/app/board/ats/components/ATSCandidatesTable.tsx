@@ -381,22 +381,32 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     }
 
     try {
-      const supabase = createClient();
-      
-      // Direct database update - triggers event-driven analysis
-      const { error } = await supabase
-        .from('applicants')
-        .update({ 
-          ai_status: 'pending',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', candidate.unmask_applicant_id);
+      // Call the analysis API directly (no more database triggers)
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          applicant_id: candidate.unmask_applicant_id
+        }),
+      });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
+
+      const result = await response.json();
+      console.log('✅ Analysis completed:', result);
+      showNotification('success', 'Analysis completed for ' + candidate.name);
       
-      showNotification('success', 'Analysis started for ' + candidate.name);
+      // Trigger UI refresh after short delay
+      setTimeout(() => {
+        if (onCandidateUpdate) {
+          onCandidateUpdate(candidate);
+        }
+      }, 1000);
     } catch (error) {
       console.error('Failed to start individual analysis:', error);
       showNotification('error', 'Failed to start analysis: ' + (error instanceof Error ? error.message : 'Unknown error'));
