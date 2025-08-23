@@ -248,6 +248,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      console.log(`📝 CV file stored for ATS candidate ${targetApplicantId}`);
+
     }
 
 

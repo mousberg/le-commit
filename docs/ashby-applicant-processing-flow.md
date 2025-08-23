@@ -111,31 +111,27 @@ flowchart TD
     style U fill:#f0f0f0
 ```
 
-### Ashby Integration Triggers (Webhook Queue)
+### Ashby Integration (Manual Push Only)
 
 ```mermaid
 flowchart TD
-    A[Score Updated] --> B[unified_ashby_score_trigger]
-    C[Notes Updated] --> D[unified_ashby_note_trigger]
+    A[UI: ATS Candidates Table] --> B[User Selects Candidates]
+    B --> C[Batch Push Button]
+    C --> D[/api/ashby/push-score]
     
-    B --> E{Score Change Significant?}
-    D --> F{Notes Changed?}
+    D --> E[Validate Applicant IDs]
+    E --> F[Get Ashby API Key]
+    F --> G[For Each Candidate]
     
-    E -->|Yes| G[Queue Score Push Webhook]
-    F -->|Yes| H[Queue Note Push Webhook]
+    G --> H[Lookup Ashby ID]
+    H --> I[Get Score from Analysis]
+    I --> J[Push to Ashby Custom Field]
     
-    G --> I[webhook_queue Table]
-    H --> I
+    J --> K[Success/Failure Response]
+    K --> L[Update UI with Results]
     
-    I --> J[pg_cron Job Every 2min]
-    J --> K[/api/webhooks/process-queue]
-    K --> L[Batch Process Queue]
-    
-    L --> M[Push Score to Ashby]
-    L --> N[Push Note to Ashby]
-    
-    style G fill:#cceeff
-    style H fill:#cceeff
+    style D fill:#ccffcc
+    style J fill:#ccffcc
 ```
 
 ## ✅ Issues Resolved (August 2025)

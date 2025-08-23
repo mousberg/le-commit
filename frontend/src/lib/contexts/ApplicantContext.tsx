@@ -1,3 +1,11 @@
+/**
+ * ApplicantContext - Manages manual applicant uploads and processing
+ * 
+ * Updated: January 26, 2025
+ * - Added automatic processing for manual uploads (replaces database triggers)
+ * - Manual uploads now trigger CV/LinkedIn/GitHub/AI processing directly
+ * - Separated from ATS candidate processing flow
+ */
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
@@ -198,6 +206,93 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
       }
 
       console.log(`✅ Created applicant ${applicant.id} - real-time will handle UI updates`);
+
+      // Automatically start processing for manual uploads
+      // Note: This replaces database triggers that were causing net.http_post errors
+      // Manual uploads now trigger processing directly in the client context
+      // ATS candidates use separate manual "Process Selected" flow
+      if (cv_file_id || request.linkedinUrl || request.githubUrl) {
+        console.log(`🚀 Starting automatic processing for applicant ${applicant.id}`);
+        
+        // Start CV processing if we have a CV
+        if (cv_file_id) {
+          fetch('/api/cv-process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              applicant_id: applicant.id,
+              file_id: cv_file_id
+            })
+          }).then(response => {
+            if (response.ok) {
+              console.log(`✅ CV processing started for ${applicant.id}`);
+            } else {
+              console.error(`❌ CV processing failed for ${applicant.id}`);
+            }
+          }).catch(error => {
+            console.error(`❌ CV processing error for ${applicant.id}:`, error);
+          });
+        }
+        
+        // Start LinkedIn processing if we have LinkedIn URL
+        if (request.linkedinUrl) {
+          fetch('/api/linkedin-fetch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              applicant_id: applicant.id,
+              linkedin_url: request.linkedinUrl
+            })
+          }).then(response => {
+            if (response.ok) {
+              console.log(`✅ LinkedIn processing started for ${applicant.id}`);
+            } else {
+              console.error(`❌ LinkedIn processing failed for ${applicant.id}`);
+            }
+          }).catch(error => {
+            console.error(`❌ LinkedIn processing error for ${applicant.id}:`, error);
+          });
+        }
+        
+        // Start GitHub processing if we have GitHub URL
+        if (request.githubUrl) {
+          fetch('/api/github-fetch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              applicant_id: applicant.id,
+              github_url: request.githubUrl
+            })
+          }).then(response => {
+            if (response.ok) {
+              console.log(`✅ GitHub processing started for ${applicant.id}`);
+            } else {
+              console.error(`❌ GitHub processing failed for ${applicant.id}`);
+            }
+          }).catch(error => {
+            console.error(`❌ GitHub processing error for ${applicant.id}:`, error);
+          });
+        }
+        
+        // Start AI analysis after a delay to let other processing complete
+        setTimeout(() => {
+          fetch('/api/analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              applicant_id: applicant.id
+            })
+          }).then(response => {
+            if (response.ok) {
+              console.log(`✅ AI analysis started for ${applicant.id}`);
+            } else {
+              console.error(`❌ AI analysis failed for ${applicant.id}`);
+            }
+          }).catch(error => {
+            console.error(`❌ AI analysis error for ${applicant.id}:`, error);
+          });
+        }, 3000); // Wait 3 seconds for other processing to complete
+      }
 
       // Don't manually update state - real-time subscription will handle it
       return applicant.id;
