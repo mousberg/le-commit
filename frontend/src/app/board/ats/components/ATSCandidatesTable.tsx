@@ -14,10 +14,12 @@ import {
   User,
   Eye,
   Loader2,
-  Send,
   Check,
   X,
-  Brain
+  Brain,
+  PlayCircle,
+  RefreshCw,
+  Upload
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ATSCandidateDetailsTray } from './ATSCandidateDetailsTray';
@@ -115,6 +117,113 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     }
   };
 
+  const handleManualProcessing = async () => {
+    if (selectedCandidates.length === 0) {
+      alert('No candidates selected');
+      return;
+    }
+
+    setBatchAnalyzing(true);
+    
+    try {
+      const processPromises = [];
+      let totalTasks = 0;
+      
+      for (const candidateId of selectedCandidates) {
+        const candidate = candidates.find(c => c.id === candidateId);
+        if (!candidate?.unmask_applicant_id) continue;
+
+        // CV Processing
+        if (candidate.cv_file_id && candidate.cv_status === 'pending') {
+          processPromises.push(
+            fetch('/api/cv-process', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicant_id: candidate.unmask_applicant_id,
+                file_id: candidate.cv_file_id
+              })
+            })
+          );
+          totalTasks++;
+        }
+
+        // LinkedIn Processing  
+        if (candidate.linkedin_url && candidate.li_status === 'pending') {
+          processPromises.push(
+            fetch('/api/linkedin-fetch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicant_id: candidate.unmask_applicant_id,
+                linkedin_url: candidate.linkedin_url
+              })
+            })
+          );
+          totalTasks++;
+        }
+
+        // GitHub Processing
+        if (candidate.github_url && candidate.gh_status === 'pending') {
+          processPromises.push(
+            fetch('/api/github-fetch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicant_id: candidate.unmask_applicant_id,
+                github_url: candidate.github_url
+              })
+            })
+          );
+          totalTasks++;
+        }
+
+        // AI Analysis (only if data sources are ready)
+        if (candidate.ai_status === 'pending' && 
+           (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready')) {
+          processPromises.push(
+            fetch('/api/analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicant_id: candidate.unmask_applicant_id
+              })
+            })
+          );
+          totalTasks++;
+        }
+      }
+
+      if (processPromises.length === 0) {
+        alert('No candidates need processing');
+        return;
+      }
+
+      // Process all in parallel
+      const results = await Promise.allSettled(processPromises);
+      
+      let successCount = 0;
+      results.forEach(result => {
+        if (result.status === 'fulfilled') successCount++;
+      });
+      
+      alert(`Started processing for ${successCount}/${totalTasks} tasks`);
+      
+      // Refresh candidates list after a short delay to see status changes
+      setTimeout(() => {
+        if (onCandidateUpdate && candidates.length > 0) {
+          onCandidateUpdate(candidates[0]); // Trigger parent refresh
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Processing error:', error);
+      alert('Failed to start processing');
+    } finally {
+      setBatchAnalyzing(false);
+    }
+  };
+
 
   const handleBatchPushScores = async () => {
     if (selectedCandidatesForScoring.length === 0) {
@@ -180,11 +289,13 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     isEligibleForAIAnalysis(c.score || 10)
   );
 
-  // Get candidates that have scores for pushing
+  // Get candidates that have scores AND are fully processed for pushing to Ashby
   const selectedCandidatesForScoring = candidates.filter(c => 
     selectedCandidates.includes(c.id) && 
     c.unmask_applicant_id && 
-    (c.score !== undefined || c.analysis?.score !== undefined)
+    (c.score !== undefined || c.analysis?.score !== undefined) &&
+    c.ai_status === 'ready' && // AI analysis must be complete
+    (c.cv_status === 'ready' || c.li_status === 'ready' || c.gh_status === 'ready') // At least one source processed
   );
 
   const clearSelection = () => {
@@ -374,6 +485,26 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                   {selectedCandidates.length} selected
                 </span>
                 
+                {/* Manual Processing Button */}
+                <Button 
+                  onClick={handleManualProcessing}
+                  size="sm"
+                  disabled={selectedCandidates.length === 0 || batchAnalyzing}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {batchAnalyzing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="h-4 w-4 mr-1" />
+                      Process Selected ({selectedCandidates.length})
+                    </>
+                  )}
+                </Button>
+                
                 {/* Bulk Analysis Button */}
                 {selectedCandidatesForAnalysis.length > 0 && (
                   <Button 
@@ -411,7 +542,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                       </>
                     ) : (
                       <>
-                        <Send className="h-4 w-4 mr-1" />
+                        <Upload className="h-4 w-4 mr-1" />
                         Push to Ashby ({selectedCandidatesForScoring.length})
                       </>
                     )}
