@@ -1,5 +1,5 @@
 // Ashby Candidates API - List and sync candidates
-// GET: List cached candidates from database
+// GET: List stored candidates from database
 // POST: Force refresh candidates from Ashby API
 
 import { NextResponse } from 'next/server';
@@ -167,7 +167,7 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
 }
 
 
-// GET handler - List cached candidates
+// GET handler - List stored candidates
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getCandidatesHandler(_context: ApiHandlerContext) {
   const supabase = await createClient();
@@ -416,7 +416,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     const responseData: ATSPageData = {
       success: true,
       candidates: transformedCandidates,
-      cached_count: transformedCandidates.length,
+      stored_count: transformedCandidates.length,
       auto_synced: autoSynced,
       sync_results: syncResults,
       last_sync: lastSync
@@ -440,7 +440,7 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
   try {
     // Extract limit from request body
     const body = context.body as { limit?: number } || {};
-    const limit = Math.max(1, Math.min(1000, body.limit || 50)); // Default 50, max 1000
+    const limit = Math.max(1, Math.min(1000, body.limit || 10)); // Default 10, max 1000
     
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();

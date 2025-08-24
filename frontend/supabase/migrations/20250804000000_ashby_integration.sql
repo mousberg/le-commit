@@ -34,10 +34,10 @@ ADD COLUMN IF NOT EXISTS source text DEFAULT 'manual' CHECK (source IN ('manual'
 CREATE INDEX IF NOT EXISTS idx_applicants_source ON public.applicants(source);
 
 -- =============================================================================
--- ASHBY CANDIDATES CACHE TABLE
+-- ASHBY CANDIDATES STORAGE TABLE
 -- =============================================================================
 
--- Ashby candidates cache table
+-- Ashby candidates storage table
 CREATE TABLE IF NOT EXISTS public.ashby_candidates (
   id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -80,9 +80,9 @@ CREATE TABLE IF NOT EXISTS public.ashby_candidates (
   unmask_applicant_id uuid REFERENCES public.applicants(id) ON DELETE SET NULL,
   cv_file_id uuid REFERENCES public.files(id) ON DELETE SET NULL, -- Shared reference to same file as applicants
   
-  -- Cache metadata
+  -- Storage metadata
   last_synced_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
-  cached_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  stored_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   
   CONSTRAINT unique_user_ashby_candidate UNIQUE(user_id, ashby_id)
@@ -225,7 +225,7 @@ CREATE TRIGGER sync_ashby_candidates_update
     OR OLD.github_url IS DISTINCT FROM NEW.github_url)
   EXECUTE FUNCTION sync_ashby_candidate_to_applicant();
 
--- Get all cached Ashby candidates for a user
+-- Get all stored Ashby candidates for a user
 CREATE OR REPLACE FUNCTION public.get_user_ashby_candidates(
   p_user_id uuid,
   p_limit integer DEFAULT 100,
@@ -288,7 +288,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- COMMENTS
 -- =============================================================================
 
-COMMENT ON TABLE public.ashby_candidates IS 'Cache of candidates from Ashby ATS integration';
+COMMENT ON TABLE public.ashby_candidates IS 'Storage of candidates from Ashby ATS integration';
 COMMENT ON COLUMN public.applicants.source IS 'Source system where the applicant was created (manual, ashby, etc)';
 COMMENT ON COLUMN public.ashby_candidates.unmask_applicant_id IS 'Links to applicants table for synchronized records';
 COMMENT ON COLUMN public.ashby_candidates.cv_file_id IS 'Shared reference to the same file record as applicants table';

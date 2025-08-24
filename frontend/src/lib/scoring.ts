@@ -81,9 +81,9 @@ export const SCORE_FILTER_OPTIONS = [
 ] as const;
 
 /**
- * Default filter for ATS UI (candidates with complete data)
+ * Default filter for ATS UI (show all candidates)
  */
-export const DEFAULT_SCORE_FILTER = 30;
+export const DEFAULT_SCORE_FILTER = 0;
 
 /**
  * Get score tier description
