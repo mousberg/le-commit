@@ -1,0 +1,5 @@
+---
+description: Always use `pnpm` commands instead of `npm`. Everything except documentation lives in the `frontend` folder.
+globs:
+alwaysApply: false
+---
