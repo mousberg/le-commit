@@ -7,7 +7,7 @@ import { useAshbyAccess } from '@/lib/ashby/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Download, CheckCircle, Clock, ExternalLink, AlertTriangle, Mail, Filter } from 'lucide-react';
+import { RefreshCw, Download, AlertTriangle, Mail, Filter } from 'lucide-react';
 import { ATSCandidatesTable } from './components/ATSCandidatesTable';
 import { ATSPageData, ATSCandidate } from '@/lib/ashby/interfaces';
 import { CandidateFilter } from '@/lib/interfaces/applicant';
@@ -212,10 +212,10 @@ export default function ATSPage() {
   // Show loading state while checking authentication or access
   if (authLoading || accessLoading) {
     return (
-      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600">Loading...</p>
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-stone-400" />
+          <p className="text-stone-600">Loading...</p>
         </div>
       </div>
     );
@@ -229,7 +229,7 @@ export default function ATSPage() {
   // Show access denied message if user doesn't have ATS access
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="max-w-md mx-auto text-center">
           <Card className="border-orange-200 bg-orange-50">
             <CardContent className="p-8">
@@ -260,7 +260,7 @@ export default function ATSPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-white">
       <div className="container mx-auto p-6 pt-20">
         {/* Header */}
         <div className="mb-8">
@@ -405,110 +405,25 @@ export default function ATSPage() {
           </Card>
         )}
 
-        {/* Summary Cards */}
+        {/* Summary */}
         {data && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <ExternalLink className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total Stored</p>
-                    <p className="text-2xl font-bold">{data.stored_count}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Filter className="h-4 w-4 text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Filtered</p>
-                    <p className="text-2xl font-bold">{filteredCandidates.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Complete Data</p>
-                    <p className="text-2xl font-bold">
-                      {filteredCandidates.filter(c => (c.score || 10) >= 30).length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Clock className="h-4 w-4 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">AI Eligible</p>
-                    <p className="text-2xl font-bold">
-                      {filteredCandidates.filter(c => (c.score || 10) >= 30).length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Clock className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Ready to Process</p>
-                    <p className="text-2xl font-bold">
-                      {filteredCandidates.filter(c => c.ready_for_processing).length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="mb-6">
+            <div className="flex items-center gap-6 text-sm text-gray-600">
+              <span><strong>{data.stored_count}</strong> candidates</span>
+              <span><strong>{filteredCandidates.length}</strong> showing</span>
+              <span><strong>{filteredCandidates.filter(c => (c.score || 10) >= 30).length}</strong> analyzed</span>
+              <span className="ml-auto">Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}</span>
+            </div>
           </div>
         )}
 
-        {/* Sync Status */}
-        {data && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Sync Status</CardTitle>
-              <CardDescription>
-                Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}
-                {data.auto_synced && data.sync_results && (
-                  <Badge variant="outline" className="ml-2">
-                    Auto-synced: {data.sync_results.message}
-                  </Badge>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-600">
-                  Candidates are automatically synced when you visit this page. 
-                  Use the refresh button to force a full sync of all candidates.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Auto-sync notification */}
+        {data?.auto_synced && data.sync_results && (
+          <div className="mb-6 p-3 border border-stone-300 rounded-md">
+            <p className="text-sm text-stone-600">
+              ✓ Auto-synced: {data.sync_results.message}
+            </p>
+          </div>
         )}
 
         {/* Error State */}
