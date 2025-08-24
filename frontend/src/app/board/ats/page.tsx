@@ -12,6 +12,7 @@ import { ATSCandidatesTable } from './components/ATSCandidatesTable';
 import { ATSPageData, ATSCandidate } from '@/lib/ashby/interfaces';
 import { CandidateFilter } from '@/lib/interfaces/applicant';
 import { SCORE_FILTER_OPTIONS, DEFAULT_SCORE_FILTER, getScoreTierDescription } from '@/lib/scoring';
+import { Tooltip } from '@/components/ui/tooltip';
 
 export default function ATSPage() {
   const router = useRouter();
@@ -409,10 +410,18 @@ export default function ATSPage() {
         {data && (
           <div className="mb-6">
             <div className="flex items-center gap-6 text-sm text-gray-600">
-              <span><strong>{data.stored_count}</strong> candidates</span>
-              <span><strong>{filteredCandidates.length}</strong> showing</span>
-              <span><strong>{filteredCandidates.filter(c => (c.score || 10) >= 30).length}</strong> analyzed</span>
-              <span className="ml-auto">Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}</span>
+              <Tooltip content="Total candidates stored in your system that are synced with Ashby">
+                <span className="cursor-help"><strong>{data.stored_count}</strong> candidates</span>
+              </Tooltip>
+              <Tooltip content="Number of candidates currently visible after applying filters">
+                <span className="cursor-help"><strong>{filteredCandidates.length}</strong> showing</span>
+              </Tooltip>
+              <Tooltip content="Candidates with complete data (LinkedIn + CV) that have been analyzed by AI">
+                <span className="cursor-help"><strong>{filteredCandidates.filter(c => (c.score || 10) >= 30).length}</strong> analyzed</span>
+              </Tooltip>
+              <Tooltip content="When candidates were last synced from your Ashby system">
+                <span className="cursor-help ml-auto">Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}</span>
+              </Tooltip>
             </div>
           </div>
         )}
