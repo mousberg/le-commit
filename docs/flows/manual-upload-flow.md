@@ -44,12 +44,18 @@ sequenceDiagram
         API3->>DB: Update gh_data, gh_status: 'ready'
     end
     
-    Note over Context: Wait 3 seconds for processing
+    Note over Context: Poll for data completion<br/>(Check cv_status, li_status, gh_status)
+    
+    loop Polling for completion
+        Context->>DB: Check processing status
+        DB-->>Context: Return current status
+        Note over Context: Wait until all data sources<br/>are no longer 'processing' or 'pending'
+    end
     
     Context->>API4: POST /api/analysis
     API4->>DB: Get all applicant data
     API4->>API4: Perform AI analysis
-    API4->>DB: Update analysis_result, ai_status: 'ready'
+    API4->>DB: Update ai_data, ai_status: 'ready'<br/>Update score field with analysis score
     
     DB->>UI: Real-time updates via subscription
     UI->>User: Show processing progress & results
@@ -59,6 +65,14 @@ sequenceDiagram
 
 - **No Database Triggers**: Processing is initiated directly from the client context
 - **Automatic Processing**: All data sources are processed immediately after applicant creation
+- **Polling-Based AI Analysis**: AI analysis waits for data completion via database polling (60s timeout)
+- **Score Persistence**: AI analysis updates both `ai_data` and `score` database fields
 - **Error Handling**: Each API call has individual error handling and logging
 - **Real-time Updates**: UI updates automatically via Supabase real-time subscriptions
 - **Separation**: Manual uploads are completely separate from ATS candidate processing
+
+## Recent Improvements (January 2025)
+
+- **Fixed Race Condition**: Replaced 3-second timeout with intelligent polling to ensure AI analysis waits for data completion
+- **Database Score Update**: AI analysis now updates the `score` field to persist scores across page refreshes
+- **Improved Error Handling**: Better fallback handling for AI analysis failures
