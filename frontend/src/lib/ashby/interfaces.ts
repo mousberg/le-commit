@@ -83,7 +83,7 @@ export interface ATSCandidate {
 
 export interface ATSPageData {
   candidates: ATSCandidate[];
-  cached_count: number;
+  stored_count: number;
   auto_synced: boolean;
   sync_results?: {
     new_candidates?: number;

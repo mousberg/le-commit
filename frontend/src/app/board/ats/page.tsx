@@ -27,7 +27,7 @@ export default function ATSPage() {
     hasCV: undefined
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [fetchLimit, setFetchLimit] = useState(50); // Default fetch limit
+  const [fetchLimit, setFetchLimit] = useState(10); // Default fetch limit - matches auto-sync
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -303,7 +303,7 @@ export default function ATSPage() {
                     min="1"
                     max="1000"
                     value={fetchLimit}
-                    onChange={(e) => setFetchLimit(Math.max(1, Math.min(1000, parseInt(e.target.value) || 50)))}
+                    onChange={(e) => setFetchLimit(Math.max(1, Math.min(1000, parseInt(e.target.value) || 10)))}
                     className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     disabled={loading || refreshing}
                   />
@@ -415,8 +415,8 @@ export default function ATSPage() {
                     <ExternalLink className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Total Cached</p>
-                    <p className="text-2xl font-bold">{data.cached_count}</p>
+                    <p className="text-sm text-gray-600">Total Stored</p>
+                    <p className="text-2xl font-bold">{data.stored_count}</p>
                   </div>
                 </div>
               </CardContent>
