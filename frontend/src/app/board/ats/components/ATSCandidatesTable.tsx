@@ -636,7 +636,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                 <th className="text-left p-3 font-medium text-gray-900">Status</th>
                 <th className="text-left p-3 font-medium text-gray-900">Score</th>
                 <th className="text-left p-3 font-medium text-gray-900">Notes</th>
-                <th className="text-left p-3 font-medium text-gray-900">Actions</th>
+                <th className="text-left p-3 font-medium text-gray-900">Analysis</th>
               </tr>
             </thead>
             <tbody>
@@ -751,33 +751,35 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                     )}
                   </td>
 
-                  {/* Actions */}
+                  {/* Analysis */}
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       {candidate.unmask_applicant_id ? (
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
+                          disabled={candidate.unmask_status !== 'completed'}
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/board?id=${candidate.unmask_applicant_id}`);
                           }}
-                          className="h-8 px-2"
+                          className="h-8 px-3 hover:bg-stone-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Eye className="h-4 w-4 mr-1" />
-                          View Details
+                          View
                         </Button>
                       ) : (
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleIndividualAnalysis(candidate);
                           }}
-                          className="h-8 px-2"
+                          className="h-8 px-3 hover:bg-stone-100"
                         >
-                          Start Analysis
+                          <PlayCircle className="h-4 w-4 mr-1" />
+                          Analyze
                         </Button>
                       )}
                     </div>
