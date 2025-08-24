@@ -434,11 +434,14 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
 }
 
 // POST handler - Force refresh from Ashby
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function refreshCandidatesHandler(_context: ApiHandlerContext) {
+async function refreshCandidatesHandler(context: ApiHandlerContext) {
   const supabase = await createClient();
 
   try {
+    // Extract limit from request body
+    const body = context.body as { limit?: number } || {};
+    const limit = Math.max(1, Math.min(1000, body.limit || 50)); // Default 50, max 1000
+    
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -479,11 +482,11 @@ async function refreshCandidatesHandler(_context: ApiHandlerContext) {
     const allCandidates: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
     let totalFetched = 0;
-    const maxCandidates = 500; // Safety limit
+    const maxCandidates = limit; // Use configurable limit
 
     do {
       const response = await ashbyClient.listCandidates({
-        limit: 100,
+        limit: Math.min(100, limit - totalFetched), // Batch size, but don't exceed remaining limit
         cursor,
         includeArchived: false
       });

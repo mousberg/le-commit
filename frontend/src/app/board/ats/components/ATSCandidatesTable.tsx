@@ -28,9 +28,10 @@ import { isEligibleForAIAnalysis } from '@/lib/scoring';
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
   onCandidateUpdate?: (updatedCandidate: ATSCandidate) => void;
+  onRefreshCandidates?: () => Promise<void>;
 }
 
-export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandidatesTableProps) {
+export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCandidates }: ATSCandidatesTableProps) {
   const router = useRouter();
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]); // applicant IDs
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
@@ -39,6 +40,13 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
   const [pushingScores, setPushingScores] = useState(false);
   const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyId?: string; applicantId?: string }>>({});  // applicant ID -> result
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
+  const [processingPhase, setProcessingPhase] = useState<'idle' | 'collecting-data' | 'running-analysis'>('idle');
+  const [processingStats, setProcessingStats] = useState<{
+    dataTasksTotal: number;
+    dataTasksCompleted: number;
+    aiTasksTotal: number;
+    aiTasksCompleted: number;
+  }>({ dataTasksTotal: 0, dataTasksCompleted: 0, aiTasksTotal: 0, aiTasksCompleted: 0 });
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'processable' | 'ready'>('all');
 
@@ -117,28 +125,38 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     }
   };
 
+
+
   // Manual processing for ATS candidates
   // Updated: August 23, 2025 - Henry Allen - Replaced database triggers with direct API calls
   // This allows user control over when ATS candidates are processed
   const handleManualProcessing = async () => {
     if (selectedCandidates.length === 0) {
-      alert('No candidates selected');
+      console.log('No candidates selected for processing');
       return;
     }
 
     setBatchAnalyzing(true);
+    setProcessingPhase('collecting-data');
     
     try {
-      const processPromises = [];
-      let totalTasks = 0;
+      // Step 1: Start all data processing tasks
+      const dataProcessingPromises = [];
+      const candidatesNeedingAI = [];
+      let dataTaskCount = 0;
       
       for (const candidateId of selectedCandidates) {
         const candidate = candidates.find(c => c.id === candidateId);
         if (!candidate?.unmask_applicant_id) continue;
 
+        // Track candidates that need AI analysis
+        if (candidate.ai_status === 'pending') {
+          candidatesNeedingAI.push(candidate.unmask_applicant_id);
+        }
+
         // CV Processing
         if (candidate.cv_file_id && candidate.cv_status === 'pending') {
-          processPromises.push(
+          dataProcessingPromises.push(
             fetch('/api/cv-process', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -148,12 +166,12 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
               })
             })
           );
-          totalTasks++;
+          dataTaskCount++;
         }
 
         // LinkedIn Processing  
         if (candidate.linkedin_url && candidate.li_status === 'pending') {
-          processPromises.push(
+          dataProcessingPromises.push(
             fetch('/api/linkedin-fetch', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -163,12 +181,12 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
               })
             })
           );
-          totalTasks++;
+          dataTaskCount++;
         }
 
         // GitHub Processing
         if (candidate.github_url && candidate.gh_status === 'pending') {
-          processPromises.push(
+          dataProcessingPromises.push(
             fetch('/api/github-fetch', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -178,52 +196,134 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
               })
             })
           );
-          totalTasks++;
-        }
-
-        // AI Analysis (only if data sources are ready)
-        if (candidate.ai_status === 'pending' && 
-           (candidate.cv_status === 'ready' || candidate.li_status === 'ready' || candidate.gh_status === 'ready')) {
-          processPromises.push(
-            fetch('/api/analysis', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                applicant_id: candidate.unmask_applicant_id
-              })
-            })
-          );
-          totalTasks++;
+          dataTaskCount++;
         }
       }
 
-      if (processPromises.length === 0) {
-        alert('No candidates need processing');
+      // Initialize processing stats
+      setProcessingStats({
+        dataTasksTotal: dataTaskCount,
+        dataTasksCompleted: 0,
+        aiTasksTotal: candidatesNeedingAI.length,
+        aiTasksCompleted: 0
+      });
+
+      // If no processing is needed at all
+      if (dataProcessingPromises.length === 0 && candidatesNeedingAI.length === 0) {
         return;
       }
 
-      // Process all in parallel
-      const results = await Promise.allSettled(processPromises);
-      
-      let successCount = 0;
-      results.forEach(result => {
-        if (result.status === 'fulfilled') successCount++;
-      });
-      
-      alert(`Started processing for ${successCount}/${totalTasks} tasks`);
-      
-      // Refresh candidates list after a short delay to see status changes
-      setTimeout(() => {
-        if (onCandidateUpdate && candidates.length > 0) {
-          onCandidateUpdate(candidates[0]); // Trigger parent refresh
+      // Step 1: Start data processing and wait for completion
+      if (dataProcessingPromises.length > 0) {
+        const dataResults = await Promise.allSettled(dataProcessingPromises);
+        
+        let successfulDataTasks = 0;
+        dataResults.forEach(result => {
+          if (result.status === 'fulfilled') successfulDataTasks++;
+        });
+        
+        setProcessingStats(prev => ({ ...prev, dataTasksCompleted: successfulDataTasks }));
+        
+        // Wait for database updates to propagate
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Step 2: Now start AI analysis after data collection is complete
+      if (candidatesNeedingAI.length > 0) {
+        setProcessingPhase('running-analysis');
+        
+        // Process AI analysis sequentially to allow for real-time updates
+        // Keep track of candidate updates to avoid stale prop issues
+        const candidateUpdates = new Map<string, Partial<ATSCandidate>>();
+        
+        // Helper function to get current candidate state with updates applied
+        const getCurrentCandidate = (applicantId: string): ATSCandidate | undefined => {
+          const original = candidates.find(c => c.unmask_applicant_id === applicantId);
+          if (!original) return undefined;
+          const updates = candidateUpdates.get(applicantId) || {};
+          return { ...original, ...updates } as ATSCandidate;
+        };
+        
+        let successfulAITasks = 0;
+        for (let i = 0; i < candidatesNeedingAI.length; i++) {
+          const applicantId = candidatesNeedingAI[i];
+          
+          try {
+            // Update status to show processing
+            const candidateToUpdate = getCurrentCandidate(applicantId);
+            
+            if (candidateToUpdate && onCandidateUpdate) {
+              const processingCandidate = {
+                ...candidateToUpdate,
+                ai_status: 'processing' as const,
+                unmask_status: 'processing'
+              };
+              candidateUpdates.set(applicantId, { 
+                ...candidateUpdates.get(applicantId), 
+                ai_status: 'processing', 
+                unmask_status: 'processing' 
+              });
+              onCandidateUpdate(processingCandidate);
+            }
+            
+            const response = await fetch('/api/analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicant_id: applicantId
+              })
+            });
+
+            if (response.ok) {
+              successfulAITasks++;
+              setProcessingStats(prev => ({ ...prev, aiTasksCompleted: successfulAITasks }));
+              
+              // Get the analysis result from the response
+              const analysisResult = await response.json();
+              
+              // Update the specific candidate's status locally to avoid flickering
+              const candidateToUpdate = getCurrentCandidate(applicantId);
+              
+              if (candidateToUpdate && onCandidateUpdate) {
+                // Create updated candidate with analyzed status and score
+                const updatedCandidate = {
+                  ...candidateToUpdate,
+                  ai_status: 'ready' as const,
+                  unmask_status: 'completed',
+                  score: analysisResult.ai_data?.score || candidateToUpdate.score,
+                  analysis: analysisResult.ai_data || candidateToUpdate.analysis
+                };
+                
+                // Store the final update in our local map
+                candidateUpdates.set(applicantId, {
+                  ...candidateUpdates.get(applicantId),
+                  ai_status: 'ready',
+                  unmask_status: 'completed',
+                  score: updatedCandidate.score,
+                  analysis: updatedCandidate.analysis
+                });
+                
+                onCandidateUpdate(updatedCandidate);
+              }
+              
+              // Small delay between candidates to avoid overwhelming the UI
+              if (i < candidatesNeedingAI.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+            } else {
+              console.error(`❌ AI analysis failed for candidate ${applicantId}:`, response.status);
+            }
+          } catch (error) {
+            console.error(`❌ AI analysis error for candidate ${applicantId}:`, error);
+          }
         }
-      }, 1000);
+      }
       
     } catch (error) {
       console.error('Processing error:', error);
-      alert('Failed to start processing');
     } finally {
       setBatchAnalyzing(false);
+      setProcessingPhase('idle');
     }
   };
 
@@ -434,7 +534,22 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
           <CardTitle>Candidates ({candidates.length})</CardTitle>
+            
+            {/* Live Processing Status */}
+            {processingPhase !== 'idle' && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                <span className="text-sm font-medium text-blue-700">
+                  {processingPhase === 'collecting-data' 
+                    ? 'Collecting Data...'
+                    : 'Running Analysis...'
+                  }
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {selectedCandidates.length > 0 ? (
               <>
@@ -452,7 +567,10 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                   {batchAnalyzing ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                      Processing...
+                      {processingPhase === 'collecting-data' 
+                        ? 'Collecting Data...'
+                        : 'Running Analysis...'
+                      }
                     </>
                   ) : (
                     <>

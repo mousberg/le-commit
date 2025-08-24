@@ -30,6 +30,17 @@ export async function POST(request: Request) {
         // Run the analysis using the centralized analysis service
         const analyzedApplicant = await analyzeApplicant(applicant as unknown as Applicant);
         
+        // Update the score field in database as well as ai_data
+        const supabase = createServiceRoleClient();
+        await supabase
+          .from('applicants')
+          .update({
+            score: analyzedApplicant.ai_data?.score || null
+          })
+          .eq('id', applicant_id);
+        
+
+        
         return analyzedApplicant.ai_data;
       },
       'AI Analysis'
@@ -48,6 +59,7 @@ export async function POST(request: Request) {
       .update({
         ai_status: 'ready', // Mark as ready instead of error
         ai_data: errorFallback,
+        score: errorFallback.score, // Also update the score field for errors
       })
       .eq('id', applicant_id);
 

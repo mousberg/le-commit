@@ -27,6 +27,7 @@ export default function ATSPage() {
     hasCV: undefined
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [fetchLimit, setFetchLimit] = useState(50); // Default fetch limit
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -82,6 +83,9 @@ export default function ATSPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ 
+          limit: fetchLimit 
+        }),
       });
 
       const result = await response.json();
@@ -102,13 +106,15 @@ export default function ATSPage() {
   };
 
   const handleCandidateUpdate = (updatedCandidate: ATSCandidate) => {
-    // Update the candidate in the local data state
-    if (data?.candidates) {
-      // Use applicant ID as the unique identifier
+    // Update the candidate in the local data state using functional update to prevent race conditions
+    setData(currentData => {
+      if (!currentData?.candidates) {
+        return currentData;
+      }
+
       const candidateId = updatedCandidate.id;
       
-      const updatedCandidates = data.candidates.map(candidate => {
-        // Match by applicant ID (primary unique identifier)
+      const updatedCandidates = currentData.candidates.map(candidate => {
         if (candidate.id === candidateId) {
           return { ...candidate, ...updatedCandidate };
         }
@@ -122,14 +128,15 @@ export default function ATSPage() {
       );
 
       if (wasUpdated) {
-        setData({
-          ...data,
+        return {
+          ...currentData,
           candidates: updatedCandidates
-        });
+        };
       } else {
         console.warn('Candidate not found for update:', candidateId);
+        return currentData;
       }
-    }
+    });
   };
 
   // Filter candidates based on score and data completeness
@@ -285,10 +292,27 @@ export default function ATSPage() {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV ({filteredCandidates.length})
               </Button>
-              <Button onClick={handleRefresh} disabled={loading || refreshing}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
-                {refreshing ? 'Refreshing All...' : 'Refresh All'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="fetch-limit" className="text-sm text-gray-600 whitespace-nowrap">
+                    Fetch limit:
+                  </label>
+                  <input
+                    id="fetch-limit"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={fetchLimit}
+                    onChange={(e) => setFetchLimit(Math.max(1, Math.min(1000, parseInt(e.target.value) || 50)))}
+                    className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={loading || refreshing}
+                  />
+                </div>
+                <Button onClick={handleRefresh} disabled={loading || refreshing}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
+                  {refreshing ? 'Refreshing All...' : 'Refresh All'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -512,10 +536,11 @@ export default function ATSPage() {
 
         {/* Candidates Table */}
         {data && !loading && (
-          <ATSCandidatesTable 
-            candidates={filteredCandidates} 
-            onCandidateUpdate={handleCandidateUpdate}
-          />
+                  <ATSCandidatesTable 
+          candidates={filteredCandidates} 
+          onCandidateUpdate={handleCandidateUpdate}
+          onRefreshCandidates={fetchCandidates}
+        />
         )}
 
       </div>

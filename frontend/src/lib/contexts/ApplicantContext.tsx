@@ -117,6 +117,93 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Function to wait for data processing completion before starting AI analysis (manual uploads only)
+  const startAIAnalysisAfterDataCompletion = useCallback(async (applicantId: string) => {
+    console.log(`⏳ Starting polling for data completion before AI analysis for ${applicantId}`);
+    
+    // Add initial delay to let data processing start
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const maxWaitTime = 60000; // 60 seconds max wait
+    const pollInterval = 3000; // Check every 3 seconds
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitTime) {
+      try {
+        console.log(`🔍 Polling status for ${applicantId}... (${Date.now() - startTime}ms elapsed)`);
+        
+        // Fetch current applicant status
+        const currentApplicants = await simpleDatabaseService.listUserApplicants();
+        const applicant = currentApplicants.find(a => a.id === applicantId);
+        
+        if (!applicant) {
+          console.error(`❌ Applicant ${applicantId} not found during polling`);
+          return;
+        }
+        
+        console.log(`📊 Current status for ${applicantId}: CV=${applicant.cv_status}, LI=${applicant.li_status}, GH=${applicant.gh_status}, AI=${applicant.ai_status}`);
+        
+        // Check if all data sources are done processing
+        const cvDone = applicant.cv_status !== 'processing' && applicant.cv_status !== 'pending';
+        const liDone = applicant.li_status !== 'processing' && applicant.li_status !== 'pending';
+        const ghDone = applicant.gh_status !== 'processing' && applicant.gh_status !== 'pending';
+        
+        if (cvDone && liDone && ghDone) {
+          console.log(`✅ All data processing completed for ${applicantId} after ${Date.now() - startTime}ms - starting AI analysis now`);
+          
+          // Now start AI analysis
+          try {
+            const response = await fetch('/api/analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                applicant_id: applicantId
+              })
+            });
+            
+            if (response.ok) {
+              console.log(`✅ AI analysis successfully started for ${applicantId}`);
+            } else {
+              console.error(`❌ AI analysis failed for ${applicantId}: ${response.status}`);
+            }
+          } catch (error) {
+            console.error(`❌ AI analysis error for ${applicantId}:`, error);
+          }
+          
+          return;
+        }
+        
+        console.log(`⏳ Still waiting for data processing completion for ${applicantId}... CV=${applicant.cv_status}, LI=${applicant.li_status}, GH=${applicant.gh_status}`);
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+      } catch (error) {
+        console.error(`❌ Error polling applicant status for ${applicantId}:`, error);
+        break;
+      }
+    }
+    
+    console.log(`⚠️ Timeout waiting for data processing completion for ${applicantId} after ${maxWaitTime}ms - starting AI analysis anyway`);
+    
+    // Start AI analysis anyway after timeout
+    try {
+      const response = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicant_id: applicantId
+        })
+      });
+      
+      if (response.ok) {
+        console.log(`✅ AI analysis started for ${applicantId} (after timeout)`);
+      } else {
+        console.error(`❌ AI analysis failed for ${applicantId} (after timeout): ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`❌ AI analysis error for ${applicantId} (after timeout):`, error);
+    }
+  }, [user]);
+
   const createApplicant = useCallback(async (request: CreateApplicantRequest): Promise<string | null> => {
     if (!user?.id) {
       setError('User must be authenticated');
@@ -274,24 +361,11 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
           });
         }
         
-        // Start AI analysis after a delay to let other processing complete
-        setTimeout(() => {
-          fetch('/api/analysis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              applicant_id: applicant.id
-            })
-          }).then(response => {
-            if (response.ok) {
-              console.log(`✅ AI analysis started for ${applicant.id}`);
-            } else {
-              console.error(`❌ AI analysis failed for ${applicant.id}`);
-            }
-          }).catch(error => {
-            console.error(`❌ AI analysis error for ${applicant.id}:`, error);
-          });
-        }, 3000); // Wait 3 seconds for other processing to complete
+        // Start AI analysis after data processing completes
+        console.log(`🔄 Starting intelligent AI analysis polling for manual upload ${applicant.id}`);
+        startAIAnalysisAfterDataCompletion(applicant.id).catch(error => {
+          console.error(`❌ Error in startAIAnalysisAfterDataCompletion for ${applicant.id}:`, error);
+        });
       }
 
       // Don't manually update state - real-time subscription will handle it
