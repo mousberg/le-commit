@@ -28,10 +28,9 @@ import { isEligibleForAIAnalysis } from '@/lib/scoring';
 interface ATSCandidatesTableProps {
   candidates: ATSCandidate[];
   onCandidateUpdate?: (updatedCandidate: ATSCandidate) => void;
-  onRefreshCandidates?: () => Promise<void>;
 }
 
-export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCandidates }: ATSCandidatesTableProps) {
+export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandidatesTableProps) {
   const router = useRouter();
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]); // applicant IDs
   const [selectedCandidate, setSelectedCandidate] = useState<ATSCandidate | null>(null);
@@ -41,12 +40,8 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
   const [pushResults, setPushResults] = useState<Record<string, { success: boolean; error?: string; score?: number; ashbyId?: string; applicantId?: string }>>({});  // applicant ID -> result
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
   const [processingPhase, setProcessingPhase] = useState<'idle' | 'collecting-data' | 'running-analysis'>('idle');
-  const [processingStats, setProcessingStats] = useState<{
-    dataTasksTotal: number;
-    dataTasksCompleted: number;
-    aiTasksTotal: number;
-    aiTasksCompleted: number;
-  }>({ dataTasksTotal: 0, dataTasksCompleted: 0, aiTasksTotal: 0, aiTasksCompleted: 0 });
+  // Note: Processing stats are tracked internally but not currently displayed in UI
+  // Keeping the state management for potential future display features
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'processable' | 'ready'>('all');
 
@@ -143,7 +138,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
       // Step 1: Start all data processing tasks
       const dataProcessingPromises = [];
       const candidatesNeedingAI = [];
-      let dataTaskCount = 0;
+
       
       for (const candidateId of selectedCandidates) {
         const candidate = candidates.find(c => c.id === candidateId);
@@ -166,7 +161,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
               })
             })
           );
-          dataTaskCount++;
+
         }
 
         // LinkedIn Processing  
@@ -181,7 +176,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
               })
             })
           );
-          dataTaskCount++;
+
         }
 
         // GitHub Processing
@@ -196,17 +191,11 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
               })
             })
           );
-          dataTaskCount++;
+
         }
       }
 
-      // Initialize processing stats
-      setProcessingStats({
-        dataTasksTotal: dataTaskCount,
-        dataTasksCompleted: 0,
-        aiTasksTotal: candidatesNeedingAI.length,
-        aiTasksCompleted: 0
-      });
+      // Processing stats tracking removed for now - could be added back for UI display
 
       // If no processing is needed at all
       if (dataProcessingPromises.length === 0 && candidatesNeedingAI.length === 0) {
@@ -215,14 +204,9 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
 
       // Step 1: Start data processing and wait for completion
       if (dataProcessingPromises.length > 0) {
-        const dataResults = await Promise.allSettled(dataProcessingPromises);
+        await Promise.allSettled(dataProcessingPromises);
         
-        let successfulDataTasks = 0;
-        dataResults.forEach(result => {
-          if (result.status === 'fulfilled') successfulDataTasks++;
-        });
-        
-        setProcessingStats(prev => ({ ...prev, dataTasksCompleted: successfulDataTasks }));
+        // Data processing completed - stats tracking removed
         
         // Wait for database updates to propagate
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -244,7 +228,6 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
           return { ...original, ...updates } as ATSCandidate;
         };
         
-        let successfulAITasks = 0;
         for (let i = 0; i < candidatesNeedingAI.length; i++) {
           const applicantId = candidatesNeedingAI[i];
           
@@ -275,8 +258,7 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate, onRefreshCan
             });
 
             if (response.ok) {
-              successfulAITasks++;
-              setProcessingStats(prev => ({ ...prev, aiTasksCompleted: successfulAITasks }));
+              // AI task completed - stats tracking removed
               
               // Get the analysis result from the response
               const analysisResult = await response.json();

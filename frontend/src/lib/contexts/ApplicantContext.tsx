@@ -202,7 +202,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error(`❌ AI analysis error for ${applicantId} (after timeout):`, error);
     }
-  }, [user]);
+  }, []);
 
   const createApplicant = useCallback(async (request: CreateApplicantRequest): Promise<string | null> => {
     if (!user?.id) {
@@ -378,7 +378,7 @@ export function ApplicantProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, startAIAnalysisAfterDataCompletion]);
 
   const refreshApplicant = useCallback(async (id: string) => {
     // Note: With real-time subscriptions, manual refresh is rarely needed

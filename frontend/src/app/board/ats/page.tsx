@@ -539,7 +539,6 @@ export default function ATSPage() {
                   <ATSCandidatesTable 
           candidates={filteredCandidates} 
           onCandidateUpdate={handleCandidateUpdate}
-          onRefreshCandidates={fetchCandidates}
         />
         )}
 
