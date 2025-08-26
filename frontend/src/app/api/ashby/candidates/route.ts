@@ -42,6 +42,7 @@ interface DatabaseCandidate {
   location_details: Record<string, unknown> | null;
   last_synced_at: string;
   base_score: number;
+  cv_priority: 'immediate' | 'deferred';
 }
 
 interface SocialLink {
@@ -131,6 +132,16 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
     candidate.resumeFileHandle || null
   );
 
+  // Determine CV processing priority based on score
+  const shouldProcessCVImmediately = baseScore >= 30 && Boolean(candidate.resumeFileHandle);
+  const cvPriority = shouldProcessCVImmediately ? 'immediate' : 'deferred';
+
+  if (cvPriority === 'immediate') {
+    console.log(`🚀 High priority candidate (score ${baseScore}): ${candidate.name} - CV will be processed immediately`);
+  } else if (candidate.resumeFileHandle) {
+    console.log(`⏳ Deferred candidate (score ${baseScore}): ${candidate.name} - CV stored for on-demand processing`);
+  }
+
   return {
     user_id: userId,
     ashby_id: candidate.id,
@@ -162,7 +173,8 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
     profile_url: candidate.profileUrl || null,
     location_details: candidate.location || null,
     last_synced_at: new Date().toISOString(),
-    base_score: baseScore
+    base_score: baseScore,
+    cv_priority: cvPriority
   };
 }
 
@@ -223,37 +235,101 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     const shouldAutoSync = !lastSync || (Date.now() - lastSync) > hourInMs;
 
     if (shouldAutoSync && apiKey) {
-      // Perform auto-sync
+      // Perform auto-sync with pagination (limit to reasonable amount for auto-sync)
       const ashbyClient = new AshbyClient({ apiKey });
-      const response = await ashbyClient.listCandidates({
-        limit: 10, // TODO: increase later
-        includeArchived: false
-      });
+      const allCandidates: Array<Record<string, unknown>> = [];
+      let cursor: string | undefined;
+      let totalFetched = 0;
+      let rateLimitDetected = false;
+      const maxAutoSyncCandidates = 500; // Reasonable limit for auto-sync
 
-      if (response.success && response.results) {
-        const candidates = response.results as unknown as Record<string, unknown>;
-        const candidatesList = candidates.results || candidates;
+      do {
+        const response = await ashbyClient.listCandidates({
+          limit: Math.min(100, maxAutoSyncCandidates - totalFetched), // Respect Ashby's 100 limit
+          cursor,
+          includeArchived: false
+        });
+
+        if (!response.success) {
+          console.error('Auto-sync Ashby API error:', response.error);
+          // Track if this was a rate limit error
+          if (response.error?.code === 'RATE_LIMIT_EXCEEDED') {
+            rateLimitDetected = true;
+          }
+          break; // Don't fail the whole request, just skip auto-sync
+        }
+
+        const results = response.results as unknown as Record<string, unknown>;
+        const candidatesList = results.results;
+        const moreDataAvailable = results.moreDataAvailable;
+        const nextCursor = results.nextCursor;
 
         if (Array.isArray(candidatesList)) {
-          // Upsert candidates
-          const transformedCandidates = candidatesList.map(c =>
-            transformAshbyCandidate(c, user.id)
-          );
+          allCandidates.push(...candidatesList);
+          totalFetched += candidatesList.length;
+        }
 
-          const { error: upsertError } = await supabase
-            .from('ashby_candidates')
-            .upsert(transformedCandidates, {
-              onConflict: 'user_id,ashby_id',
-              ignoreDuplicates: false
-            });
+        cursor = moreDataAvailable && nextCursor && totalFetched < maxAutoSyncCandidates ? nextCursor as string : undefined;
 
+        // Add inter-request delay to prevent rate limits
+        if (cursor) {
+          const delay = rateLimitDetected ? 2000 : 500; // 2s if rate limited, 500ms normal
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
 
-          if (!upsertError) {
-            autoSynced = true;
-            syncResults = {
-              new_candidates: candidatesList.length,
-              message: `Auto-synced ${candidatesList.length} candidates`
-            };
+      } while (cursor);
+
+      if (allCandidates.length > 0) {
+        // Upsert candidates
+        const transformedCandidates = allCandidates.map(c =>
+          transformAshbyCandidate(c, user.id)
+        );
+
+        const { error: upsertError } = await supabase
+          .from('ashby_candidates')
+          .upsert(transformedCandidates, {
+            onConflict: 'user_id,ashby_id',
+            ignoreDuplicates: false
+          });
+
+        if (!upsertError) {
+          autoSynced = true;
+          syncResults = {
+            new_candidates: allCandidates.length,
+            message: `Auto-synced ${allCandidates.length} candidates`
+          };
+
+          // Process high-priority CVs sequentially after successful sync
+          const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
+          
+          if (highPriorityCandidates.length > 0) {
+            console.log(`🚀 Processing ${highPriorityCandidates.length} high-priority CVs sequentially after auto-sync`);
+            
+            for (const candidate of highPriorityCandidates) {
+              try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    candidateId: candidate.ashby_id,
+                    fileHandle: candidate.resume_file_handle,
+                    userId: user.id,
+                    mode: 'shared_file'
+                  })
+                });
+                
+                if (response.ok) {
+                  console.log(`✅ CV processed for ${candidate.name}`);
+                } else {
+                  console.log(`⚠️  CV processing failed for ${candidate.name}: ${response.status}`);
+                }
+              } catch (error) {
+                console.log(`❌ CV processing error for ${candidate.name}:`, error);
+              }
+              
+              // Small delay between requests (AshbyClient handles rate limiting)
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
           }
         }
       }
@@ -283,7 +359,8 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           application_ids,
           source_title,
           credited_to_name,
-          profile_url
+          profile_url,
+          cv_priority
         )
       `)
       .eq('user_id', user.id)
@@ -366,7 +443,9 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         gh_data: applicant.gh_data,
         // Include score and notes from applicants table
         score: applicant.score,
-        notes: applicant.notes
+        notes: applicant.notes,
+        // Include CV priority from ashby_candidates
+        cv_priority: ashbyData?.cv_priority || 'deferred'
       };
 
       return frontendCandidate;
@@ -482,6 +561,7 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
     const allCandidates: Array<Record<string, unknown>> = [];
     let cursor: string | undefined;
     let totalFetched = 0;
+    let rateLimitDetected = false;
     const maxCandidates = limit; // Use configurable limit
 
     do {
@@ -493,6 +573,10 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
 
       if (!response.success) {
         console.error('Ashby API error:', response.error);
+        // Track if this was a rate limit error
+        if (response.error?.code === 'RATE_LIMIT_EXCEEDED') {
+          rateLimitDetected = true;
+        }
         return NextResponse.json(
           {
             error: response.error?.message || 'Failed to fetch from Ashby',
@@ -503,18 +587,31 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       }
 
       const results = response.results as unknown as Record<string, unknown>;
-      const candidatesList = results.results || results.candidates || results;
+      const candidatesList = results.results;
       const moreDataAvailable = results.moreDataAvailable;
-      const nextCursor = results.nextCursor || results.cursor;
+      const nextCursor = results.nextCursor;
+
+      console.log(`📄 Ashby API page: fetched ${Array.isArray(candidatesList) ? candidatesList.length : 0} candidates, moreDataAvailable: ${moreDataAvailable}, nextCursor: ${nextCursor ? 'present' : 'none'}`);
 
       if (Array.isArray(candidatesList)) {
         allCandidates.push(...candidatesList);
         totalFetched += candidatesList.length;
+      } else {
+        console.warn('⚠️  Ashby API returned unexpected candidatesList format:', candidatesList);
       }
 
       cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor as string : undefined;
 
+      // Add inter-request delay to prevent rate limits
+      if (cursor) {
+        const delay = rateLimitDetected ? 2000 : 500; // 2s if rate limited, 500ms normal
+        console.log(`⏱️  Pacing Ashby API requests: waiting ${delay}ms before next page`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
     } while (cursor);
+
+    console.log(`✅ Manual refresh completed: ${allCandidates.length} candidates fetched from Ashby`);
 
     // Transform and upsert all candidates
     if (allCandidates.length > 0) {
@@ -535,6 +632,39 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
           { error: 'Failed to save candidates', success: false },
           { status: 500 }
         );
+      }
+
+      // Process high-priority CVs sequentially after successful manual sync
+      const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
+      
+      if (highPriorityCandidates.length > 0) {
+        console.log(`🚀 Processing ${highPriorityCandidates.length} high-priority CVs sequentially after manual sync`);
+        
+        for (const candidate of highPriorityCandidates) {
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                candidateId: candidate.ashby_id,
+                fileHandle: candidate.resume_file_handle,
+                userId: user.id,
+                mode: 'shared_file'
+              })
+            });
+            
+            if (response.ok) {
+              console.log(`✅ CV processed for ${candidate.name}`);
+            } else {
+              console.log(`⚠️  CV processing failed for ${candidate.name}: ${response.status}`);
+            }
+          } catch (error) {
+            console.log(`❌ CV processing error for ${candidate.name}:`, error);
+          }
+          
+          // Small delay between requests (AshbyClient handles rate limiting)
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
     }
 

@@ -670,14 +670,15 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
 
                   {/* CV */}
                   <td className="p-3">
-                    <div className="flex gap-1">
+                    <div className="flex items-center gap-1">
                       {candidate.has_resume && candidate.cv_file_id ? (
+                        // CV already processed - show view button
                         <button
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent row click
                             handleCvView(candidate.id, candidate.cv_file_id);
                           }}
-                          className="hover:bg-green-100 p-1 rounded disabled:opacity-50"
+                          className="flex items-center justify-center hover:bg-green-100 p-1 rounded disabled:opacity-50"
                           title="View CV"
                           disabled={viewingCandidates.has(candidate.id)}
                         >
@@ -687,8 +688,24 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                             <Eye className="h-5 w-5 text-green-600" />
                           )}
                         </button>
+                      ) : candidate.resume_file_handle && candidate.cv_priority === 'deferred' ? (
+                        // CV available but deferred - show download button
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent row click
+                            // TODO: Implement on-demand CV processing
+                            showNotification('success', `On-demand CV processing for ${candidate.name} - Coming soon!`);
+                          }}
+                          className="flex items-center justify-center hover:bg-blue-100 p-1 rounded"
+                          title="Download and process CV on-demand"
+                        >
+                          <FileText className="h-5 w-5 text-blue-600" />
+                        </button>
                       ) : (
-                        <FileText className="h-5 w-5 text-gray-300" />
+                        // No CV available
+                        <div className="flex items-center justify-center p-1">
+                          <FileText className="h-5 w-5 text-gray-300" />
+                        </div>
                       )}
                     </div>
                   </td>
@@ -702,18 +719,20 @@ export function ATSCandidatesTable({ candidates, onCandidateUpdate }: ATSCandida
                             e.stopPropagation(); // Prevent row click
                             if (candidate.linkedin_url) window.open(candidate.linkedin_url, '_blank');
                           }}
-                          className="hover:bg-blue-100 p-1 rounded"
+                          className="flex items-center justify-center hover:bg-blue-100 p-1 rounded"
                           title="Open LinkedIn Profile"
                         >
                           <ExternalLink className="h-5 w-5 text-blue-600" />
                         </button>
                       ) : (
-                        <ExternalLink className="h-5 w-5 text-gray-300" />
+                        <div className="flex items-center justify-center p-1">
+                          <ExternalLink className="h-5 w-5 text-gray-300" />
+                        </div>
                       )}
                       {/* Show dummy data warning if LinkedIn data is dummy */}
                       {candidate.li_data?.isDummyData && (
-                        <div title="⚠️ Using simulated LinkedIn data for testing">
-                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <div className="flex items-center justify-center p-1" title="⚠️ Using simulated LinkedIn data for testing">
+                          <AlertTriangle className="h-5 w-5 text-amber-500" />
                         </div>
                       )}
                     </div>

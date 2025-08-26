@@ -79,6 +79,7 @@ export interface ATSCandidate {
   ready_for_processing?: boolean;
   analysis?: AnalysisResult;
   processed?: boolean;
+  cv_priority?: 'immediate' | 'deferred';
 }
 
 export interface ATSPageData {
