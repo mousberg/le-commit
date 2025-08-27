@@ -187,7 +187,11 @@ export class AshbyClient {
     
     // Normalize the response to always have a url property
     if (response.success && response.results) {
-      const url = response.results.downloadUrl || response.results.url;
+      // Check both the direct structure and nested results structure
+      const url = response.results.downloadUrl || 
+                  response.results.url || 
+                  (response.results as any).results?.url;
+      
       if (url) {
         return {
           success: true,
