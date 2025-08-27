@@ -62,8 +62,8 @@ jobs:
           docker rm lecommit-app || true
 
           echo "📝 Creating production environment file..."
-          mkdir -p /opt/lecommit/frontend
-          cat > /opt/lecommit/frontend/.env.prod << 'EOF'
+          mkdir -p /opt/lecommit
+          cat > /opt/lecommit/.env.prod << EOF
 NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -85,7 +85,7 @@ EOF
             --name lecommit-app \
             --restart unless-stopped \
             -p 80:3000 \
-            --env-file /opt/lecommit/frontend/.env.prod \
+            --env-file /opt/lecommit/.env.prod \
             lhr.vultrcr.com/lecommit1/lecommit:latest
 
           echo "🧹 Cleaning up old images..."
