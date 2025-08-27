@@ -251,13 +251,10 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         const moreDataAvailable = results.moreDataAvailable;
         const nextCursor = results.nextCursor || results.cursor;
         
-        // DEBUG: Log pagination details to verify fix
-        console.log(`[Ashby Auto-Sync Debug] Batch details:`, {
-          candidatesCount: Array.isArray(candidatesList) ? candidatesList.length : 'not array',
-          moreDataAvailable,
-          hasNextCursor: !!nextCursor,
-          willContinue: !!(moreDataAvailable && nextCursor && totalFetched < autoSyncLimit)
-        });
+        // Log pagination progress for monitoring
+        if (Array.isArray(candidatesList) && candidatesList.length > 0) {
+          console.log(`[Ashby Auto-Sync] Batch ${Math.ceil(totalFetched/100)}: ${candidatesList.length} candidates (${totalFetched}/${autoSyncLimit} total)`);
+        }
 
         if (Array.isArray(candidatesList)) {
           allCandidates.push(...candidatesList);
@@ -291,6 +288,9 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
             message: `Auto-synced ${allCandidates.length} candidates in ${Date.now() - startTime}ms`
           };
           console.log(`[Ashby Auto-Sync] Completed: ${allCandidates.length} candidates in ${Date.now() - startTime}ms`);
+          
+          // Note: File processing is handled by database triggers
+          // For large operations, files are processed in background to avoid overload
         } else {
           console.error('[Ashby Auto-Sync] Database upsert error:', upsertError);
         }
@@ -549,13 +549,10 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       const moreDataAvailable = results.moreDataAvailable;
       const nextCursor = results.nextCursor || results.cursor;
       
-      // DEBUG: Log pagination details to verify fix
-      console.log(`[Ashby Manual Refresh Debug] Batch details:`, {
-        candidatesCount: Array.isArray(candidatesList) ? candidatesList.length : 'not array',
-        moreDataAvailable,
-        hasNextCursor: !!nextCursor,
-        willContinue: !!(moreDataAvailable && nextCursor && totalFetched < maxCandidates)
-      });
+      // Log pagination progress for monitoring
+      if (Array.isArray(candidatesList) && candidatesList.length > 0) {
+        console.log(`[Ashby Manual Refresh] Batch ${Math.ceil(totalFetched/100)}: ${candidatesList.length} candidates (${totalFetched}/${maxCandidates} total)`);
+      }
 
       if (Array.isArray(candidatesList)) {
         allCandidates.push(...candidatesList);
@@ -575,6 +572,20 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
         transformAshbyCandidate(candidate, user.id)
       );
 
+      // For large bulk operations, use bulk sync session to defer file processing
+      const isLargeBulkOperation = allCandidates.length >= 100;
+      let sessionId = null;
+      
+      if (isLargeBulkOperation) {
+        console.log(`[Ashby Manual Refresh] Large bulk operation detected (${allCandidates.length} candidates) - starting bulk sync session`);
+        
+        // Start bulk sync session to defer file processing
+        const { data: sessionData } = await supabase.rpc('start_bulk_sync_session', {
+          target_user_id: user.id
+        });
+        sessionId = sessionData;
+      }
+
       const { error: upsertError } = await supabase
         .from('ashby_candidates')
         .upsert(transformedCandidates, {
@@ -589,12 +600,36 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
           { status: 500 }
         );
       }
+      
+      if (isLargeBulkOperation && sessionId) {
+        // End bulk sync session
+        await supabase.rpc('end_bulk_sync_session', {
+          target_user_id: user.id
+        });
+        
+        console.log(`[Ashby Manual Refresh] Successfully synced ${allCandidates.length} candidates. File processing deferred - will process in background.`);
+        
+        // Optionally trigger background file processing (non-blocking)
+        setTimeout(async () => {
+          try {
+            const { data: processedCount } = await supabase.rpc('process_deferred_files', {
+              target_user_id: user.id
+            });
+            console.log(`[Ashby Background] Processed ${processedCount} deferred files`);
+          } catch (error) {
+            console.error('[Ashby Background] Error processing deferred files:', error);
+          }
+        }, 5000); // Wait 5 seconds before starting background processing
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully synced ${allCandidates.length} candidates from Ashby`,
+      message: `Successfully synced ${allCandidates.length} candidates in ${Math.round((Date.now() - refreshStartTime) / 1000)}s`,
       candidates_synced: allCandidates.length,
+      sync_duration_ms: Date.now() - refreshStartTime,
+      batches_processed: Math.ceil(allCandidates.length / 100),
+      is_large_operation: allCandidates.length >= 100,
       timestamp: new Date().toISOString()
     });
 

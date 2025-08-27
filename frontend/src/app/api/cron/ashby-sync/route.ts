@@ -90,13 +90,10 @@ export async function GET(request: NextRequest) {
           const moreDataAvailable = results.moreDataAvailable;
           const nextCursor = results.nextCursor || results.cursor;
           
-          // DEBUG: Log pagination details
-          console.log(`[Ashby Cron Sync Debug] User ${userData.id} batch:`, {
-            candidatesCount: Array.isArray(batch) ? batch.length : 'not array',
-            moreDataAvailable,
-            hasNextCursor: !!nextCursor,
-            willContinue: !!(moreDataAvailable && nextCursor && totalFetched < cronSyncLimit)
-          });
+          // Log pagination progress
+          if (Array.isArray(batch) && batch.length > 0) {
+            console.log(`[Ashby Cron Sync] User ${userData.id} batch ${Math.ceil(totalFetched/100)}: ${batch.length} candidates (${totalFetched}/${cronSyncLimit} total)`);
+          }
 
           if (Array.isArray(batch)) {
             allCandidates.push(...batch);
