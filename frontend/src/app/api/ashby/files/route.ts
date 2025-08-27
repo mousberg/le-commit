@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     let retries = 3;
     
     while (retries > 0 && !candidate) {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('ashby_candidates')
         .select('*, user_id, unmask_applicant_id')
         .eq('ashby_id', candidateId)
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     const ashbyClient = new AshbyClient({ apiKey });
     const fileResponse = await ashbyClient.getResumeUrl(actualFileHandle);
 
-    const downloadUrl = fileResponse.results?.results?.url || fileResponse.results?.url;
+    const downloadUrl = fileResponse.results?.url;
     
     if (!fileResponse.success || !downloadUrl) {
       console.error(`❌ [AshbyFiles] ${candidateName}: Failed to get resume URL - ${fileResponse.error?.message || 'No URL returned'}`);

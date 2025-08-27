@@ -303,40 +303,66 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
           
           if (highPriorityCandidates.length > 0) {
-            console.log(`🚀 [AshbySync] Processing ${highPriorityCandidates.length} high-priority CVs sequentially after auto-sync`);
+            console.log(`🚀 [AshbySync] Processing ${highPriorityCandidates.length} high-priority CVs (max 3 concurrent)`);
             
             let successCount = 0;
             let errorCount = 0;
             const startTime = Date.now();
             
-            for (const candidate of highPriorityCandidates) {
-              try {
-                
-                const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    candidateId: candidate.ashby_id,
-                    fileHandle: candidate.resume_file_handle,
-                    userId: user.id,
-                    mode: 'shared_file'
-                  })
-                });
-                
-                if (response.ok) {
+            // Process in batches of 3 to prevent overwhelming the system
+            const batchSize = 3;
+            for (let i = 0; i < highPriorityCandidates.length; i += batchSize) {
+              const batch = highPriorityCandidates.slice(i, i + batchSize);
+              
+              // Process current batch concurrently
+              const batchPromises = batch.map(async (candidate) => {
+                try {
+                  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      candidateId: candidate.ashby_id,
+                      fileHandle: candidate.resume_file_handle,
+                      userId: user.id,
+                      mode: 'shared_file'
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    return { success: true, candidate };
+                  } else {
+                    const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    console.error(`❌ [AshbySync] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
+                    return { success: false, candidate, error: errorResult.error };
+                  }
+                } catch (error) {
+                  console.error(`❌ [AshbySync] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
+                  return { success: false, candidate, error: error instanceof Error ? error.message : error };
+                }
+              });
+              
+              // Wait for current batch to complete
+              const results = await Promise.all(batchPromises);
+              
+              // Count results
+              results.forEach(result => {
+                if (result.success) {
                   successCount++;
                 } else {
-                  const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
-                  console.error(`❌ [AshbySync] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
                   errorCount++;
                 }
-              } catch (error) {
-                console.error(`❌ [AshbySync] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
-                errorCount++;
+              });
+              
+              // Progress update every 10 batches (30 files)
+              if ((i / batchSize + 1) % 10 === 0 || i + batchSize >= highPriorityCandidates.length) {
+                const processed = Math.min(i + batchSize, highPriorityCandidates.length);
+                console.log(`📊 [AshbySync] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
               }
               
-              // Small delay between requests (AshbyClient handles rate limiting)
-              await new Promise(resolve => setTimeout(resolve, 100));
+              // Small delay between batches to be respectful to APIs
+              if (i + batchSize < highPriorityCandidates.length) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
             }
             
             const totalDuration = Date.now() - startTime;
@@ -645,59 +671,70 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
         );
       }
 
-      // Process high-priority CVs sequentially after successful manual sync
+      // Process high-priority CVs in batches after successful manual sync
       const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
       
       if (highPriorityCandidates.length > 0) {
-        console.log(`🚀 [AshbyManualSync] Processing ${highPriorityCandidates.length} high-priority CVs sequentially after manual sync`);
+        console.log(`🚀 [AshbyManualSync] Processing ${highPriorityCandidates.length} high-priority CVs (max 3 concurrent)`);
         
         let successCount = 0;
         let errorCount = 0;
         const startTime = Date.now();
         
-        for (const candidate of highPriorityCandidates) {
-          try {
-            console.log(`📤 [AshbyManualSync] Processing CV for ${candidate.name} (${candidate.ashby_id})`);
-            
-            const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                candidateId: candidate.ashby_id,
-                fileHandle: candidate.resume_file_handle,
-                userId: user.id,
-                mode: 'shared_file'
-              })
-            });
-            
-            if (response.ok) {
-              const result = await response.json();
-              console.log(`✅ [AshbyManualSync] CV processed for ${candidate.name}:`, {
-                fileName: result.fileName,
-                fileSize: result.fileSize,
-                duration: result.duration
+        // Process in batches of 3 to prevent overwhelming the system
+        const batchSize = 3;
+        for (let i = 0; i < highPriorityCandidates.length; i += batchSize) {
+          const batch = highPriorityCandidates.slice(i, i + batchSize);
+          
+          // Process current batch concurrently
+          const batchPromises = batch.map(async (candidate) => {
+            try {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  candidateId: candidate.ashby_id,
+                  fileHandle: candidate.resume_file_handle,
+                  userId: user.id,
+                  mode: 'shared_file'
+                })
               });
+              
+              if (response.ok) {
+                return { success: true, candidate };
+              } else {
+                const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error(`❌ [AshbyManualSync] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
+                return { success: false, candidate, error: errorResult.error };
+              }
+            } catch (error) {
+              console.error(`❌ [AshbyManualSync] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
+              return { success: false, candidate, error: error instanceof Error ? error.message : error };
+            }
+          });
+          
+          // Wait for current batch to complete
+          const results = await Promise.all(batchPromises);
+          
+          // Count results
+          results.forEach(result => {
+            if (result.success) {
               successCount++;
             } else {
-              const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
-              console.error(`⚠️ [AshbyManualSync] CV processing failed for ${candidate.name}:`, {
-                status: response.status,
-                error: errorResult.error,
-                step: errorResult.step,
-                candidateId: candidate.ashby_id
-              });
               errorCount++;
             }
-          } catch (error) {
-            console.error(`❌ [AshbyManualSync] CV processing error for ${candidate.name}:`, {
-              candidateId: candidate.ashby_id,
-              error: error instanceof Error ? error.message : error
-            });
-            errorCount++;
+          });
+          
+          // Progress update every 10 batches (30 files)
+          if ((i / batchSize + 1) % 10 === 0 || i + batchSize >= highPriorityCandidates.length) {
+            const processed = Math.min(i + batchSize, highPriorityCandidates.length);
+            console.log(`📊 [AshbyManualSync] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
           }
           
-          // Small delay between requests (AshbyClient handles rate limiting)
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Small delay between batches to be respectful to APIs
+          if (i + batchSize < highPriorityCandidates.length) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
         
         const totalDuration = Date.now() - startTime;
