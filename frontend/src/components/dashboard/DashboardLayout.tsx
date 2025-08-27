@@ -59,19 +59,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
   const { displayName, displayInitial } = useSharedUserProfile();
   
-  const { hasAccess: hasATSAccess } = useAshbyAccess();
+  const { hasAccess: hasATSAccess, loading: ashbyLoading } = useAshbyAccess();
   
   // Create navigation with conditional ATS item
   const navigation = useMemo(() => {
     const nav = [...baseNavigation];
     
-    // Add ATS item if user has Ashby configuration
-    if (hasATSAccess) {
+    // Add ATS item if user has Ashby configuration (only when not loading)
+    if (hasATSAccess && !ashbyLoading) {
       nav.splice(2, 0, { name: 'ATS', href: '/board/ats', icon: Building2 });
     }
     
     return nav;
-  }, [hasATSAccess]);
+  }, [hasATSAccess, ashbyLoading]);
 
   const handleSearchClick = (e: React.MouseEvent) => {
     e.preventDefault();
