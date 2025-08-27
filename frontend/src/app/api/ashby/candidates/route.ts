@@ -223,38 +223,67 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
     const shouldAutoSync = !lastSync || (Date.now() - lastSync) > hourInMs;
 
     if (shouldAutoSync && apiKey) {
-      // Perform auto-sync
+      // Perform auto-sync with pagination
       const ashbyClient = new AshbyClient({ apiKey });
-      const response = await ashbyClient.listCandidates({
-        limit: 10, // TODO: increase later
-        includeArchived: false
-      });
+      const autoSyncLimit = 500; // Reasonable default for auto-sync
+      const allCandidates: Array<Record<string, unknown>> = [];
+      let cursor: string | undefined;
+      let totalFetched = 0;
+      const startTime = Date.now();
 
-      if (response.success && response.results) {
-        const candidates = response.results as unknown as Record<string, unknown>;
-        const candidatesList = candidates.results || candidates;
+      console.log('[Ashby Auto-Sync] Starting auto-sync, fetching up to', autoSyncLimit, 'candidates');
+
+      do {
+        const response = await ashbyClient.listCandidates({
+          limit: Math.min(100, autoSyncLimit - totalFetched),
+          cursor,
+          includeArchived: false
+        });
+
+        if (!response.success) {
+          console.error('[Ashby Auto-Sync] Failed to fetch batch:', response.error);
+          break;
+        }
+
+        const results = response.results as unknown as Record<string, unknown>;
+        const candidatesList = results.results || results.candidates || results;
+        const moreDataAvailable = results.moreDataAvailable;
+        const nextCursor = results.nextCursor || results.cursor;
 
         if (Array.isArray(candidatesList)) {
-          // Upsert candidates
-          const transformedCandidates = candidatesList.map(c =>
-            transformAshbyCandidate(c, user.id)
-          );
+          allCandidates.push(...candidatesList);
+          totalFetched += candidatesList.length;
+          console.log(`[Ashby Auto-Sync] Fetched batch: ${totalFetched}/${autoSyncLimit} candidates`);
+        }
 
-          const { error: upsertError } = await supabase
-            .from('ashby_candidates')
-            .upsert(transformedCandidates, {
-              onConflict: 'user_id,ashby_id',
-              ignoreDuplicates: false
-            });
+        cursor = moreDataAvailable && nextCursor && totalFetched < autoSyncLimit 
+          ? nextCursor as string 
+          : undefined;
 
+      } while (cursor);
 
-          if (!upsertError) {
-            autoSynced = true;
-            syncResults = {
-              new_candidates: candidatesList.length,
-              message: `Auto-synced ${candidatesList.length} candidates`
-            };
-          }
+      // Upsert all candidates
+      if (allCandidates.length > 0) {
+        const transformedCandidates = allCandidates.map(c =>
+          transformAshbyCandidate(c, user.id)
+        );
+
+        const { error: upsertError } = await supabase
+          .from('ashby_candidates')
+          .upsert(transformedCandidates, {
+            onConflict: 'user_id,ashby_id',
+            ignoreDuplicates: false
+          });
+
+        if (!upsertError) {
+          autoSynced = true;
+          syncResults = {
+            new_candidates: allCandidates.length,
+            message: `Auto-synced ${allCandidates.length} candidates in ${Date.now() - startTime}ms`
+          };
+          console.log(`[Ashby Auto-Sync] Completed: ${allCandidates.length} candidates in ${Date.now() - startTime}ms`);
+        } else {
+          console.error('[Ashby Auto-Sync] Database upsert error:', upsertError);
         }
       }
     }
@@ -483,6 +512,9 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
     let cursor: string | undefined;
     let totalFetched = 0;
     const maxCandidates = limit; // Use configurable limit
+    const refreshStartTime = Date.now();
+
+    console.log(`[Ashby Manual Refresh] Starting refresh for user ${user.id}, fetching up to ${maxCandidates} candidates`);
 
     do {
       const response = await ashbyClient.listCandidates({
@@ -492,7 +524,7 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       });
 
       if (!response.success) {
-        console.error('Ashby API error:', response.error);
+        console.error('[Ashby Manual Refresh] API error:', response.error);
         return NextResponse.json(
           {
             error: response.error?.message || 'Failed to fetch from Ashby',
@@ -510,11 +542,14 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       if (Array.isArray(candidatesList)) {
         allCandidates.push(...candidatesList);
         totalFetched += candidatesList.length;
+        console.log(`[Ashby Manual Refresh] Fetched batch: ${totalFetched}/${maxCandidates} candidates`);
       }
 
       cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor as string : undefined;
 
     } while (cursor);
+
+    console.log(`[Ashby Manual Refresh] Completed fetching: ${totalFetched} candidates in ${Date.now() - refreshStartTime}ms`);
 
     // Transform and upsert all candidates
     if (allCandidates.length > 0) {

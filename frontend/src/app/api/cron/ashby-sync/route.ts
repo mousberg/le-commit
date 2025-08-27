@@ -63,22 +63,56 @@ export async function GET(request: NextRequest) {
           apiKey: apiKey
         });
 
-        // Fetch candidates from Ashby (incremental sync)
-        const candidatesResponse = await ashbyClient.listCandidates({
-          limit: 100
-        });
+        // Fetch candidates from Ashby with pagination
+        const cronSyncLimit = 500; // Reasonable limit for cron jobs
+        const allCandidates: Array<any> = [];
+        let cursor: string | undefined;
+        let totalFetched = 0;
+        const syncStartTime = Date.now();
 
-        if (!candidatesResponse.success) {
+        console.log(`[Ashby Cron Sync] Starting sync for user ${userData.id}, fetching up to ${cronSyncLimit} candidates`);
+
+        do {
+          const candidatesResponse = await ashbyClient.listCandidates({
+            limit: Math.min(100, cronSyncLimit - totalFetched),
+            cursor,
+            includeArchived: false
+          });
+
+          if (!candidatesResponse.success) {
+            console.error(`[Ashby Cron Sync] Failed to fetch batch for user ${userData.id}:`, candidatesResponse.error);
+            break;
+          }
+
+          const results = candidatesResponse.results as any;
+          const batch = results.results || results.candidates || [];
+          const moreDataAvailable = results.moreDataAvailable;
+          const nextCursor = results.nextCursor || results.cursor;
+
+          if (Array.isArray(batch)) {
+            allCandidates.push(...batch);
+            totalFetched += batch.length;
+            console.log(`[Ashby Cron Sync] User ${userData.id}: Fetched batch ${totalFetched}/${cronSyncLimit} candidates`);
+          }
+
+          cursor = moreDataAvailable && nextCursor && totalFetched < cronSyncLimit 
+            ? nextCursor as string 
+            : undefined;
+
+        } while (cursor);
+
+        if (totalFetched === 0 && allCandidates.length === 0) {
           syncResults.push({
             user_id: userData.id,
             success: false,
-            error: candidatesResponse.error?.message || 'Failed to fetch from Ashby'
+            error: 'No candidates fetched from Ashby'
           });
           continue;
         }
 
-        const candidates = candidatesResponse.results?.candidates || [];
+        const candidates = allCandidates;
         let syncedCount = 0;
+        console.log(`[Ashby Cron Sync] User ${userData.id}: Processing ${candidates.length} candidates`);
 
         // Process candidates
         for (const candidate of candidates) {
