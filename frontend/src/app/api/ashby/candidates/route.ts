@@ -303,10 +303,16 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
           
           if (highPriorityCandidates.length > 0) {
-            console.log(`🚀 Processing ${highPriorityCandidates.length} high-priority CVs sequentially after auto-sync`);
+            console.log(`🚀 [AshbySync] Processing ${highPriorityCandidates.length} high-priority CVs sequentially after auto-sync`);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const startTime = Date.now();
             
             for (const candidate of highPriorityCandidates) {
               try {
+                console.log(`📤 [AshbySync] Processing CV for ${candidate.name} (${candidate.ashby_id})`);
+                
                 const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -319,17 +325,43 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
                 });
                 
                 if (response.ok) {
-                  console.log(`✅ CV processed for ${candidate.name}`);
+                  const result = await response.json();
+                  console.log(`✅ [AshbySync] CV processed for ${candidate.name}:`, {
+                    fileName: result.fileName,
+                    fileSize: result.fileSize,
+                    duration: result.duration
+                  });
+                  successCount++;
                 } else {
-                  console.log(`⚠️  CV processing failed for ${candidate.name}: ${response.status}`);
+                  const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
+                  console.error(`⚠️ [AshbySync] CV processing failed for ${candidate.name}:`, {
+                    status: response.status,
+                    error: errorResult.error,
+                    step: errorResult.step,
+                    candidateId: candidate.ashby_id
+                  });
+                  errorCount++;
                 }
               } catch (error) {
-                console.log(`❌ CV processing error for ${candidate.name}:`, error);
+                console.error(`❌ [AshbySync] CV processing error for ${candidate.name}:`, {
+                  candidateId: candidate.ashby_id,
+                  error: error instanceof Error ? error.message : error
+                });
+                errorCount++;
               }
               
               // Small delay between requests (AshbyClient handles rate limiting)
               await new Promise(resolve => setTimeout(resolve, 100));
             }
+            
+            const totalDuration = Date.now() - startTime;
+            console.log(`🎯 [AshbySync] Batch CV processing completed:`, {
+              total: highPriorityCandidates.length,
+              successful: successCount,
+              failed: errorCount,
+              duration: `${totalDuration}ms`,
+              avgPerFile: `${Math.round(totalDuration / highPriorityCandidates.length)}ms`
+            });
           }
         }
       }
@@ -638,10 +670,16 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
       
       if (highPriorityCandidates.length > 0) {
-        console.log(`🚀 Processing ${highPriorityCandidates.length} high-priority CVs sequentially after manual sync`);
+        console.log(`🚀 [AshbyManualSync] Processing ${highPriorityCandidates.length} high-priority CVs sequentially after manual sync`);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        const startTime = Date.now();
         
         for (const candidate of highPriorityCandidates) {
           try {
+            console.log(`📤 [AshbyManualSync] Processing CV for ${candidate.name} (${candidate.ashby_id})`);
+            
             const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -654,17 +692,43 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
             });
             
             if (response.ok) {
-              console.log(`✅ CV processed for ${candidate.name}`);
+              const result = await response.json();
+              console.log(`✅ [AshbyManualSync] CV processed for ${candidate.name}:`, {
+                fileName: result.fileName,
+                fileSize: result.fileSize,
+                duration: result.duration
+              });
+              successCount++;
             } else {
-              console.log(`⚠️  CV processing failed for ${candidate.name}: ${response.status}`);
+              const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
+              console.error(`⚠️ [AshbyManualSync] CV processing failed for ${candidate.name}:`, {
+                status: response.status,
+                error: errorResult.error,
+                step: errorResult.step,
+                candidateId: candidate.ashby_id
+              });
+              errorCount++;
             }
           } catch (error) {
-            console.log(`❌ CV processing error for ${candidate.name}:`, error);
+            console.error(`❌ [AshbyManualSync] CV processing error for ${candidate.name}:`, {
+              candidateId: candidate.ashby_id,
+              error: error instanceof Error ? error.message : error
+            });
+            errorCount++;
           }
           
           // Small delay between requests (AshbyClient handles rate limiting)
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        
+        const totalDuration = Date.now() - startTime;
+        console.log(`🎯 [AshbyManualSync] Batch CV processing completed:`, {
+          total: highPriorityCandidates.length,
+          successful: successCount,
+          failed: errorCount,
+          duration: `${totalDuration}ms`,
+          avgPerFile: `${Math.round(totalDuration / highPriorityCandidates.length)}ms`
+        });
       }
     }
 

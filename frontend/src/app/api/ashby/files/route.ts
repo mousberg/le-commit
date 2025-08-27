@@ -6,7 +6,17 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { getAshbyApiKey } from '@/lib/ashby/server';
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  let logContext = {
+    candidateId: 'unknown',
+    userId: 'unknown',
+    fileHandle: 'unknown',
+    step: 'initialization'
+  };
+  
   try {
+    console.log('🚀 [AshbyFiles] Starting CV download request');
+    
     // Create server-side client with service role key
     const supabase = createServiceRoleClient();
     
@@ -15,9 +25,27 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     const { candidateId, fileHandle, applicantId, userId, mode } = body;
+    
+    // Update log context
+    logContext = {
+      candidateId: candidateId || 'missing',
+      userId: userId || 'missing', 
+      fileHandle: typeof fileHandle === 'string' ? fileHandle.substring(0, 20) + '...' : typeof fileHandle,
+      step: 'request_validation'
+    };
+    
+    console.log('📝 [AshbyFiles] Request details:', {
+      candidateId,
+      userId,
+      applicantId,
+      mode,
+      fileHandleType: typeof fileHandle,
+      requestSize: JSON.stringify(body).length
+    });
 
 
     if (!candidateId || !fileHandle) {
+      console.error('❌ [AshbyFiles] Missing required fields:', { candidateId: !!candidateId, fileHandle: !!fileHandle });
       return NextResponse.json(
         { error: 'candidateId and fileHandle are required', success: false },
         { status: 400 }
@@ -25,22 +53,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract the actual file handle ID from the JSON object
+    logContext.step = 'file_handle_extraction';
     let actualFileHandle: string;
+    
+    console.log('🔍 [AshbyFiles] Extracting file handle:', { 
+      type: typeof fileHandle, 
+      isNull: fileHandle === null,
+      keys: typeof fileHandle === 'object' ? Object.keys(fileHandle || {}) : 'N/A'
+    });
+    
     if (typeof fileHandle === 'string') {
       actualFileHandle = fileHandle;
+      console.log('✅ [AshbyFiles] File handle extracted as string:', actualFileHandle.substring(0, 20) + '...');
     } else if (typeof fileHandle === 'object' && fileHandle !== null) {
       // Handle JSONB object from database - extract the file handle token
       const fileHandleObj = fileHandle as { id?: string; fileHandle?: string; handle?: string };
       actualFileHandle = fileHandleObj.handle || fileHandleObj.id || fileHandleObj.fileHandle || '';
+      
+      console.log('🔍 [AshbyFiles] File handle object analysis:', {
+        hasHandle: !!fileHandleObj.handle,
+        hasId: !!fileHandleObj.id, 
+        hasFileHandle: !!fileHandleObj.fileHandle,
+        extracted: actualFileHandle ? actualFileHandle.substring(0, 20) + '...' : 'EMPTY'
+      });
+      
       if (!actualFileHandle) {
-        console.error('❌ Could not extract file handle from object:', fileHandle);
+        console.error('❌ [AshbyFiles] Could not extract file handle from object:', fileHandle);
         return NextResponse.json(
           { error: 'Invalid file handle format', success: false },
           { status: 400 }
         );
       }
     } else {
-      console.error('❌ Invalid file handle type:', typeof fileHandle, fileHandle);
+      console.error('❌ [AshbyFiles] Invalid file handle type:', typeof fileHandle, fileHandle);
       return NextResponse.json(
         { error: 'Invalid file handle format', success: false },
         { status: 400 }
@@ -49,9 +94,12 @@ export async function POST(request: NextRequest) {
 
 
     // Get candidate from database (using service role - no RLS restrictions)
+    logContext.step = 'candidate_lookup';
     let candidate = null;
     let candidateError = null;
     let retries = 3;
+    
+    console.log('🔍 [AshbyFiles] Looking up candidate:', { candidateId, retriesLeft: retries });
     
     while (retries > 0 && !candidate) {
       const { data, error } = await supabase
@@ -63,27 +111,62 @@ export async function POST(request: NextRequest) {
       candidate = data;
       candidateError = error;
       
+      console.log(`🔄 [AshbyFiles] Candidate lookup attempt ${4 - retries}:`, {
+        found: !!candidate,
+        error: error?.message || 'none',
+        candidateId: candidate?.ashby_id,
+        hasApplicantId: !!candidate?.unmask_applicant_id,
+        userId: candidate?.user_id
+      });
+      
       if (!candidate && retries > 1) {
+        console.log('⏳ [AshbyFiles] Retrying candidate lookup in 500ms...');
         await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
       }
       retries--;
     }
 
     if (candidateError || !candidate) {
-      console.error('Candidate not found after retries:', candidateError);
+      console.error('❌ [AshbyFiles] Candidate not found after retries:', {
+        candidateId,
+        error: candidateError?.message,
+        retriesAttempted: 3
+      });
       return NextResponse.json(
         { error: 'Candidate not found', success: false },
         { status: 404 }
       );
     }
+    
+    console.log('✅ [AshbyFiles] Candidate found:', {
+      candidateId: candidate.ashby_id,
+      name: candidate.name,
+      hasApplicantId: !!candidate.unmask_applicant_id,
+      userId: candidate.user_id
+    });
 
     const targetUserId = userId || candidate.user_id;
+    logContext.step = 'applicant_validation';
     
     // For shared_file mode, we need an applicant ID
     if (mode !== 'file_only') {
       const targetApplicantId = applicantId || candidate.unmask_applicant_id;
       
+      console.log('🔍 [AshbyFiles] Validating applicant link:', {
+        mode,
+        providedApplicantId: !!applicantId,
+        candidateApplicantId: !!candidate.unmask_applicant_id,
+        finalApplicantId: !!targetApplicantId
+      });
+      
       if (!targetApplicantId) {
+        console.error('❌ [AshbyFiles] Candidate not linked to applicant:', {
+          candidateId: candidate.ashby_id,
+          candidateName: candidate.name,
+          mode,
+          providedApplicantId: applicantId,
+          candidateApplicantId: candidate.unmask_applicant_id
+        });
         return NextResponse.json(
           { error: 'Candidate not linked to applicant', success: false },
           { status: 400 }
@@ -92,21 +175,44 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's API key from database
-    const { data: userData } = await supabase
+    logContext.step = 'api_key_lookup';
+    console.log('🔑 [AshbyFiles] Looking up API key for user:', targetUserId);
+    
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .select('ashby_api_key')
       .eq('id', targetUserId)
       .single();
 
+    if (userError) {
+      console.error('❌ [AshbyFiles] Error fetching user data:', {
+        userId: targetUserId,
+        error: userError.message
+      });
+      return NextResponse.json(
+        { error: 'User not found', success: false },
+        { status: 404 }
+      );
+    }
+
     const apiKey = getAshbyApiKey(userData?.ashby_api_key);
     if (!apiKey) {
+      console.error('❌ [AshbyFiles] Ashby API key not configured:', {
+        userId: targetUserId,
+        hasApiKey: !!userData?.ashby_api_key
+      });
       return NextResponse.json(
         { error: 'Ashby integration not configured for user', success: false },
         { status: 500 }
       );
     }
+    
+    console.log('✅ [AshbyFiles] API key found for user:', targetUserId);
 
     // Import AshbyClient dynamically
+    logContext.step = 'ashby_client_init';
+    console.log('🔧 [AshbyFiles] Initializing Ashby client');
+    
     const AshbyClient = (await import('@/lib/ashby/client')).AshbyClient;
     
     const ashbyClient = new AshbyClient({
@@ -114,9 +220,30 @@ export async function POST(request: NextRequest) {
     });
 
     // Get the download URL from Ashby
+    logContext.step = 'ashby_url_fetch';
+    console.log('🔗 [AshbyFiles] Fetching resume URL from Ashby:', {
+      fileHandle: actualFileHandle.substring(0, 20) + '...'
+    });
+    
     const fileResponse = await ashbyClient.getResumeUrl(actualFileHandle);
 
-    if (!fileResponse.success || !fileResponse.results?.url) {
+    console.log('📡 [AshbyFiles] Ashby API response:', {
+      success: fileResponse.success,
+      hasUrl: !!(fileResponse.results?.results?.url || fileResponse.results?.url),
+      errorCode: fileResponse.error?.code,
+      errorMessage: fileResponse.error?.message,
+      resultStructure: fileResponse.results ? Object.keys(fileResponse.results) : 'no results'
+    });
+
+    // Fix: Check for URL in both possible locations
+    const downloadUrl = fileResponse.results?.results?.url || fileResponse.results?.url;
+    
+    if (!fileResponse.success || !downloadUrl) {
+      console.error('❌ [AshbyFiles] Failed to get resume URL from Ashby:', {
+        fileHandle: actualFileHandle.substring(0, 20) + '...',
+        error: fileResponse.error,
+        results: fileResponse.results
+      });
       return NextResponse.json(
         { 
           error: fileResponse.error?.message || 'Failed to get resume URL', 
@@ -125,11 +252,28 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    
+    console.log('✅ [AshbyFiles] Resume URL obtained from Ashby');
 
     // Download the file
-    const downloadResponse = await fetch(fileResponse.results.url);
+    logContext.step = 'file_download';
+    console.log('📥 [AshbyFiles] Downloading file from Ashby URL');
+    
+    const downloadResponse = await fetch(downloadUrl);
+    
+    console.log('📡 [AshbyFiles] Download response:', {
+      status: downloadResponse.status,
+      ok: downloadResponse.ok,
+      contentType: downloadResponse.headers.get('content-type'),
+      contentLength: downloadResponse.headers.get('content-length')
+    });
     
     if (!downloadResponse.ok) {
+      console.error('❌ [AshbyFiles] Failed to download resume from Ashby:', {
+        status: downloadResponse.status,
+        statusText: downloadResponse.statusText,
+        url: downloadUrl.substring(0, 50) + '...'
+      });
       return NextResponse.json(
         { error: 'Failed to download resume from Ashby', success: false },
         { status: 500 }
@@ -138,6 +282,11 @@ export async function POST(request: NextRequest) {
 
     const fileBuffer = await downloadResponse.arrayBuffer();
     const contentType = downloadResponse.headers.get('content-type') || 'application/pdf';
+    
+    console.log('✅ [AshbyFiles] File downloaded successfully:', {
+      size: fileBuffer.byteLength,
+      contentType
+    });
     
     // Determine file extension
     let extension = '.pdf';
@@ -152,6 +301,14 @@ export async function POST(request: NextRequest) {
     const filePath = `${candidate.user_id}/${Date.now()}_${fileName}`;
 
     // Upload to Supabase Storage
+    logContext.step = 'storage_upload';
+    console.log('☁️ [AshbyFiles] Uploading to Supabase Storage:', {
+      bucket: 'candidate-cvs',
+      path: filePath,
+      size: fileBuffer.byteLength,
+      contentType
+    });
+    
     const uploadResult = await supabase.storage
       .from('candidate-cvs')
       .upload(filePath, fileBuffer, {
@@ -161,14 +318,31 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadResult.error) {
-      console.error('Upload error:', uploadResult.error);
+      console.error('❌ [AshbyFiles] Upload error:', {
+        error: uploadResult.error.message,
+        path: filePath,
+        bucket: 'candidate-cvs'
+      });
       return NextResponse.json(
         { error: 'Failed to store resume in storage', success: false },
         { status: 500 }
       );
     }
+    
+    console.log('✅ [AshbyFiles] File uploaded to storage:', {
+      path: uploadResult.data?.path,
+      fullPath: uploadResult.data?.fullPath
+    });
 
     // Create file record in files table
+    logContext.step = 'file_record_creation';
+    console.log('📝 [AshbyFiles] Creating file record in database:', {
+      userId: targetUserId,
+      fileName,
+      filePath,
+      fileSize: fileBuffer.byteLength
+    });
+    
     const { data: fileRecord, error: fileError } = await supabase
       .from('files')
       .insert({
@@ -184,16 +358,33 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (fileError) {
-      console.error('Error creating file record:', fileError);
+      console.error('❌ [AshbyFiles] Error creating file record:', {
+        error: fileError.message,
+        code: fileError.code,
+        details: fileError.details,
+        hint: fileError.hint
+      });
       return NextResponse.json(
         { error: 'Failed to create file record', success: false },
         { status: 500 }
       );
     }
+    
+    console.log('✅ [AshbyFiles] File record created:', {
+      fileId: fileRecord.id,
+      fileName: fileRecord.original_filename
+    });
 
     if (mode === 'shared_file') {
       // Shared file mode: Update both ashby_candidate and applicant with same file reference
+      logContext.step = 'shared_file_updates';
       const targetApplicantId = applicantId || candidate.unmask_applicant_id;
+      
+      console.log('🔄 [AshbyFiles] Updating records in shared_file mode:', {
+        candidateId,
+        applicantId: targetApplicantId,
+        fileId: fileRecord.id
+      });
       
       // Update ashby_candidates with the file reference
       const { error: ashbyUpdateError } = await supabase
@@ -205,11 +396,19 @@ export async function POST(request: NextRequest) {
         .eq('ashby_id', candidateId);
 
       if (ashbyUpdateError) {
-        console.error('Error updating ashby candidate:', ashbyUpdateError);
+        console.error('❌ [AshbyFiles] Error updating ashby candidate:', {
+          candidateId,
+          error: ashbyUpdateError.message,
+          code: ashbyUpdateError.code
+        });
+      } else {
+        console.log('✅ [AshbyFiles] Ashby candidate updated with file reference');
       }
 
       // Update applicant with the same file reference
       if (targetApplicantId) {
+        console.log('🔄 [AshbyFiles] Updating applicant record:', targetApplicantId);
+        
         const { error: updateError } = await supabase
           .from('applicants')
           .update({
@@ -220,17 +419,33 @@ export async function POST(request: NextRequest) {
           .eq('id', targetApplicantId);
 
         if (updateError) {
-          console.error('Error updating applicant:', updateError);
+          console.error('❌ [AshbyFiles] Error updating applicant:', {
+            applicantId: targetApplicantId,
+            error: updateError.message,
+            code: updateError.code,
+            details: updateError.details
+          });
           return NextResponse.json(
             { error: 'Failed to update applicant', success: false },
             { status: 500 }
           );
         }
+        
+        console.log('✅ [AshbyFiles] Applicant updated with file reference and pending status');
+      } else {
+        console.warn('⚠️ [AshbyFiles] No applicant ID found for shared file mode');
       }
 
     } else {
       // Legacy mode: Update existing applicant only
+      logContext.step = 'legacy_applicant_update';
       const targetApplicantId = applicantId || candidate.unmask_applicant_id;
+      
+      console.log('🔄 [AshbyFiles] Updating applicant in legacy mode:', {
+        applicantId: targetApplicantId,
+        fileId: fileRecord.id
+      });
+      
       const { error: updateError } = await supabase
         .from('applicants')
         .update({
@@ -241,29 +456,61 @@ export async function POST(request: NextRequest) {
         .eq('id', targetApplicantId);
 
       if (updateError) {
-        console.error('Error updating applicant:', updateError);
+        console.error('❌ [AshbyFiles] Error updating applicant in legacy mode:', {
+          applicantId: targetApplicantId,
+          error: updateError.message,
+          code: updateError.code,
+          details: updateError.details
+        });
         return NextResponse.json(
           { error: 'Failed to update applicant', success: false },
           { status: 500 }
         );
       }
 
-      console.log(`📝 CV file stored for ATS candidate ${targetApplicantId}`);
-
+      console.log(`✅ [AshbyFiles] CV file stored for ATS candidate ${targetApplicantId}`);
     }
 
+
+    const duration = Date.now() - startTime;
+    logContext.step = 'success';
+    
+    console.log(`🎉 [AshbyFiles] CV processing completed successfully:`, {
+      candidateId: logContext.candidateId,
+      fileName,
+      fileSize: fileBuffer.byteLength,
+      duration: `${duration}ms`,
+      fileId: fileRecord.id
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Resume successfully processed',
       fileName,
-      fileSize: fileBuffer.byteLength
+      fileSize: fileBuffer.byteLength,
+      duration
     });
 
   } catch (error) {
-    console.error('CV processing error:', error);
+    const duration = Date.now() - startTime;
+    
+    console.error('❌ [AshbyFiles] CV processing failed:', {
+      context: logContext,
+      error: error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : error,
+      duration: `${duration}ms`
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to process CV', success: false },
+      { 
+        error: 'Failed to process CV', 
+        success: false,
+        step: logContext.step,
+        candidateId: logContext.candidateId
+      },
       { status: 500 }
     );
   }
