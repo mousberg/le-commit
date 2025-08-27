@@ -303,14 +303,14 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
           
           if (highPriorityCandidates.length > 0) {
-            console.log(`🚀 [AshbySync] Processing ${highPriorityCandidates.length} high-priority CVs (max 3 concurrent)`);
+            console.log(`🚀 [AshbySync] Processing ${highPriorityCandidates.length} high-priority CVs (sequential processing)`);
             
             let successCount = 0;
             let errorCount = 0;
             const startTime = Date.now();
             
-            // Process in batches of 3 to prevent overwhelming the system
-            const batchSize = 3;
+            // Process one file at a time to avoid Ashby API rate limits
+            const batchSize = 1;
             for (let i = 0; i < highPriorityCandidates.length; i += batchSize) {
               const batch = highPriorityCandidates.slice(i, i + batchSize);
               
@@ -675,14 +675,14 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
       
       if (highPriorityCandidates.length > 0) {
-        console.log(`🚀 [AshbyManualSync] Processing ${highPriorityCandidates.length} high-priority CVs (max 3 concurrent)`);
+        console.log(`🚀 [AshbyManualSync] Processing ${highPriorityCandidates.length} high-priority CVs (sequential processing)`);
         
         let successCount = 0;
         let errorCount = 0;
         const startTime = Date.now();
         
-        // Process in batches of 3 to prevent overwhelming the system
-        const batchSize = 3;
+        // Process one file at a time to avoid Ashby API rate limits
+        const batchSize = 1;
         for (let i = 0; i < highPriorityCandidates.length; i += batchSize) {
           const batch = highPriorityCandidates.slice(i, i + batchSize);
           
