@@ -79,14 +79,12 @@ export default function ATSPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/ashby/candidates', {
-        method: 'POST',
+      // Use GET with refresh=true query parameter
+      const response = await fetch(`/api/ashby/candidates?refresh=true&limit=${fetchLimit}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          limit: fetchLimit 
-        }),
       });
 
       const result = await response.json();
@@ -97,8 +95,8 @@ export default function ATSPage() {
 
       console.log('🔄 Full refresh completed:', result);
       
-      // Fetch updated candidates
-      await fetchCandidates();
+      // Update data directly since we already have the refreshed data
+      setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

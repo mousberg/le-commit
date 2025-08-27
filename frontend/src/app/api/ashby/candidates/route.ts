@@ -179,10 +179,12 @@ function transformAshbyCandidate(ashbyCandidate: Record<string, unknown>, userId
 }
 
 
-// GET handler - List stored candidates
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function getCandidatesHandler(_context: ApiHandlerContext) {
+// GET handler - List stored candidates (with optional force refresh)
+async function getCandidatesHandler(context: ApiHandlerContext) {
   const supabase = await createClient();
+  const url = new URL(context.request.url);
+  const forceRefresh = url.searchParams.get('refresh') === 'true';
+  const limit = forceRefresh ? Math.max(1, Math.min(1000, parseInt(url.searchParams.get('limit') || '10'))) : 500;
 
   try {
     // Get current user
@@ -218,7 +220,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
       );
     }
 
-    // Check if we should auto-sync (last sync > 1 hour ago)
+    // Check if we should sync (auto-sync after 1 hour OR force refresh)
     const { data: syncCheckData } = await supabase
       .from('ashby_candidates')
       .select('last_synced_at')
@@ -233,30 +235,41 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
 
     const hourInMs = 60 * 60 * 1000;
     const shouldAutoSync = !lastSync || (Date.now() - lastSync) > hourInMs;
+    const shouldSync = forceRefresh || shouldAutoSync;
 
-    if (shouldAutoSync && apiKey) {
-      // Perform auto-sync with pagination (limit to reasonable amount for auto-sync)
+    if (shouldSync && apiKey) {
+      // Perform sync with pagination
       const ashbyClient = new AshbyClient({ apiKey });
       const allCandidates: Array<Record<string, unknown>> = [];
       let cursor: string | undefined;
       let totalFetched = 0;
       let rateLimitDetected = false;
-      const maxAutoSyncCandidates = 500; // Reasonable limit for auto-sync
+      const maxCandidates = limit; // Use limit from query param for force refresh, 500 for auto-sync
 
       do {
         const response = await ashbyClient.listCandidates({
-          limit: Math.min(100, maxAutoSyncCandidates - totalFetched), // Respect Ashby's 100 limit
+          limit: Math.min(100, maxCandidates - totalFetched), // Respect Ashby's 100 limit
           cursor,
           includeArchived: false
         });
 
         if (!response.success) {
-          console.error('Auto-sync Ashby API error:', response.error);
+          console.error(forceRefresh ? 'Manual refresh Ashby API error:' : 'Auto-sync Ashby API error:', response.error);
           // Track if this was a rate limit error
           if (response.error?.code === 'RATE_LIMIT_EXCEEDED') {
             rateLimitDetected = true;
           }
-          break; // Don't fail the whole request, just skip auto-sync
+          if (forceRefresh) {
+            // For force refresh, return error immediately
+            return NextResponse.json(
+              {
+                error: response.error?.message || 'Failed to fetch from Ashby',
+                success: false
+              },
+              { status: 500 }
+            );
+          }
+          break; // For auto-sync, just skip
         }
 
         const results = response.results as unknown as Record<string, unknown>;
@@ -269,7 +282,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           totalFetched += candidatesList.length;
         }
 
-        cursor = moreDataAvailable && nextCursor && totalFetched < maxAutoSyncCandidates ? nextCursor as string : undefined;
+        cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor as string : undefined;
 
         // Add inter-request delay to prevent rate limits
         if (cursor) {
@@ -296,14 +309,17 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           autoSynced = true;
           syncResults = {
             new_candidates: allCandidates.length,
-            message: `Auto-synced ${allCandidates.length} candidates`
+            message: forceRefresh ? 
+              `Manual refresh: ${allCandidates.length} candidates synced` :
+              `Auto-synced ${allCandidates.length} candidates`
           };
 
           // Process high-priority CVs sequentially after successful sync
           const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
           
           if (highPriorityCandidates.length > 0) {
-            console.log(`🚀 [AshbySync] Processing ${highPriorityCandidates.length} high-priority CVs (sequential processing)`);
+            const syncType = forceRefresh ? 'AshbyManualSync' : 'AshbySync';
+            console.log(`🚀 [${syncType}] Processing ${highPriorityCandidates.length} high-priority CVs (sequential processing)`);
             
             let successCount = 0;
             let errorCount = 0;
@@ -332,11 +348,11 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
                     return { success: true, candidate };
                   } else {
                     const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
-                    console.error(`❌ [AshbySync] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
+                    console.error(`❌ [${syncType}] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
                     return { success: false, candidate, error: errorResult.error };
                   }
                 } catch (error) {
-                  console.error(`❌ [AshbySync] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
+                  console.error(`❌ [${syncType}] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
                   return { success: false, candidate, error: error instanceof Error ? error.message : error };
                 }
               });
@@ -356,7 +372,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
               // Progress update every 10 batches (30 files)
               if ((i / batchSize + 1) % 10 === 0 || i + batchSize >= highPriorityCandidates.length) {
                 const processed = Math.min(i + batchSize, highPriorityCandidates.length);
-                console.log(`📊 [AshbySync] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
+                console.log(`📊 [${syncType}] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
               }
               
               // 3 second delay between batches to avoid Ashby API rate limits
@@ -366,7 +382,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
             }
             
             const totalDuration = Date.now() - startTime;
-            console.log(`🎯 [AshbySync] Batch completed: ${successCount}/${highPriorityCandidates.length} successful (${Math.round(totalDuration/1000)}s)`);
+            console.log(`🎯 [${syncType}] Batch completed: ${successCount}/${highPriorityCandidates.length} successful (${Math.round(totalDuration/1000)}s)`);
           }
         }
       }
@@ -549,220 +565,9 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
   }
 }
 
-// POST handler - Force refresh from Ashby
-async function refreshCandidatesHandler(context: ApiHandlerContext) {
-  const supabase = await createClient();
 
-  try {
-    // Extract limit from request body
-    const body = context.body as { limit?: number } || {};
-    const limit = Math.max(1, Math.min(1000, body.limit || 10)); // Default 10, max 1000
-    
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', success: false },
-        { status: 401 }
-      );
-    }
 
-    // Get user's Ashby API key
-    const { data: userData, error: userDataError } = await supabase
-      .from('users')
-      .select('ashby_api_key')
-      .eq('id', user.id)
-      .single();
-
-    if (userDataError) {
-      console.error('Error fetching user data:', userDataError);
-      return NextResponse.json(
-        { error: 'Failed to fetch user data', success: false },
-        { status: 500 }
-      );
-    }
-
-    const apiKey = getAshbyApiKey(userData?.ashby_api_key);
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Ashby API key not configured', success: false },
-        { status: 400 }
-      );
-    }
-
-    // Initialize Ashby client
-    const ashbyClient = new AshbyClient({ apiKey });
-
-    // Fetch candidates from Ashby with pagination
-    const allCandidates: Array<Record<string, unknown>> = [];
-    let cursor: string | undefined;
-    let totalFetched = 0;
-    let rateLimitDetected = false;
-    const maxCandidates = limit; // Use configurable limit
-
-    do {
-      const response = await ashbyClient.listCandidates({
-        limit: Math.min(100, limit - totalFetched), // Batch size, but don't exceed remaining limit
-        cursor,
-        includeArchived: false
-      });
-
-      if (!response.success) {
-        console.error('Ashby API error:', response.error);
-        // Track if this was a rate limit error
-        if (response.error?.code === 'RATE_LIMIT_EXCEEDED') {
-          rateLimitDetected = true;
-        }
-        return NextResponse.json(
-          {
-            error: response.error?.message || 'Failed to fetch from Ashby',
-            success: false
-          },
-          { status: 500 }
-        );
-      }
-
-      const results = response.results as unknown as Record<string, unknown>;
-      const candidatesList = results.results;
-      const moreDataAvailable = results.moreDataAvailable;
-      const nextCursor = results.nextCursor;
-
-      console.log(`📄 Ashby API page: fetched ${Array.isArray(candidatesList) ? candidatesList.length : 0} candidates, moreDataAvailable: ${moreDataAvailable}, nextCursor: ${nextCursor ? 'present' : 'none'}`);
-
-      if (Array.isArray(candidatesList)) {
-        allCandidates.push(...candidatesList);
-        totalFetched += candidatesList.length;
-      } else {
-        console.warn('⚠️  Ashby API returned unexpected candidatesList format:', candidatesList);
-      }
-
-      cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor as string : undefined;
-
-      // Add inter-request delay to prevent rate limits
-      if (cursor) {
-        const delay = rateLimitDetected ? 2000 : 500; // 2s if rate limited, 500ms normal
-        console.log(`⏱️  Pacing Ashby API requests: waiting ${delay}ms before next page`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-
-    } while (cursor);
-
-    console.log(`✅ Manual refresh completed: ${allCandidates.length} candidates fetched from Ashby`);
-
-    // Transform and upsert all candidates
-    if (allCandidates.length > 0) {
-      const transformedCandidates = allCandidates.map(candidate =>
-        transformAshbyCandidate(candidate, user.id)
-      );
-
-      const { error: upsertError } = await supabase
-        .from('ashby_candidates')
-        .upsert(transformedCandidates, {
-          onConflict: 'user_id,ashby_id',
-          ignoreDuplicates: false
-        });
-
-      if (upsertError) {
-        console.error('Error upserting candidates:', upsertError);
-        return NextResponse.json(
-          { error: 'Failed to save candidates', success: false },
-          { status: 500 }
-        );
-      }
-
-      // Process high-priority CVs in batches after successful manual sync
-      const highPriorityCandidates = transformedCandidates.filter(c => c.cv_priority === 'immediate');
-      
-      if (highPriorityCandidates.length > 0) {
-        console.log(`🚀 [AshbyManualSync] Processing ${highPriorityCandidates.length} high-priority CVs (sequential processing)`);
-        
-        let successCount = 0;
-        let errorCount = 0;
-        const startTime = Date.now();
-        
-        // Process one file at a time to avoid Ashby API rate limits
-        const batchSize = 1;
-        for (let i = 0; i < highPriorityCandidates.length; i += batchSize) {
-          const batch = highPriorityCandidates.slice(i, i + batchSize);
-          
-          // Process current batch concurrently
-          const batchPromises = batch.map(async (candidate) => {
-            try {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  candidateId: candidate.ashby_id,
-                  fileHandle: candidate.resume_file_handle,
-                  userId: user.id,
-                  mode: 'shared_file'
-                })
-              });
-              
-              if (response.ok) {
-                return { success: true, candidate };
-              } else {
-                const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
-                console.error(`❌ [AshbyManualSync] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
-                return { success: false, candidate, error: errorResult.error };
-              }
-            } catch (error) {
-              console.error(`❌ [AshbyManualSync] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
-              return { success: false, candidate, error: error instanceof Error ? error.message : error };
-            }
-          });
-          
-          // Wait for current batch to complete
-          const results = await Promise.all(batchPromises);
-          
-          // Count results
-          results.forEach(result => {
-            if (result.success) {
-              successCount++;
-            } else {
-              errorCount++;
-            }
-          });
-          
-          // Progress update every 10 batches (30 files)
-          if ((i / batchSize + 1) % 10 === 0 || i + batchSize >= highPriorityCandidates.length) {
-            const processed = Math.min(i + batchSize, highPriorityCandidates.length);
-            console.log(`📊 [AshbyManualSync] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
-          }
-          
-          // 3 second delay between batches to avoid Ashby API rate limits
-          if (i + batchSize < highPriorityCandidates.length) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
-        }
-        
-        const totalDuration = Date.now() - startTime;
-        console.log(`🎯 [AshbyManualSync] Batch completed: ${successCount}/${highPriorityCandidates.length} successful (${Math.round(totalDuration/1000)}s)`);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `Successfully synced ${allCandidates.length} candidates from Ashby`,
-      candidates_synced: allCandidates.length,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('Error refreshing candidates:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to refresh candidates',
-        success: false,
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// Export route handlers
+// Export route handler - only GET (handles both auto-sync and manual refresh)
 export const GET = withApiMiddleware(getCandidatesHandler, {
   requireAuth: true,
   requireATSAccess: true, // Add ATS access check
@@ -770,17 +575,6 @@ export const GET = withApiMiddleware(getCandidatesHandler, {
   enableLogging: true,
   rateLimit: {
     maxRequests: 60,
-    windowMs: 60000 // 1-minute window
-  }
-});
-
-export const POST = withApiMiddleware(refreshCandidatesHandler, {
-  requireAuth: true,
-  requireATSAccess: true, // Add ATS access check
-  enableCors: true,
-  enableLogging: true,
-  rateLimit: {
-    maxRequests: 10,
     windowMs: 60000 // 1-minute window
   }
 });

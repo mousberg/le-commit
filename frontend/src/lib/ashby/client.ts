@@ -29,7 +29,8 @@ export class AshbyClient {
     endpoint: string,
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' = 'POST',
     body?: unknown,
-    retryCount = 0
+    retryCount = 0,
+    timeoutMs = 10000 // 10 second default timeout for Ashby API calls
   ): Promise<AshbyApiResponse<T>> {
     try {
       const headers: Record<string, string> = {
@@ -44,11 +45,21 @@ export class AshbyClient {
       const url = `${this.baseUrl}${endpoint}`;
       const requestBody = body instanceof FormData ? body : body ? JSON.stringify(body) : undefined;
       
+      // Create AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, timeoutMs);
+      
       const response = await fetch(url, {
         method,
         headers,
-        body: requestBody
+        body: requestBody,
+        signal: controller.signal
       });
+      
+      // Clear timeout if request completes successfully
+      clearTimeout(timeoutId);
 
       // Read response body once and handle different content types
       const responseText = await response.text();
@@ -121,10 +132,37 @@ export class AshbyClient {
         results: data
       };
     } catch (error) {
+      // Enhanced error classification
+      let errorCode = 'UNKNOWN_ERROR';
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Classify error types
+        if (error.name === 'AbortError') {
+          errorCode = 'TIMEOUT_ERROR';
+          errorMessage = `Request timed out after ${timeoutMs}ms`;
+        } else if (error.message.includes('fetch')) {
+          errorCode = 'NETWORK_ERROR';
+        } else if (error.message.includes('rate limit')) {
+          errorCode = 'RATE_LIMIT_ERROR';
+        }
+      }
+      
+      console.error(`[AshbyClient] Request error:`, {
+        endpoint,
+        method,
+        error: errorMessage,
+        code: errorCode,
+        retryCount
+      });
+      
       return {
         success: false,
         error: {
-          message: error instanceof Error ? error.message : 'Unknown error occurred'
+          message: errorMessage,
+          code: errorCode
         }
       };
     }
@@ -172,9 +210,69 @@ export class AshbyClient {
   }
 
   async getResumeUrl(fileHandle: string): Promise<AshbyApiResponse<{ url: string }>> {
-    const response = await this.request<{ downloadUrl?: string; url?: string }>('/file.info', 'POST', {
-      fileHandle
-    });
+    let retryCount = 0;
+    const maxRetries = 2; // Try up to 3 times total
+    
+    while (retryCount <= maxRetries) {
+      try {
+        // Use longer timeout for file.info calls as they can be slow
+        const response = await this.request<{ downloadUrl?: string; url?: string }>('/file.info', 'POST', {
+          fileHandle
+        }, retryCount, 25000); // 25 second timeout for file URL fetches (Ashby API is slow)
+        
+        // If successful, continue with existing logic
+        if (response.success || retryCount >= maxRetries) {
+          return this.processFileUrlResponse(response, fileHandle);
+        }
+        
+        // Retry logic for specific error types
+        const shouldRetry = response.error?.code === 'TIMEOUT_ERROR' || 
+                           response.error?.code === 'NETWORK_ERROR' ||
+                           response.error?.message?.includes('fetch failed');
+        
+        if (shouldRetry && retryCount < maxRetries) {
+          retryCount++;
+          const delay = Math.pow(2, retryCount - 1) * 2000; // 2s, 4s exponential backoff
+          console.warn(`[AshbyClient] File URL fetch failed - retrying in ${delay}ms (attempt ${retryCount}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // Non-retryable error or max retries exceeded
+        return this.processFileUrlResponse(response, fileHandle);
+        
+      } catch (error) {
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          const delay = Math.pow(2, retryCount - 1) * 2000;
+          console.warn(`[AshbyClient] File URL request error - retrying in ${delay}ms (attempt ${retryCount}/${maxRetries + 1}): ${error instanceof Error ? error.message : error}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // Max retries exceeded
+        console.error(`[AshbyClient] File URL request failed after ${retryCount} attempts:`, error);
+        return {
+          success: false,
+          error: {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            code: 'REQUEST_FAILED'
+          }
+        };
+      }
+    }
+    
+    // This should never be reached, but for TypeScript completeness
+    return {
+      success: false,
+      error: {
+        message: 'Max retries exceeded',
+        code: 'MAX_RETRIES_EXCEEDED'
+      }
+    };
+  }
+  
+  private processFileUrlResponse(response: AshbyApiResponse<{ downloadUrl?: string; url?: string }>, fileHandle: string): AshbyApiResponse<{ url: string }> {
     
     // Enhanced logging for debugging file access issues
     if (!response.success) {
