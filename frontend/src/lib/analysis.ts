@@ -1,6 +1,7 @@
 import { Groq } from 'groq-sdk';
 import { Applicant } from './interfaces/applicant';
 import { CvData } from './interfaces/cv';
+import { LinkedInData } from './interfaces/applicant';
 import { GitHubData } from './interfaces/github';
 import { AnalysisResult } from './interfaces/analysis';
 
@@ -9,26 +10,97 @@ const groq = new Groq({
 });
 
 /**
+ * Count available data sources for an applicant
+ */
+function countAvailableDataSources(applicant: Applicant): number {
+  return [
+    applicant.cv_data,
+    applicant.li_data,
+    applicant.gh_data
+  ].filter(Boolean).length;
+}
+
+/**
+ * Create a fallback analysis result when insufficient data is available
+ */
+function createInsufficientDataFallback(applicantId: string, availableDataSources: number): AnalysisResult {
+  return {
+    score: 50,
+    summary: availableDataSources === 0
+      ? 'No data sources available for credibility analysis.'
+      : 'Analysis completed with limited data sources.',
+    flags: [{
+      type: 'yellow',
+      category: 'verification',
+      message: availableDataSources === 0
+        ? 'No data sources (CV, LinkedIn, or GitHub) available for analysis.'
+        : `Analysis performed with ${availableDataSources}/3 data sources. Additional sources would improve accuracy.`,
+      severity: availableDataSources === 0 ? 5 : 3
+    }],
+    suggestedQuestions: availableDataSources === 0
+      ? ['Could you provide a CV, LinkedIn profile, or GitHub profile for analysis?']
+      : ['Could you provide additional information sources (CV, LinkedIn, or GitHub) to improve analysis accuracy?'],
+    analysisDate: new Date().toISOString(),
+    sources: []
+  };
+}
+
+/**
+ * Create an error fallback analysis result
+ */
+export function createErrorFallback(error?: string): AnalysisResult {
+  return {
+    score: 50,
+    summary: 'Analysis could not be completed due to technical error.',
+    flags: [{
+      type: 'yellow',
+      category: 'verification',
+      message: 'Analysis could not be completed due to technical error',
+      severity: 5
+    }],
+    suggestedQuestions: ['Could you provide additional information about your background?'],
+    analysisDate: new Date().toISOString(),
+    sources: [],
+    ...(error && { error })
+  };
+}
+
+/**
  * Main analysis function that performs comprehensive credibility analysis in a single call
  */
 export async function analyzeApplicant(applicant: Applicant): Promise<Applicant> {
   console.log(`Starting comprehensive analysis for applicant ${applicant.id}`);
 
   try {
+    // Count available data sources
+    const availableDataSources = countAvailableDataSources(applicant);
+
+    // Run analysis even with just one data source
+    if (availableDataSources === 0) {
+      console.log(`No data sources available for applicant ${applicant.id}. Cannot perform analysis.`);
+
+      // Return applicant with no data fallback
+      return {
+        ...applicant,
+        ai_data: createInsufficientDataFallback(applicant.id, availableDataSources),
+        score: 50
+      };
+    }
+
     const analysisResult = await performComprehensiveAnalysis(
-      applicant.cvData,
-      applicant.linkedinData,
-      applicant.githubData,
+      applicant.cv_data || undefined,
+      applicant.li_data || undefined,
+      applicant.gh_data || undefined,
       applicant.name,
-      applicant.email,
-      applicant.role
+      applicant.email || undefined,
+      undefined // role field doesn't exist in new model
     );
 
     // Update applicant with analysis results
     return {
       ...applicant,
-      analysisResult,
-      score: analysisResult.credibilityScore
+      ai_data: analysisResult,
+      score: analysisResult.score
     };
   } catch (error) {
     console.error(`Error during analysis for applicant ${applicant.id}:`, error);
@@ -36,19 +108,7 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
     // Return applicant with basic analysis indicating error
     return {
       ...applicant,
-      analysisResult: {
-        credibilityScore: 50,
-        summary: 'Analysis failed due to technical error.',
-        flags: [{
-          type: 'yellow',
-          category: 'verification',
-          message: 'Analysis could not be completed due to technical error',
-          severity: 5
-        }],
-        suggestedQuestions: ['Could you provide additional information about your background?'],
-        analysisDate: new Date().toISOString(),
-        sources: []
-      },
+      ai_data: createErrorFallback(error instanceof Error ? error.message : undefined),
       score: 50
     };
   }
@@ -59,16 +119,20 @@ export async function analyzeApplicant(applicant: Applicant): Promise<Applicant>
  */
 async function performComprehensiveAnalysis(
   cvData?: CvData,
-  linkedinData?: CvData,
+  linkedinData?: LinkedInData,
   githubData?: GitHubData,
   name?: string,
   email?: string,
   role?: string
 ): Promise<AnalysisResult> {
+  const availableSourcesCount = [cvData, linkedinData, githubData].filter(Boolean).length;
+
   const prompt = `
 You are a credibility-checking assistant inside Unmask, a tool used by hiring managers to verify whether candidates are being honest and consistent in their job applications.
 
 Your job is to review structured data about a candidate and assess the overall *authenticity* of the profile. You are not scoring technical ability — only consistency and believability.
+
+**Important:** You are analyzing a candidate with ${availableSourcesCount} data sources available. This analysis is performed because we have sufficient data sources to perform cross-verification.
 
 **Candidate Information:**
 - Name: ${name || 'Not provided'}
@@ -77,8 +141,10 @@ Your job is to review structured data about a candidate and assess the overall *
 
 **Available Data Sources:**
 - CV: ${cvData ? 'Available' : 'Not available'}
-- LinkedIn: ${linkedinData ? 'Available' : 'Not available'}
+- LinkedIn: ${linkedinData ? (linkedinData.isDummyData ? 'Available (SIMULATED DATA FOR TESTING)' : 'Available') : 'Not available'}
 - GitHub: ${githubData ? 'Available' : 'Not available'}
+
+${linkedinData?.isDummyData ? '⚠️ **IMPORTANT**: LinkedIn data is simulated for testing purposes. Do not treat name mismatches as red flags.' : ''}
 
 **Data:**
 CV Data: ${cvData ? JSON.stringify(cvData, null, 2) : 'Not provided'}
@@ -126,7 +192,7 @@ GitHub Data: ${githubData ? JSON.stringify(githubData, null, 2) : 'Not provided'
 
 Return a JSON object with:
 {
-  "credibilityScore": 0-100,
+  "score": 0-100,
   "summary": "1-2 sentence judgment",
   "flags": [{"type": "red"|"yellow", "category": "consistency"|"verification"|"authenticity"|"activity", "message": "specific concern", "severity": 1-10}],
   "suggestedQuestions": ["array of clarifying questions to ask the candidate"],
@@ -147,7 +213,7 @@ Be objective. Do not make assumptions. Only work with the structured data provid
     const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
 
     return {
-      credibilityScore: result.credibilityScore || 50,
+      score: result.score || 50,
       summary: result.summary || 'Analysis completed with available data.',
       flags: (result.flags || []).map((flag: Record<string, unknown>) => ({
         type: flag.type === 'red' || flag.type === 'yellow' ? flag.type : 'yellow',
@@ -162,7 +228,7 @@ Be objective. Do not make assumptions. Only work with the structured data provid
   } catch (error) {
     console.error('Comprehensive analysis failed:', error);
     return {
-      credibilityScore: 50,
+      score: 50,
       summary: 'Analysis could not be completed due to technical error.',
       flags: [{ type: 'yellow', category: 'verification', message: 'Analysis system temporarily unavailable', severity: 5 }],
       suggestedQuestions: ['Could you provide additional information about your background?'],

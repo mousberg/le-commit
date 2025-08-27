@@ -1,5 +1,7 @@
 "use client";
 
+import Image from 'next/image';
+
 export default function Features() {
   return (
     <div id="features" className="mx-auto max-w-7xl pt-20 lg:pt-[16.25rem] pb-8 lg:pb-0 select-none lg:border-x border-zinc-200 overflow-hidden">
@@ -16,9 +18,11 @@ export default function Features() {
         
         {/* Feature Card 1: "User Info Check" */}
         <div className="relative">
-          <img 
+          <Image 
             src="/cred.png" 
             alt="Screen monitoring feature"
+            width={600}
+            height={400}
             className="w-full h-auto"
           />
           <div className="px-8 py-6">
@@ -32,9 +36,11 @@ export default function Features() {
 
         {/* Feature Card 2: "Reference Call Automation" */}
         <div className="relative">
-          <img 
+          <Image 
             src="/ref.png" 
             alt="Reference Call Automation"
+            width={600}
+            height={400}
             className="w-full h-auto"
           />
           <div className="px-8 py-6">
@@ -59,10 +65,12 @@ export default function Features() {
               </p>
             </div>
             <div className="mt-6 mb-4 lg:mb-0">
-              <img 
+              <Image 
                 src="/cand.png" 
                 alt="Additional feedback component"
-                className="w-full max-w-md h-auto rounded-lg"
+                width={400}
+                height={300}
+                className="w-full max-w-md h-auto "
               />
             </div>
             <div className="hidden lg:block absolute bg-[#0055FE] w-1 h-[2.125rem] top-[4rem] -left-[1px]"></div>
@@ -70,9 +78,11 @@ export default function Features() {
           
           {/* Right side - Image */}
           <div className="relative overflow-hidden">
-            <img 
+            <Image 
               src="/gmeet.png" 
               alt="Live Interview Feedback"
+              width={600}
+              height={400}
               className="w-full h-auto object-cover object-top"
             />
           </div>

@@ -1,9 +1,6 @@
 # Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*.local
 
 # Dependencies
 node_modules/
@@ -102,4 +99,18 @@ temp/
 .netlify
 
 # Local development
-.local 
+.local
+
+.cursor/
+.mcp.*json
+.claude
+.kiro/
+.playwright-mcp/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+frontend/supabase/migrations/*temp*.sql
+trees/
+specs/

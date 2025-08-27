@@ -11,5 +11,7 @@ export default function ConditionalNavbar() {
     return null;
   }
   
+  
+  // Show regular navbar everywhere else
   return <Navbar />;
 }

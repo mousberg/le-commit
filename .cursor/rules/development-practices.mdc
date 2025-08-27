@@ -1,0 +1,5 @@
+---
+description: Make sure linting and building works before committing. Always offer to delete test files at the end of a session.
+globs:
+alwaysApply: false
+---

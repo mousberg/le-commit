@@ -1,0 +1,5 @@
+---
+description: This application uses an event-driven architecture with database triggers and webhooks for asynchronous processing.
+globs:
+alwaysApply: false
+---

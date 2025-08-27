@@ -37,7 +37,7 @@ export default function SessionPage() {
   const [transcriptItems, setTranscriptItems] = useState<TranscriptItem[]>([]);
   const [flagItems, setFlagItems] = useState<FlagItem[]>([]);
   const [followUpItems, setFollowUpItems] = useState<FollowUpItem[]>([]);
-  const [credibilityScore, setCredibilityScore] = useState(100);
+  const [score, setCredibilityScore] = useState(100);
   const [sessionTime, setSessionTime] = useState(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [copyStates, setCopyStates] = useState<{[key: string]: boolean}>({});
@@ -159,8 +159,8 @@ export default function SessionPage() {
             NerdBuster Live Session
           </h1>
           <CredibilityScore analysisResult={{
-            credibilityScore: credibilityScore,
-            summary: `Live credibility analysis in progress. Current score: ${credibilityScore}%.`,
+            score: score,
+            summary: `Live credibility analysis in progress. Current score: ${score}%.`,
             flags: flagItems.map(flag => ({
               type: flag.type === 'error' ? 'red' : 'yellow',
               category: 'verification',

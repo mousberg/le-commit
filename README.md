@@ -49,6 +49,11 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 - **Radix UI** - Accessible component primitives
 - **Framer Motion** - Smooth animations
 
+### **Backend & Storage**
+- **Supabase** - PostgreSQL database with real-time capabilities
+- **Supabase Storage** - Secure file storage for CVs and documents
+- **Ashby ATS Integration** - Seamless candidate import and sync
+
 ### **AI & Analysis**
 - **Groq API** - Fast AI inference for document analysis
 - **OpenAI GPT-4** - Advanced reasoning and summarization
@@ -58,7 +63,6 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 ### **Infrastructure**
 - **Docker** - Containerized deployment
 - **Vultr** - Cloud hosting platform
-- **File Storage** - Local JSON-based data persistence
 - **Real-time Processing** - Async job processing
 
 ---
@@ -81,7 +85,7 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 2. **Install dependencies**
    ```bash
    cd frontend
-   npm install
+   pnpm install
    ```
 
 3. **Configure environment variables**
@@ -91,6 +95,11 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
 
    Required environment variables:
    ```env
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
    # AI Services
    GROQ_API_KEY=your_groq_api_key
    OPENAI_API_KEY=your_openai_api_key
@@ -104,17 +113,107 @@ Unmask is an intelligent hiring verification platform that helps you verify cand
    TWILIO_ACCOUNT_SID=your_twilio_sid
    TWILIO_AUTH_TOKEN=your_twilio_token
    TWILIO_PHONE_NUMBER=your_twilio_number
+
+   # Ashby ATS Integration
+   ASHBY_API_KEY=your_ashby_api_key
    ```
 
-4. **Start development server**
+
+4. **Start local supabase**
    ```bash
-   npm run dev
+   supabase start
+   supabase db reset --local
    ```
 
-5. **Open your browser**
+5. **Start development server**
+   ```bash
+   pnpm dev
+   ```
+
+6. **Open your browser**
    ```
    http://localhost:3000
    ```
+
+
+---
+
+## 🔄 Webhook Queue Processing with pg_cron
+
+The application uses **pg_cron** for automated webhook queue processing in both local development and production environments.
+
+### **Automatic Processing Everywhere**
+
+✅ **Local Development**: pg_cron extension automatically installed  
+✅ **Production**: pg_cron pre-available in Supabase Cloud  
+✅ **Queue Processing**: Automatic every 2 minutes in both environments  
+
+### **Zero Configuration Required**
+
+```bash
+# Just start development - queue processing works automatically!
+pnpm dev
+```
+
+**How it works:**
+1. Database migrations auto-install `pg_cron` extension
+2. Cron job created automatically: processes queue every 2 minutes
+3. Local development uses `host.docker.internal:3000`
+4. Production uses configured webhook base URL
+
+### **Production Setup**
+
+**Optional**: Configure production webhook URL for external deployments:
+
+```sql
+-- Set production webhook base URL (optional)
+ALTER DATABASE your_production_db_name 
+SET app.webhook_base_url = 'https://your-domain.com';
+```
+
+### **Queue Monitoring**
+
+Monitor queue status and cron job health:
+
+```sql
+-- View pending webhooks
+SELECT webhook_type, status, priority, created_at, payload->'applicantId' as applicant_id 
+FROM webhook_queue 
+WHERE status IN ('pending', 'failed') 
+ORDER BY priority DESC, created_at ASC;
+
+-- Check pg_cron job status
+SELECT jobid, schedule, active, jobname FROM cron.job 
+WHERE jobname = 'process-webhook-queue';
+
+-- Use helper function for detailed status
+SELECT * FROM check_webhook_queue_cron_status();
+```
+
+### **Manual Processing (Optional)**
+
+For debugging or immediate processing:
+
+```bash
+# Local development
+curl -X POST "http://localhost:3000/api/webhooks/process-queue" \
+  -H "Authorization: Bearer webhook-secret-dev" \
+  -H "Content-Type: application/json"
+
+# Production  
+curl -X POST "https://your-domain.com/api/webhooks/process-queue" \
+  -H "Authorization: Bearer your-webhook-secret" \
+  -H "Content-Type: application/json"
+```
+
+### **Queue Types & Priority**
+
+| Webhook Type | Priority | Purpose |
+|--------------|----------|---------|
+| `score_push` | Based on AI score (1-100) | Push updated credibility scores to Ashby ATS |
+| `note_push` | 90 (high priority) | Push analysis notes and red flags to Ashby |
+
+**Priority Processing**: Higher scores processed first (score 85 = priority 85)
 
 ---
 
@@ -151,7 +250,13 @@ We provide automated deployment scripts for seamless production deployment:
    docker build -t unmask:latest .
    ```
 
-2. **Run the container**
+2. **Configure webhook base URL for production**
+   ```sql
+   -- Required: Set webhook base URL to your production domain
+   ALTER DATABASE your_production_db_name SET app.webhook_base_url = 'https://your-domain.com';
+   ```
+
+3. **Run the container**
    ```bash
    docker run -d \
      --name unmask-app \
@@ -168,7 +273,13 @@ We provide automated deployment scripts for seamless production deployment:
    npm run build
    ```
 
-2. **Start production server**
+2. **Configure webhook base URL for production**
+   ```sql
+   -- Required: Set webhook base URL to your production domain
+   ALTER DATABASE your_production_db_name SET app.webhook_base_url = 'https://your-domain.com';
+   ```
+
+3. **Start production server**
    ```bash
    npm start
    ```
@@ -184,6 +295,15 @@ We provide automated deployment scripts for seamless production deployment:
 - `PUT /api/applicants/[id]` - Update applicant information
 - `DELETE /api/applicants/[id]` - Delete applicant
 
+### **Ashby ATS Integration**
+- `GET /api/ashby/candidates` - List cached candidates from database with auto-sync
+- `POST /api/ashby/candidates` - Force refresh candidates from Ashby API
+- `POST /api/ashby/files` - Download and store CV in Supabase Storage (webhook endpoint)
+- `POST /api/ashby/push-score` - Send AI analysis score to Ashby custom field
+
+### **File Management**
+- `GET /api/files/[fileId]` - Get signed URL for file download from storage
+
 ### **Reference Calling**
 - `POST /api/reference-call` - Initiate automated reference call
 - `GET /api/get-transcript?conversationId=` - Retrieve call transcript
@@ -191,6 +311,17 @@ We provide automated deployment scripts for seamless production deployment:
 
 ### **Processing Pipeline**
 - File upload → CV/LinkedIn parsing → GitHub analysis → AI credibility assessment → Reference verification
+
+---
+
+## 📚 **Documentation**
+
+### **Core Documentation**
+- **[Authentication Approach](docs/authentication-approach.md)** - Comprehensive auth architecture, middleware patterns, and security best practices
+- **[System Architecture](docs/architecture.md)** - Overall system design and data flow
+
+### **Development Guides**
+- **[Setup Guides](docs/archive/)** - Historical setup and integration documentation
 
 ---
 
@@ -267,6 +398,21 @@ chmod +x deploy.sh rollback.sh check-status.sh
 - Check Twilio phone number permissions
 - Ensure all environment variables are set
 
+**Webhook queue not processing**
+```sql
+-- Check if pg_cron job exists
+SELECT * FROM cron.job WHERE jobname = 'process-webhook-queue';
+
+-- Check pending webhooks
+SELECT COUNT(*) as pending_count FROM webhook_queue WHERE status = 'pending';
+
+-- Manual queue processing
+SELECT net.http_post(
+  url => 'https://your-domain.com/api/webhooks/process-queue',
+  headers => '{"Authorization": "Bearer your-webhook-secret", "Content-Type": "application/json"}'::jsonb
+);
+```
+
 **Docker deployment issues**
 ```bash
 # Check logs
@@ -294,6 +440,7 @@ We welcome contributions! Please see our [development guide](docs/) for:
 ## 📚 Documentation
 
 - [Deployment Scripts Guide](docs/DEPLOYMENT_SCRIPTS.md)
+- [Supabase Storage Setup](docs/SUPABASE_STORAGE_SETUP.md)
 - [Reference Calling Setup](docs/REFERENCE_CALLING_FEATURE.md)
 - [Vultr Deployment Guide](docs/VULTR_DEPLOYMENT.md)
 - [API Documentation](docs/SETUP_GUIDE_CALLING.md)

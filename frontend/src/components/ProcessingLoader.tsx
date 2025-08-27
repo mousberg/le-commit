@@ -1,4 +1,6 @@
+import React from 'react';
 import { Applicant } from '@/lib/interfaces/applicant';
+import { Check, Clock, Loader2, AlertCircle } from 'lucide-react';
 
 interface ProcessingLoaderProps {
   status: 'uploading' | 'processing' | 'analyzing';
@@ -6,153 +8,184 @@ interface ProcessingLoaderProps {
   applicant?: Applicant;
 }
 
-export default function ProcessingLoader({ status, fileName, applicant }: ProcessingLoaderProps) {
-  const getStatusText = () => {
-    switch (status) {
-      case 'uploading':
-        return 'Processing...';
-      case 'processing':
-        return 'Extracting information...';
-      case 'analyzing':
-        return 'Analyzing profile...';
-      default:
-        return 'Processing...';
-    }
-  };
+export default function ProcessingLoader({ applicant }: ProcessingLoaderProps) {
 
-  const getCompletedSteps = () => {
-    let completed = 0;
-    if (applicant?.cvData) completed++;
-    if (applicant?.linkedinData) completed++;
-    if (applicant?.githubData) completed++;
-    return completed;
+  const getStepStatus = (stepStatus: string) => {
+    switch (stepStatus) {
+      case 'ready': return 'completed';
+      case 'processing': return 'active';
+      case 'error': return 'error';
+      case 'not_provided': return 'skipped';
+      case 'pending': return 'pending';
+      default: return 'pending';
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-sm p-12 flex flex-col items-center gap-8">
-        {/* Elegant Loading Animation */}
-        <div className="relative">
-          <div className="w-16 h-16 border-2 border-emerald-100 rounded-full"></div>
-          <div className="absolute inset-0 w-16 h-16 border-2 border-transparent border-t-emerald-500 rounded-full animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-        </div>
-
         {/* Clean Status Text */}
         <div className="text-center space-y-3">
           <h2 className="text-2xl font-bold text-gray-900">
             Unmasking Profile
           </h2>
-          <p className="text-emerald-600 font-medium">{getStatusText()}</p>
-          {fileName && (
-            <p className="text-sm text-gray-500">Processing {fileName}</p>
-          )}
         </div>
 
-        {/* Progress Steps with Basic Info */}
+        {/* Processing Flow */}
         {applicant && (
-          <div className="w-full space-y-6">
-            <h3 className="text-center text-sm font-medium text-gray-700">Analysis Progress</h3>
-
+          <div className="w-full max-w-lg">
+            {/* Parallel Processing Stage */}
             <div className="space-y-4">
-              {/* CV Analysis */}
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-3 mb-2">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.cvData ? 'bg-emerald-500' : 'bg-gray-200'}`}></div>
-                  <span className={`text-sm ${applicant.cvData ? 'text-gray-700' : 'text-gray-400'}`}>CV Analysis</span>
-                  {applicant.cvData && (
-                    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-                {applicant.cvData && (
-                  <div className="text-xs text-gray-600 space-y-1">
-                    {applicant.cvData.firstName && applicant.cvData.lastName && (
-                      <p className="font-medium">{applicant.cvData.firstName} {applicant.cvData.lastName}</p>
-                    )}
-                    {applicant.cvData.jobTitle && (
-                      <p>{applicant.cvData.jobTitle}</p>
-                    )}
-                    {applicant.cvData.skills && applicant.cvData.skills.length > 0 && (
-                      <p className="text-emerald-600">{applicant.cvData.skills.slice(0, 3).join(' • ')}</p>
-                    )}
-                  </div>
+              <div className="grid grid-cols-3 gap-2">
+                {/* CV Processing Step */}
+                {(applicant.cv_file_id || applicant.cv_status !== 'pending') && (
+                  <ProcessingStep
+                    label="CV Analysis"
+                    status={getStepStatus(applicant.cv_status)}
+                    compact={true}
+                  />
+                )}
+
+                {/* LinkedIn Processing Step */}
+                {(applicant.linkedin_url || applicant.li_status !== 'pending') && (
+                  <ProcessingStep
+                    label="LinkedIn Analysis"
+                    status={getStepStatus(applicant.li_status)}
+                    compact={true}
+                  />
+                )}
+
+                {/* GitHub Processing Step */}
+                {(applicant.github_url || applicant.gh_status !== 'pending') && (
+                  <ProcessingStep
+                    label="GitHub Analysis"
+                    status={getStepStatus(applicant.gh_status)}
+                    compact={true}
+                  />
                 )}
               </div>
 
-              {/* LinkedIn Analysis */}
-              {(applicant.linkedinData || status === 'processing') && (
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-3 mb-2">
-                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.linkedinData ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-                    <span className={`text-sm ${applicant.linkedinData ? 'text-gray-700' : 'text-gray-400'}`}>LinkedIn Analysis</span>
-                    {applicant.linkedinData && (
-                      <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  {applicant.linkedinData && (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      {applicant.linkedinData.jobTitle && (
-                        <p>{applicant.linkedinData.jobTitle}</p>
-                      )}
-                      {applicant.linkedinData.skills && applicant.linkedinData.skills.length > 0 && (
-                        <p className="text-blue-600">{applicant.linkedinData.skills.slice(0, 3).join(' • ')}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Arrow Connector */}
+              <div className="flex justify-center py-2">
+                <div className="text-gray-400 text-lg">↓</div>
+              </div>
 
-              {/* GitHub Analysis */}
-              {(applicant.githubData || applicant.originalGithubUrl) && (
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-3 mb-2">
-                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${applicant.githubData ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
-                    <span className={`text-sm ${applicant.githubData ? 'text-gray-700' : 'text-gray-400'}`}>GitHub Analysis</span>
-                    {applicant.githubData && (
-                      <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  {applicant.githubData && (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <p>@{applicant.githubData.username}</p>
-                      <p>{applicant.githubData.publicRepos} repositories</p>
-                      {applicant.githubData.languages && applicant.githubData.languages.length > 0 && (
-                        <p className="text-purple-600">{applicant.githubData.languages.slice(0, 3).map(l => l.language).join(' • ')}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* AI Analysis Step */}
+              <ProcessingStep
+                label="AI Analysis"
+                status={getStepStatus(applicant.ai_status)}
+                compact={false}
+                isDependent={true}
+              />
             </div>
           </div>
         )}
 
-        {/* Elegant Progress Bar */}
-        <div className="w-full max-w-xs">
-          <div className="w-full bg-gray-100 rounded-full h-1">
-            <div
-              className="bg-gradient-to-r from-emerald-500 to-blue-500 h-1 rounded-full transition-all duration-500 ease-out"
-              style={{
-                width: applicant ? `${(getCompletedSteps() / 3) * 100}%` : '30%'
-              }}
-            ></div>
-          </div>
-        </div>
+        {/* Status Message */}
+        {applicant?.status === 'failed' && (
+          <p className="text-center text-sm text-red-600">
+            Something went wrong. Please try again.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
-        {/* Simple Status Message */}
-        <p className="text-center text-sm text-gray-500 max-w-sm">
-          Analyzing profile and extracting key insights...
-        </p>
+// Processing Step Component
+interface ProcessingStepProps {
+  label: string;
+  status: 'pending' | 'active' | 'completed' | 'error' | 'skipped';
+  compact?: boolean;
+  isDependent?: boolean;
+}
+
+function ProcessingStep({ label, status, compact = false, isDependent = false }: ProcessingStepProps) {
+  const getIcon = () => {
+    switch (status) {
+      case 'completed':
+        return <Check className="w-4 h-4 text-emerald-600" />;
+      case 'active':
+        return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
+      case 'error':
+        return <AlertCircle className="w-4 h-4 text-red-600" />;
+      case 'skipped':
+        return <span className="w-4 h-4 text-gray-300 text-xs">−</span>;
+      case 'pending':
+        return <Clock className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = () => {
+    if (isDependent) {
+      switch (status) {
+        case 'completed':
+          return 'border-indigo-200 bg-indigo-50';
+        case 'active':
+          return 'border-indigo-200 bg-indigo-50';
+        case 'error':
+          return 'border-red-200 bg-red-50';
+        case 'pending':
+          return 'border-gray-300 bg-gray-100';
+        default:
+          return 'border-gray-300 bg-gray-100';
+      }
+    }
+    
+    switch (status) {
+      case 'completed':
+        return 'border-emerald-200 bg-emerald-50';
+      case 'active':
+        return 'border-blue-200 bg-blue-50';
+      case 'error':
+        return 'border-red-200 bg-red-50';
+      case 'skipped':
+        return 'border-gray-200 bg-gray-100 opacity-60';
+      case 'pending':
+        return 'border-gray-200 bg-gray-50';
+    }
+  };
+
+  const getTextColor = () => {
+    if (isDependent) {
+      switch (status) {
+        case 'completed':
+          return 'text-indigo-700';
+        case 'active':
+          return 'text-indigo-700';
+        case 'error':
+          return 'text-red-700';
+        case 'pending':
+          return 'text-gray-500';
+        default:
+          return 'text-gray-500';
+      }
+    }
+    
+    switch (status) {
+      case 'completed':
+        return 'text-emerald-700';
+      case 'active':
+        return 'text-blue-700';
+      case 'error':
+        return 'text-red-700';
+      case 'skipped':
+        return 'text-gray-400';
+      case 'pending':
+        return 'text-gray-500';
+    }
+  };
+
+  return (
+    <div className={`border rounded-lg transition-all duration-300 ${getStatusColor()} ${
+      compact ? 'p-2' : 'p-3'
+    } ${isDependent ? 'shadow-sm' : ''}`}>
+      <div className="flex items-center gap-3">
+        {getIcon()}
+        <span className={`text-xs font-medium ${getTextColor()}`}>{label}</span>
+        {status === 'skipped' && (
+          <span className="text-xs text-gray-400 ml-auto">skipped</span>
+        )}
       </div>
     </div>
   );

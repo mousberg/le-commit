@@ -58,11 +58,15 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Cluely-specific colors
+        sidebar: "var(--bg-sidebar)",
+        "sidebar-active": "var(--bg-sidebar-active)",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        brand: "var(--radius-brand)",
       },
       keyframes: {
         "accordion-down": {
