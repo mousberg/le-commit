@@ -410,14 +410,17 @@ export default function ATSPage() {
         {data && (
           <div className="mb-6">
             <div className="flex items-center gap-6 text-sm text-gray-600">
-              <Tooltip content="Total candidates stored in your system that are synced with Ashby">
-                <span className="cursor-help"><strong>{data.stored_count}</strong> candidates</span>
+              <Tooltip content="Total candidates synced from Ashby">
+                <span className="cursor-help"><strong>{data.stored_count}</strong> total</span>
               </Tooltip>
               <Tooltip content="Number of candidates currently visible after applying filters">
                 <span className="cursor-help"><strong>{filteredCandidates.length}</strong> showing</span>
               </Tooltip>
-              <Tooltip content="Candidates with complete data (LinkedIn + CV) that have been analyzed by AI">
-                <span className="cursor-help"><strong>{filteredCandidates.filter(c => (c.score || 10) >= 30).length}</strong> analyzed</span>
+              <Tooltip content="Candidates with LinkedIn + CV data ready for analysis">
+                <span className="cursor-help"><strong>{filteredCandidates.filter(c => c.linkedin_url && c.has_resume).length}</strong> complete data</span>
+              </Tooltip>
+              <Tooltip content="Candidates that have been analyzed by AI">
+                <span className="cursor-help"><strong>{filteredCandidates.filter(c => c.ai_status === 'ready' && (c.analysis || c.score)).length}</strong> AI analyzed</span>
               </Tooltip>
               <Tooltip content="When candidates were last synced from your Ashby system">
                 <span className="cursor-help ml-auto">Last sync: {data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never'}</span>

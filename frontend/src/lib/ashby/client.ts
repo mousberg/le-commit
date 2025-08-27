@@ -65,18 +65,19 @@ export class AshbyClient {
         
         if (isRateLimit) {
           // Rate limit detected - retry with exponential backoff
-          if (retryCount < 3) { // Increased retry attempts for rate limits
-            const delay = Math.pow(2, retryCount) * 2000; // Longer delays: 2s, 4s, 8s
-            console.warn(`[AshbyClient] Rate limit detected, retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+          if (retryCount < 5) { // More retry attempts for large operations
+            const delay = Math.min(Math.pow(1.5, retryCount) * 3000, 30000); // Gradual backoff: 3s, 4.5s, 6.75s, 10.1s, 15.2s (max 30s)
+            console.warn(`[AshbyClient] Rate limit detected, retrying in ${Math.round(delay/1000)}s (attempt ${retryCount + 1}/5)`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return this.request(endpoint, method, body, retryCount + 1);
           }
+          console.error(`[AshbyClient] Rate limit exceeded after 5 attempts`);
           return {
             success: false,
             error: { 
-              message: 'Rate limit exceeded - Ashby API temporarily unavailable',
+              message: 'Rate limit exceeded after multiple retries. Please try again in a few minutes.',
               code: 'RATE_LIMIT_EXCEEDED',
-              retryAfter: 60 // Suggest waiting 60 seconds
+              retryAfter: 300 // Suggest waiting 5 minutes
             }
           };
         }
@@ -113,10 +114,11 @@ export class AshbyClient {
         };
       }
 
-      // Ashby API wraps responses in a "results" property
+      // Return the full Ashby API response to preserve pagination metadata
+      // The Ashby API returns: { results: [...], moreDataAvailable: true, nextCursor: "..." }
       return {
         success: true,
-        results: data.results || data
+        results: data  // Keep full response including moreDataAvailable, nextCursor
       };
     } catch (error) {
       return {
