@@ -105,6 +105,11 @@ export async function GET(request: NextRequest) {
             ? nextCursor as string 
             : undefined;
 
+          // Add delay between requests to avoid rate limiting (except for last batch)
+          if (cursor) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+          }
+
         } while (cursor);
 
         if (totalFetched === 0 && allCandidates.length === 0) {

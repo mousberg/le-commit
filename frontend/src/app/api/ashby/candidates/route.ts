@@ -266,6 +266,11 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
           ? nextCursor as string 
           : undefined;
 
+        // Add delay between requests to avoid rate limiting (except for last batch)
+        if (cursor) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        }
+
       } while (cursor);
 
       // Upsert all candidates
@@ -561,6 +566,12 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       }
 
       cursor = moreDataAvailable && nextCursor && totalFetched < maxCandidates ? nextCursor as string : undefined;
+
+      // Add delay between requests to avoid rate limiting (except for last batch)
+      if (cursor) {
+        console.log(`[Ashby Manual Refresh] Waiting 1s before next batch to avoid rate limits...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+      }
 
     } while (cursor);
 
