@@ -50,17 +50,19 @@ export class AshbyClient {
         body: requestBody
       });
 
+      // Read response body once and handle different content types
+      const responseText = await response.text();
       let data;
+      
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch {
         // Handle cases where Ashby returns HTML error pages instead of JSON
-        const text = await response.text();
         
         // Enhanced rate limit detection
-        const isRateLimit = text.toLowerCase().includes('too many') || 
-                           text.toLowerCase().includes('rate limit') ||
-                           text.toLowerCase().includes('throttle') ||
+        const isRateLimit = responseText.toLowerCase().includes('too many') || 
+                           responseText.toLowerCase().includes('rate limit') ||
+                           responseText.toLowerCase().includes('throttle') ||
                            response.status === 429;
         
         if (isRateLimit) {
@@ -85,7 +87,7 @@ export class AshbyClient {
         return {
           success: false,
           error: { 
-            message: `Invalid JSON response from Ashby API: ${text.substring(0, 150)}...`,
+            message: `Invalid JSON response from Ashby API: ${responseText.substring(0, 150)}...`,
             code: 'INVALID_JSON_RESPONSE'
           }
         };
@@ -174,6 +176,15 @@ export class AshbyClient {
       fileHandle
     });
     
+    // Enhanced logging for debugging file access issues
+    if (!response.success) {
+      console.error(`[AshbyClient] File URL request failed:`, {
+        fileHandle: fileHandle.substring(0, 20) + '...',
+        error: response.error?.message,
+        code: response.error?.code
+      });
+    }
+    
     // Normalize the response to always have a url property
     if (response.success && response.results) {
       const url = response.results.downloadUrl || response.results.url;
@@ -182,6 +193,11 @@ export class AshbyClient {
           success: true,
           results: { url }
         };
+      } else {
+        console.error(`[AshbyClient] File URL response missing URL:`, {
+          fileHandle: fileHandle.substring(0, 20) + '...',
+          results: response.results
+        });
       }
     }
     
