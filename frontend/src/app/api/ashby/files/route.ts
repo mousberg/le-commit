@@ -15,13 +15,8 @@ export async function POST(request: NextRequest) {
   };
   
   try {
-    console.log('🚀 [AshbyFiles] Starting CV download request');
-    
     // Create server-side client with service role key
     const supabase = createServiceRoleClient();
-    
-    // For webhook calls, we'll use the service role key to bypass RLS
-    // This is safe because the trigger already validated the candidate belongs to the user
     
     const body = await request.json();
     const { candidateId, fileHandle, applicantId, userId, mode } = body;
@@ -34,14 +29,7 @@ export async function POST(request: NextRequest) {
       step: 'request_validation'
     };
     
-    console.log('📝 [AshbyFiles] Request details:', {
-      candidateId,
-      userId,
-      applicantId,
-      mode,
-      fileHandleType: typeof fileHandle,
-      requestSize: JSON.stringify(body).length
-    });
+    console.log(`📥 [AshbyFiles] Processing CV for candidate ${candidateId}`);
 
 
     if (!candidateId || !fileHandle) {
@@ -64,18 +52,13 @@ export async function POST(request: NextRequest) {
     
     if (typeof fileHandle === 'string') {
       actualFileHandle = fileHandle;
-      console.log('✅ [AshbyFiles] File handle extracted as string:', actualFileHandle.substring(0, 20) + '...');
+
     } else if (typeof fileHandle === 'object' && fileHandle !== null) {
       // Handle JSONB object from database - extract the file handle token
       const fileHandleObj = fileHandle as { id?: string; fileHandle?: string; handle?: string };
       actualFileHandle = fileHandleObj.handle || fileHandleObj.id || fileHandleObj.fileHandle || '';
       
-      console.log('🔍 [AshbyFiles] File handle object analysis:', {
-        hasHandle: !!fileHandleObj.handle,
-        hasId: !!fileHandleObj.id, 
-        hasFileHandle: !!fileHandleObj.fileHandle,
-        extracted: actualFileHandle ? actualFileHandle.substring(0, 20) + '...' : 'EMPTY'
-      });
+
       
       if (!actualFileHandle) {
         console.error('❌ [AshbyFiles] Could not extract file handle from object:', fileHandle);
@@ -138,12 +121,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log('✅ [AshbyFiles] Candidate found:', {
-      candidateId: candidate.ashby_id,
-      name: candidate.name,
-      hasApplicantId: !!candidate.unmask_applicant_id,
-      userId: candidate.user_id
-    });
+
 
     const targetUserId = userId || candidate.user_id;
     logContext.step = 'applicant_validation';
@@ -152,12 +130,7 @@ export async function POST(request: NextRequest) {
     if (mode !== 'file_only') {
       const targetApplicantId = applicantId || candidate.unmask_applicant_id;
       
-      console.log('🔍 [AshbyFiles] Validating applicant link:', {
-        mode,
-        providedApplicantId: !!applicantId,
-        candidateApplicantId: !!candidate.unmask_applicant_id,
-        finalApplicantId: !!targetApplicantId
-      });
+
       
       if (!targetApplicantId) {
         console.error('❌ [AshbyFiles] Candidate not linked to applicant:', {
@@ -176,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's API key from database
     logContext.step = 'api_key_lookup';
-    console.log('🔑 [AshbyFiles] Looking up API key for user:', targetUserId);
+
     
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -207,11 +180,11 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log('✅ [AshbyFiles] API key found for user:', targetUserId);
+
 
     // Import AshbyClient dynamically
     logContext.step = 'ashby_client_init';
-    console.log('🔧 [AshbyFiles] Initializing Ashby client');
+
     
     const AshbyClient = (await import('@/lib/ashby/client')).AshbyClient;
     
@@ -257,16 +230,11 @@ export async function POST(request: NextRequest) {
 
     // Download the file
     logContext.step = 'file_download';
-    console.log('📥 [AshbyFiles] Downloading file from Ashby URL');
+
     
     const downloadResponse = await fetch(downloadUrl);
     
-    console.log('📡 [AshbyFiles] Download response:', {
-      status: downloadResponse.status,
-      ok: downloadResponse.ok,
-      contentType: downloadResponse.headers.get('content-type'),
-      contentLength: downloadResponse.headers.get('content-length')
-    });
+
     
     if (!downloadResponse.ok) {
       console.error('❌ [AshbyFiles] Failed to download resume from Ashby:', {
@@ -302,12 +270,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Supabase Storage
     logContext.step = 'storage_upload';
-    console.log('☁️ [AshbyFiles] Uploading to Supabase Storage:', {
-      bucket: 'candidate-cvs',
-      path: filePath,
-      size: fileBuffer.byteLength,
-      contentType
-    });
+
     
     const uploadResult = await supabase.storage
       .from('candidate-cvs')
@@ -336,12 +299,7 @@ export async function POST(request: NextRequest) {
 
     // Create file record in files table
     logContext.step = 'file_record_creation';
-    console.log('📝 [AshbyFiles] Creating file record in database:', {
-      userId: targetUserId,
-      fileName,
-      filePath,
-      fileSize: fileBuffer.byteLength
-    });
+
     
     const { data: fileRecord, error: fileError } = await supabase
       .from('files')
@@ -370,21 +328,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log('✅ [AshbyFiles] File record created:', {
-      fileId: fileRecord.id,
-      fileName: fileRecord.original_filename
-    });
+
 
     if (mode === 'shared_file') {
       // Shared file mode: Update both ashby_candidate and applicant with same file reference
       logContext.step = 'shared_file_updates';
       const targetApplicantId = applicantId || candidate.unmask_applicant_id;
       
-      console.log('🔄 [AshbyFiles] Updating records in shared_file mode:', {
-        candidateId,
-        applicantId: targetApplicantId,
-        fileId: fileRecord.id
-      });
+
       
       // Update ashby_candidates with the file reference
       const { error: ashbyUpdateError } = await supabase
@@ -441,10 +392,7 @@ export async function POST(request: NextRequest) {
       logContext.step = 'legacy_applicant_update';
       const targetApplicantId = applicantId || candidate.unmask_applicant_id;
       
-      console.log('🔄 [AshbyFiles] Updating applicant in legacy mode:', {
-        applicantId: targetApplicantId,
-        fileId: fileRecord.id
-      });
+
       
       const { error: updateError } = await supabase
         .from('applicants')
