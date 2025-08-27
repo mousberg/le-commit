@@ -32,6 +32,16 @@ jobs:
         npm run lint
     
     - name: Build application
+      env:
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GH_TOKEN_SECRET: ${{ secrets.GH_TOKEN_SECRET }}
+        ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        ELEVENLABS_AGENT_ID: ${{ secrets.ELEVENLABS_AGENT_ID }}
+        ELEVENLABS_AGENT_PHONE_ID: ${{ secrets.ELEVENLABS_AGENT_PHONE_ID }}
+        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
       run: |
         cd frontend
         npm run build
