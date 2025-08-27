@@ -66,7 +66,7 @@ jobs:
             --name lecommit-app \
             --restart unless-stopped \
             -p 80:3000 \
-            --env-file /opt/lecommit/.env.prod \
+            --env-file /opt/lecommit/frontend/.env.prod \
             lhr.vultrcr.com/lecommit1/lecommit:latest
 
           echo "🧹 Cleaning up old images..."
