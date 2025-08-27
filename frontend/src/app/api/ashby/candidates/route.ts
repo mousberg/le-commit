@@ -359,9 +359,9 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
                 console.log(`📊 [AshbySync] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
               }
               
-              // Small delay between batches to be respectful to APIs
+              // 3 second delay between batches to avoid Ashby API rate limits
               if (i + batchSize < highPriorityCandidates.length) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 3000));
               }
             }
             
@@ -731,9 +731,9 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
             console.log(`📊 [AshbyManualSync] Progress: ${processed}/${highPriorityCandidates.length} processed (${successCount} success, ${errorCount} failed)`);
           }
           
-          // Small delay between batches to be respectful to APIs
+          // 3 second delay between batches to avoid Ashby API rate limits
           if (i + batchSize < highPriorityCandidates.length) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
         }
         
