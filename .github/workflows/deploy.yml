@@ -61,6 +61,25 @@ jobs:
           docker stop lecommit-app || true
           docker rm lecommit-app || true
 
+          echo "📝 Creating production environment file..."
+          mkdir -p /opt/lecommit/frontend
+          cat > /opt/lecommit/frontend/.env.prod << 'EOF'
+NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+GITHUB_TOKEN=${{ secrets.GH_TOKEN_SECRET }}
+ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
+ELEVENLABS_AGENT_ID=${{ secrets.ELEVENLABS_AGENT_ID }}
+ELEVENLABS_AGENT_PHONE_ID=${{ secrets.ELEVENLABS_AGENT_PHONE_ID }}
+TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
+TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
+NEXT_PUBLIC_APP_URL=http://199.247.14.12
+NEXT_PUBLIC_APP_ENV=${{ secrets.NEXT_PUBLIC_APP_ENV }}
+EOF
+
           echo "🚀 Starting new container..."
           docker run -d \
             --name lecommit-app \
