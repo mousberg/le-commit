@@ -298,7 +298,7 @@ CREATE INDEX idx_ashby_sync_history_user_created ON ashby_sync_history(user_id, 
 
 ### Integration Tests
 - End-to-end sync of 1000+ candidates
-- Concurrent sync operations
+- Concurrent sync operationsdev
 - Network failure recovery
 - Database transaction rollback
 
