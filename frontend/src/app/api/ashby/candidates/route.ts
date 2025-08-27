@@ -311,7 +311,6 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
             
             for (const candidate of highPriorityCandidates) {
               try {
-                console.log(`📤 [AshbySync] Processing CV for ${candidate.name} (${candidate.ashby_id})`);
                 
                 const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/ashby/files`, {
                   method: 'POST',
@@ -325,28 +324,14 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
                 });
                 
                 if (response.ok) {
-                  const result = await response.json();
-                  console.log(`✅ [AshbySync] CV processed for ${candidate.name}:`, {
-                    fileName: result.fileName,
-                    fileSize: result.fileSize,
-                    duration: result.duration
-                  });
                   successCount++;
                 } else {
                   const errorResult = await response.json().catch(() => ({ error: 'Unknown error' }));
-                  console.error(`⚠️ [AshbySync] CV processing failed for ${candidate.name}:`, {
-                    status: response.status,
-                    error: errorResult.error,
-                    step: errorResult.step,
-                    candidateId: candidate.ashby_id
-                  });
+                  console.error(`❌ [AshbySync] ${candidate.name}: ${errorResult.error || 'Failed'} (${response.status})`);
                   errorCount++;
                 }
               } catch (error) {
-                console.error(`❌ [AshbySync] CV processing error for ${candidate.name}:`, {
-                  candidateId: candidate.ashby_id,
-                  error: error instanceof Error ? error.message : error
-                });
+                console.error(`❌ [AshbySync] ${candidate.name}: ${error instanceof Error ? error.message : error}`);
                 errorCount++;
               }
               
@@ -355,13 +340,7 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
             }
             
             const totalDuration = Date.now() - startTime;
-            console.log(`🎯 [AshbySync] Batch CV processing completed:`, {
-              total: highPriorityCandidates.length,
-              successful: successCount,
-              failed: errorCount,
-              duration: `${totalDuration}ms`,
-              avgPerFile: `${Math.round(totalDuration / highPriorityCandidates.length)}ms`
-            });
+            console.log(`🎯 [AshbySync] Batch completed: ${successCount}/${highPriorityCandidates.length} successful (${Math.round(totalDuration/1000)}s)`);
           }
         }
       }
@@ -722,13 +701,7 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
         }
         
         const totalDuration = Date.now() - startTime;
-        console.log(`🎯 [AshbyManualSync] Batch CV processing completed:`, {
-          total: highPriorityCandidates.length,
-          successful: successCount,
-          failed: errorCount,
-          duration: `${totalDuration}ms`,
-          avgPerFile: `${Math.round(totalDuration / highPriorityCandidates.length)}ms`
-        });
+        console.log(`🎯 [AshbyManualSync] Batch completed: ${successCount}/${highPriorityCandidates.length} successful (${Math.round(totalDuration/1000)}s)`);
       }
     }
 
