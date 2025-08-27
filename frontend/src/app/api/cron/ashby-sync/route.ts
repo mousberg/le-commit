@@ -85,9 +85,18 @@ export async function GET(request: NextRequest) {
           }
 
           const results = candidatesResponse.results as any;
-          const batch = results.results || results.candidates || [];
+          // After fixing the client, results now contains the full Ashby response
+          const batch = results.results;  // The candidates array
           const moreDataAvailable = results.moreDataAvailable;
           const nextCursor = results.nextCursor || results.cursor;
+          
+          // DEBUG: Log pagination details
+          console.log(`[Ashby Cron Sync Debug] User ${userData.id} batch:`, {
+            candidatesCount: Array.isArray(batch) ? batch.length : 'not array',
+            moreDataAvailable,
+            hasNextCursor: !!nextCursor,
+            willContinue: !!(moreDataAvailable && nextCursor && totalFetched < cronSyncLimit)
+          });
 
           if (Array.isArray(batch)) {
             allCandidates.push(...batch);

@@ -113,10 +113,11 @@ export class AshbyClient {
         };
       }
 
-      // Ashby API wraps responses in a "results" property
+      // Return the full Ashby API response to preserve pagination metadata
+      // The Ashby API returns: { results: [...], moreDataAvailable: true, nextCursor: "..." }
       return {
         success: true,
-        results: data.results || data
+        results: data  // Keep full response including moreDataAvailable, nextCursor
       };
     } catch (error) {
       return {

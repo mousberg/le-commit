@@ -246,9 +246,18 @@ async function getCandidatesHandler(_context: ApiHandlerContext) {
         }
 
         const results = response.results as unknown as Record<string, unknown>;
-        const candidatesList = results.results || results.candidates || results;
+        // After fixing the client, results now contains the full Ashby response
+        const candidatesList = results.results;  // The candidates array
         const moreDataAvailable = results.moreDataAvailable;
         const nextCursor = results.nextCursor || results.cursor;
+        
+        // DEBUG: Log pagination details to verify fix
+        console.log(`[Ashby Auto-Sync Debug] Batch details:`, {
+          candidatesCount: Array.isArray(candidatesList) ? candidatesList.length : 'not array',
+          moreDataAvailable,
+          hasNextCursor: !!nextCursor,
+          willContinue: !!(moreDataAvailable && nextCursor && totalFetched < autoSyncLimit)
+        });
 
         if (Array.isArray(candidatesList)) {
           allCandidates.push(...candidatesList);
@@ -535,9 +544,18 @@ async function refreshCandidatesHandler(context: ApiHandlerContext) {
       }
 
       const results = response.results as unknown as Record<string, unknown>;
-      const candidatesList = results.results || results.candidates || results;
+      // After fixing the client, results now contains the full Ashby response
+      const candidatesList = results.results;  // The candidates array
       const moreDataAvailable = results.moreDataAvailable;
       const nextCursor = results.nextCursor || results.cursor;
+      
+      // DEBUG: Log pagination details to verify fix
+      console.log(`[Ashby Manual Refresh Debug] Batch details:`, {
+        candidatesCount: Array.isArray(candidatesList) ? candidatesList.length : 'not array',
+        moreDataAvailable,
+        hasNextCursor: !!nextCursor,
+        willContinue: !!(moreDataAvailable && nextCursor && totalFetched < maxCandidates)
+      });
 
       if (Array.isArray(candidatesList)) {
         allCandidates.push(...candidatesList);
