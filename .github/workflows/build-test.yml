@@ -56,3 +56,16 @@ jobs:
         platforms: linux/amd64
         push: false
         tags: lecommit:test
+        build-args: |
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+          GITHUB_TOKEN=${{ secrets.GH_TOKEN_SECRET }}
+          ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_AGENT_ID=${{ secrets.ELEVENLABS_AGENT_ID }}
+          ELEVENLABS_AGENT_PHONE_ID=${{ secrets.ELEVENLABS_AGENT_PHONE_ID }}
+          TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
