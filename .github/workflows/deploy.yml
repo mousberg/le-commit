@@ -63,22 +63,20 @@ jobs:
 
           echo "📝 Creating production environment file..."
           mkdir -p /opt/lecommit
-          cat > /opt/lecommit/.env.prod << EOF
-NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-GITHUB_TOKEN=${{ secrets.GH_TOKEN_SECRET }}
-ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}
-ELEVENLABS_AGENT_ID=${{ secrets.ELEVENLABS_AGENT_ID }}
-ELEVENLABS_AGENT_PHONE_ID=${{ secrets.ELEVENLABS_AGENT_PHONE_ID }}
-TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
-TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
-TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
-NEXT_PUBLIC_APP_URL=http://199.247.14.12
-NEXT_PUBLIC_APP_ENV=${{ secrets.NEXT_PUBLIC_APP_ENV }}
-EOF
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" > /opt/lecommit/.env.prod
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> /opt/lecommit/.env.prod
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> /opt/lecommit/.env.prod
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> /opt/lecommit/.env.prod
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> /opt/lecommit/.env.prod
+          echo "GITHUB_TOKEN=${{ secrets.GH_TOKEN_SECRET }}" >> /opt/lecommit/.env.prod
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> /opt/lecommit/.env.prod
+          echo "ELEVENLABS_AGENT_ID=${{ secrets.ELEVENLABS_AGENT_ID }}" >> /opt/lecommit/.env.prod
+          echo "ELEVENLABS_AGENT_PHONE_ID=${{ secrets.ELEVENLABS_AGENT_PHONE_ID }}" >> /opt/lecommit/.env.prod
+          echo "TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}" >> /opt/lecommit/.env.prod
+          echo "TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}" >> /opt/lecommit/.env.prod
+          echo "TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}" >> /opt/lecommit/.env.prod
+          echo "NEXT_PUBLIC_APP_URL=http://199.247.14.12" >> /opt/lecommit/.env.prod
+          echo "NEXT_PUBLIC_APP_ENV=${{ secrets.NEXT_PUBLIC_APP_ENV }}" >> /opt/lecommit/.env.prod
 
           echo "🚀 Starting new container..."
           docker run -d \
