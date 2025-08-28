@@ -29,8 +29,9 @@ export async function POST(request: Request) {
 
   console.log('✅ [DEBUG] About to call startProcessing');
 
-  // Use the reusable processing function
-  return startProcessing(
+  try {
+    // Use the reusable processing function with timeout
+    const processingPromise = startProcessing(
     applicant_id,
     'cv_status',
     async (applicant) => {
@@ -97,4 +98,22 @@ export async function POST(request: Request) {
     },
     'CV'
   );
+
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('CV processing timeout after 60 seconds')), 60000);
+    });
+
+    const result = await Promise.race([processingPromise, timeoutPromise]);
+    console.log('✅ [DEBUG] CV processing completed successfully');
+    return result;
+
+  } catch (error) {
+    console.error('❌ [DEBUG] CV processing failed:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'CV processing failed',
+      applicant_id: applicant_id
+    }, { status: 500 });
+  }
 }
