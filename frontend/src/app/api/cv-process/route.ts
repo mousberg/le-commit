@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
         // Convert blob to buffer and save as temporary file
         const buffer = Buffer.from(await fileData.arrayBuffer());
-        const tempFilePath = `/tmp/cv_${applicant_id}_${Date.now()}.pdf`;
+        const tempFilePath = `/app/temp_images/cv_${applicant_id}_${Date.now()}.pdf`;
 
         // Write to temp file (processCvPdf expects file path)
         const fs = await import('fs');

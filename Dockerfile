@@ -7,14 +7,21 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files from frontend directory
-COPY frontend/package*.json ./
-# Install dependencies
-RUN npm ci
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy package files from frontend directory (including pnpm-lock.yaml)
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+# Install dependencies using pnpm with frozen lockfile
+RUN pnpm install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Install pnpm in builder stage
+RUN npm install -g pnpm
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 
@@ -46,8 +53,8 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
 
-# Build the Next.js app
-RUN npm run build
+# Build the Next.js app using pnpm
+RUN pnpm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
