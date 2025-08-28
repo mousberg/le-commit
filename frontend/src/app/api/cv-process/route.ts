@@ -9,17 +9,25 @@ export async function POST(request: Request) {
   
   // Validate request body
   const bodyValidation = validateRequestBody(request);
-  if (bodyValidation) return bodyValidation;
+  if (bodyValidation) {
+    console.log('❌ [DEBUG] Body validation failed');
+    return bodyValidation;
+  }
 
+  console.log('✅ [DEBUG] Body validation passed');
   const body = await request.json();
+  console.log('✅ [DEBUG] Request body parsed:', { applicant_id: body.applicant_id, file_id: body.file_id });
   const { applicant_id, file_id } = body;
 
   if (!applicant_id) {
+    console.log('❌ [DEBUG] Missing applicant_id');
     return NextResponse.json(
       { error: 'applicant_id is required' },
       { status: 400 }
     );
   }
+
+  console.log('✅ [DEBUG] About to call startProcessing');
 
   // Use the reusable processing function
   return startProcessing(
