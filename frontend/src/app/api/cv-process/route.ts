@@ -5,6 +5,8 @@ import { CvData } from '@/lib/interfaces/cv';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
+  console.log('🔥 [DEBUG] CV-PROCESS API CALLED - NEW CODE');
+  
   // Validate request body
   const bodyValidation = validateRequestBody(request);
   if (bodyValidation) return bodyValidation;
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
         fs.writeFileSync(tempFilePath, buffer);
 
         // Process CV
-        console.log(`📄 Processing CV file for applicant ${applicant_id}`);
+        console.log(`📄 [DEBUG] Processing CV file for applicant ${applicant_id} - NEW CODE DEPLOYED`);
         const rawCvData = await processCvPdf(tempFilePath, true, `cv_${applicant_id}`);
         cvData = validateAndCleanCvData(rawCvData);
 
